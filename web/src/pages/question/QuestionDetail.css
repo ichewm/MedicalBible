@@ -1,0 +1,261 @@
+/**
+ * 答题页面样式
+ */
+
+.question-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.question-detail.mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: none;
+  background: #f5f5f5;
+  z-index: 100;
+}
+
+/* 顶部状态栏 */
+.question-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.question-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-text {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* 内容区 */
+.question-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.question-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.question-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.question-title {
+  font-size: 16px !important;
+  line-height: 1.6 !important;
+  margin-bottom: 20px !important;
+  font-weight: 500 !important;
+}
+
+/* 选项 */
+.question-options {
+  width: 100%;
+}
+
+.option-item {
+  display: flex !important;
+  align-items: flex-start !important;
+  padding: 12px !important;
+  margin-bottom: 10px !important;
+  background: #fafafa;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  transition: all 0.2s;
+}
+
+.option-item:hover {
+  background: #f5f5f5;
+}
+
+.option-item.correct {
+  background: #f6ffed !important;
+  border-color: #52c41a !important;
+}
+
+.option-item.wrong {
+  background: #fff2f0 !important;
+  border-color: #ff4d4f !important;
+}
+
+.option-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 10px;
+  background: #e6f4ff;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 13px;
+  color: #1677ff;
+  flex-shrink: 0;
+}
+
+.option-text {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.option-icon {
+  margin-left: 8px;
+  font-size: 16px;
+}
+
+/* 解析 */
+.question-analysis {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border-left: 3px solid #1677ff;
+}
+
+.analysis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.analysis-content {
+  margin: 0 !important;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* 底部操作栏 */
+.question-footer {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.question-footer .ant-btn {
+  flex: 1;
+  height: 44px;
+}
+
+/* 移动端安全区域 */
+.question-detail.mobile .question-footer {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+/* 移动端滑动提示 */
+.question-detail.mobile .question-content::after {
+  content: '← 左右滑动翻页 →';
+  display: block;
+  text-align: center;
+  padding: 20px;
+  color: #bfbfbf;
+  font-size: 12px;
+}
+
+/* ==================== 深色模式适配 ==================== */
+
+/* 背景 */
+:root.dark .question-detail.mobile,
+[data-theme='dark'] .question-detail.mobile {
+  background: var(--bg-layout);
+}
+
+/* 顶部状态栏 */
+:root.dark .question-header,
+[data-theme='dark'] .question-header {
+  background: var(--header-bg);
+  border-bottom-color: var(--border-color-secondary);
+}
+
+/* 题目卡片 */
+:root.dark .question-card,
+[data-theme='dark'] .question-card {
+  background: var(--card-bg) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 选项 */
+:root.dark .option-item,
+[data-theme='dark'] .option-item {
+  background: var(--fill-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+:root.dark .option-item:hover,
+[data-theme='dark'] .option-item:hover {
+  background: var(--fill-tertiary) !important;
+}
+
+:root.dark .option-item.correct,
+[data-theme='dark'] .option-item.correct {
+  background: #162312 !important;
+  border-color: #49aa19 !important;
+}
+
+:root.dark .option-item.wrong,
+[data-theme='dark'] .option-item.wrong {
+  background: #2a1215 !important;
+  border-color: #dc4446 !important;
+}
+
+:root.dark .option-key,
+[data-theme='dark'] .option-key {
+  background: #111a2c;
+  color: #1668dc;
+}
+
+:root.dark .option-text,
+[data-theme='dark'] .option-text {
+  color: var(--text-primary);
+}
+
+/* 解析区域 */
+:root.dark .question-analysis,
+[data-theme='dark'] .question-analysis {
+  background: var(--fill-secondary);
+  border-left-color: #1668dc;
+}
+
+:root.dark .analysis-content,
+[data-theme='dark'] .analysis-content {
+  color: var(--text-secondary) !important;
+}
+
+/* 底部操作栏 */
+:root.dark .question-footer,
+[data-theme='dark'] .question-footer {
+  background: var(--header-bg);
+  border-top-color: var(--border-color-secondary);
+}
+
+/* 滑动提示 */
+:root.dark .question-detail.mobile .question-content::after,
+[data-theme='dark'] .question-detail.mobile .question-content::after {
+  color: var(--text-quaternary);
+}

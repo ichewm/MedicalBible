@@ -1,0 +1,188 @@
+/**
+ * 首页样式
+ */
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  /* 欢迎区域 */
+  .home-welcome {
+    text-align: center;
+  }
+
+  .home-welcome .ant-typography {
+    margin-bottom: 8px !important;
+  }
+
+  .home-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .home-selector .ant-select {
+    width: 100% !important;
+  }
+
+  /* 统计卡片 */
+  .home-stats .ant-card {
+    border-radius: 12px;
+  }
+
+  .home-stats .ant-statistic-title {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  .home-stats .ant-statistic-content-value {
+    font-size: 20px !important;
+  }
+
+  /* 快捷入口 */
+  .home-shortcuts .ant-card {
+    border-radius: 12px;
+    height: 100%;
+  }
+
+  .home-shortcuts .shortcut-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f0f5ff 0%, #e6f4ff 100%);
+  }
+
+  /* 订阅卡片 */
+  .home-subscription .ant-card {
+    border-radius: 12px;
+  }
+
+  .home-subscription .ant-list-item {
+    padding: 12px 0;
+  }
+}
+
+/* 快捷入口卡片悬浮效果 */
+.shortcut-card {
+  transition: all 0.3s ease;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.shortcut-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.shortcut-card:active {
+  transform: scale(0.98);
+}
+
+/* 统计卡片渐变背景 */
+.stat-card {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.stat-card.blue {
+  background: linear-gradient(135deg, #e6f4ff 0%, #bae0ff 100%);
+  border: none;
+}
+
+.stat-card.green {
+  background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
+  border: none;
+}
+
+.stat-card.yellow {
+  background: linear-gradient(135deg, #fffbe6 0%, #fff1b8 100%);
+  border: none;
+}
+
+.stat-card.pink {
+  background: linear-gradient(135deg, #fff0f6 0%, #ffd6e7 100%);
+  border: none;
+}
+
+/* 深色模式下的统计卡片 */
+:root.dark .stat-card.blue,
+[data-theme='dark'] .stat-card.blue {
+  background: linear-gradient(135deg, #111a2c 0%, #0d1a26 100%) !important;
+}
+
+:root.dark .stat-card.green,
+[data-theme='dark'] .stat-card.green {
+  background: linear-gradient(135deg, #162312 0%, #1a2e12 100%) !important;
+}
+
+:root.dark .stat-card.yellow,
+[data-theme='dark'] .stat-card.yellow {
+  background: linear-gradient(135deg, #2b2111 0%, #352a14 100%) !important;
+}
+
+:root.dark .stat-card.pink,
+[data-theme='dark'] .stat-card.pink {
+  background: linear-gradient(135deg, #291321 0%, #3d1a2e 100%) !important;
+}
+
+:root.dark .stat-card,
+[data-theme='dark'] .stat-card {
+  border: 1px solid var(--border-color-secondary) !important;
+}
+
+:root.dark .stat-card .ant-statistic-title,
+[data-theme='dark'] .stat-card .ant-statistic-title {
+  color: var(--text-secondary) !important;
+}
+
+/* 深色模式下的快捷入口卡片 */
+:root.dark .shortcut-card,
+[data-theme='dark'] .shortcut-card {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border-color-secondary) !important;
+}
+
+:root.dark .shortcut-card:hover,
+[data-theme='dark'] .shortcut-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 学习进度条 */
+.learning-progress {
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: #fff;
+  margin-bottom: 16px;
+}
+
+.learning-progress-title {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.learning-progress-value {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+/* 空状态优化 */
+.home-empty {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.home-empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+  margin-bottom: 16px;
+}
+
+.home-empty-text {
+  color: #8c8c8c;
+  margin-bottom: 16px;
+}

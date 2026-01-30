@@ -1,0 +1,475 @@
+/**
+ * @file 管理模块测试
+ * @description Admin 模块核心业务逻辑的单元测试
+ * @author Medical Bible Team
+ * @version 1.0.0
+ */
+
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { NotFoundException, BadRequestException } from "@nestjs/common";
+
+import { AdminService } from "./admin.service";
+import { User, UserStatus } from "../../entities/user.entity";
+import { UserDevice } from "../../entities/user-device.entity";
+import { Order, OrderStatus } from "../../entities/order.entity";
+import { Subscription } from "../../entities/subscription.entity";
+import { Commission } from "../../entities/commission.entity";
+import { Withdrawal } from "../../entities/withdrawal.entity";
+import { Lecture } from "../../entities/lecture.entity";
+import { Paper } from "../../entities/paper.entity";
+import { SystemConfig } from "../../entities/system-config.entity";
+import { RedisService } from "../../common/redis/redis.service";
+import { CryptoService } from "../../common/crypto/crypto.service";
+
+describe("AdminService", () => {
+  let service: AdminService;
+  let userRepository: Repository<User>;
+  let orderRepository: Repository<Order>;
+  let subscriptionRepository: Repository<Subscription>;
+  let commissionRepository: Repository<Commission>;
+  let withdrawalRepository: Repository<Withdrawal>;
+
+  // Mock 数据
+  const mockUser = {
+    id: 2,
+    phone: "13900139000",
+    username: "测试用户",
+    status: UserStatus.ACTIVE,
+    balance: 100,
+    createdAt: new Date(),
+  };
+
+  const mockOrder = {
+    id: 1,
+    orderNo: "ORD202401010001",
+    userId: 2,
+    amount: 100,
+    status: OrderStatus.PAID,
+    createdAt: new Date(),
+  };
+
+  // Mock Repositories
+  const mockUserRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findAndCount: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    count: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockOrderRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findAndCount: jest.fn(),
+    count: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockSubscriptionRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findAndCount: jest.fn(),
+    count: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockCommissionRepository = {
+    find: jest.fn(),
+    findAndCount: jest.fn(),
+    count: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockWithdrawalRepository = {
+    find: jest.fn(),
+    findAndCount: jest.fn(),
+    count: jest.fn(),
+    createQueryBuilder: jest.fn(),
+  };
+
+  const mockUserDeviceRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    delete: jest.fn(),
+  };
+
+  const mockLectureRepository = {
+    find: jest.fn(),
+    count: jest.fn(),
+  };
+
+  const mockPaperRepository = {
+    find: jest.fn(),
+    count: jest.fn(),
+  };
+
+  const mockSystemConfigRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn().mockImplementation((data) => data),
+    upsert: jest.fn(),
+  };
+
+  const mockRedisService = {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+  };
+
+  const mockCryptoService = {
+    hashPassword: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminService,
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
+        },
+        {
+          provide: getRepositoryToken(UserDevice),
+          useValue: mockUserDeviceRepository,
+        },
+        {
+          provide: getRepositoryToken(Order),
+          useValue: mockOrderRepository,
+        },
+        {
+          provide: getRepositoryToken(Subscription),
+          useValue: mockSubscriptionRepository,
+        },
+        {
+          provide: getRepositoryToken(Commission),
+          useValue: mockCommissionRepository,
+        },
+        {
+          provide: getRepositoryToken(Withdrawal),
+          useValue: mockWithdrawalRepository,
+        },
+        {
+          provide: getRepositoryToken(Lecture),
+          useValue: mockLectureRepository,
+        },
+        {
+          provide: getRepositoryToken(Paper),
+          useValue: mockPaperRepository,
+        },
+        {
+          provide: getRepositoryToken(SystemConfig),
+          useValue: mockSystemConfigRepository,
+        },
+        {
+          provide: RedisService,
+          useValue: mockRedisService,
+        },
+        {
+          provide: CryptoService,
+          useValue: mockCryptoService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<AdminService>(AdminService);
+    userRepository = module.get<Repository<User>>(getRepositoryToken(User));
+    orderRepository = module.get<Repository<Order>>(getRepositoryToken(Order));
+    subscriptionRepository = module.get<Repository<Subscription>>(
+      getRepositoryToken(Subscription),
+    );
+    commissionRepository = module.get<Repository<Commission>>(
+      getRepositoryToken(Commission),
+    );
+    withdrawalRepository = module.get<Repository<Withdrawal>>(
+      getRepositoryToken(Withdrawal),
+    );
+  });
+
+  // ==================== 定义检查 ====================
+
+  describe("定义检查", () => {
+    it("应该成功定义 AdminService", () => {
+      expect(service).toBeDefined();
+    });
+  });
+
+  // ==================== 用户管理 ====================
+
+  describe("getUserList - 获取用户列表", () => {
+    it("应该成功获取用户列表", async () => {
+      // Arrange
+      mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
+
+      // Act
+      const result = await service.getUserList({ page: 1, pageSize: 20 });
+
+      // Assert
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+
+    it("可以按手机号搜索用户", async () => {
+      // Arrange
+      mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
+
+      // Act
+      await service.getUserList({ page: 1, pageSize: 20, phone: "139" });
+
+      // Assert
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            phone: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it("可以按状态筛选用户", async () => {
+      // Arrange
+      mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
+
+      // Act
+      await service.getUserList({
+        page: 1,
+        pageSize: 20,
+        status: UserStatus.ACTIVE,
+      });
+
+      // Assert
+      expect(mockUserRepository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: UserStatus.ACTIVE,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe("getUserDetail - 获取用户详情", () => {
+    it("应该成功获取用户详情", async () => {
+      // Arrange
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockSubscriptionRepository.find.mockResolvedValue([]);
+      mockOrderRepository.count.mockResolvedValue(5);
+
+      // Act
+      const result = await service.getUserDetail(2);
+
+      // Assert
+      expect(result.id).toBe(2);
+      expect(result.orderCount).toBe(5);
+    });
+
+    it("用户不存在时应该抛出异常", async () => {
+      // Arrange
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.getUserDetail(999)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe("updateUserStatus - 更新用户状态", () => {
+    it("应该成功禁用用户", async () => {
+      // Arrange
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockUserRepository.save.mockResolvedValue({
+        ...mockUser,
+        status: UserStatus.DISABLED,
+      });
+
+      // Act
+      const result = await service.updateUserStatus(2, UserStatus.DISABLED);
+
+      // Assert
+      expect(result.status).toBe(UserStatus.DISABLED);
+    });
+
+    it("应该成功启用用户", async () => {
+      // Arrange
+      const disabledUser = { ...mockUser, status: UserStatus.DISABLED };
+      mockUserRepository.findOne.mockResolvedValue(disabledUser);
+      mockUserRepository.save.mockResolvedValue({
+        ...mockUser,
+        status: UserStatus.ACTIVE,
+      });
+
+      // Act
+      const result = await service.updateUserStatus(2, UserStatus.ACTIVE);
+
+      // Assert
+      expect(result.status).toBe(UserStatus.ACTIVE);
+    });
+
+    it("用户不存在时应该抛出异常", async () => {
+      // Arrange
+      mockUserRepository.findOne.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.updateUserStatus(999, UserStatus.DISABLED),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ==================== 数据统计 ====================
+
+  describe("getDashboardStats - 获取仪表盘统计", () => {
+    it("应该成功获取仪表盘统计数据", async () => {
+      // Arrange
+      mockUserRepository.count.mockResolvedValue(1000);
+      mockOrderRepository.count.mockResolvedValue(500);
+      mockWithdrawalRepository.count.mockResolvedValue(10);
+      mockLectureRepository.count.mockResolvedValue(20);
+      mockPaperRepository.count.mockResolvedValue(30);
+
+      // 活跃用户查询
+      const subscriptionQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ count: "500" }),
+      };
+      mockSubscriptionRepository.createQueryBuilder.mockReturnValue(
+        subscriptionQueryBuilder,
+      );
+
+      // 收入查询
+      const revenueQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ total: "50000" }),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(
+        revenueQueryBuilder,
+      );
+
+      // 佣金查询
+      const commissionQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ total: "5000" }),
+      };
+      mockCommissionRepository.createQueryBuilder.mockReturnValue(
+        commissionQueryBuilder,
+      );
+
+      // Act
+      const result = await service.getDashboardStats();
+
+      // Assert
+      expect(result.totalUsers).toBe(1000);
+      expect(result.totalOrders).toBe(500);
+      expect(result.totalRevenue).toBe(50000);
+      expect(result.totalCommission).toBe(5000);
+    });
+  });
+
+  describe("getRevenueStats - 获取收入统计", () => {
+    it("应该成功获取日收入统计", async () => {
+      // Arrange
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { date: "2024-01-01", revenue: "1000", orders: "10" },
+          { date: "2024-01-02", revenue: "1500", orders: "15" },
+        ]),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      // Act
+      const result = await service.getRevenueStats({
+        period: "day",
+        startDate: "2024-01-01",
+        endDate: "2024-01-31",
+      });
+
+      // Assert
+      expect(result).toHaveLength(2);
+      expect(result[0].revenue).toBe(1000);
+    });
+  });
+
+  describe("getUserGrowthStats - 获取用户增长统计", () => {
+    it("应该成功获取用户增长统计", async () => {
+      // Arrange
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { date: "2024-01-01", count: "50" },
+          { date: "2024-01-02", count: "80" },
+        ]),
+      };
+      mockUserRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+
+      // Act
+      const result = await service.getUserGrowthStats({
+        startDate: "2024-01-01",
+        endDate: "2024-01-31",
+      });
+
+      // Assert
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  // ==================== 系统配置 ====================
+
+  describe("getSystemConfig - 获取系统配置", () => {
+    it("应该成功获取系统配置", async () => {
+      // Act
+      const result = await service.getSystemConfig();
+
+      // Assert
+      expect(result).toHaveProperty("commissionRate");
+      expect(result).toHaveProperty("minWithdrawal");
+      expect(result).toHaveProperty("commissionLockDays");
+    });
+  });
+
+  describe("updateSystemConfig - 更新系统配置", () => {
+    it("应该成功更新佣金率", async () => {
+      // Arrange - mock findOne 返回已存在的配置
+      mockSystemConfigRepository.findOne.mockResolvedValue({
+        configKey: "commission_rate",
+        configValue: "0.1",
+      });
+      mockSystemConfigRepository.save.mockResolvedValue({
+        configKey: "commission_rate",
+        configValue: "0.15",
+      });
+
+      // Act
+      const result = await service.updateSystemConfig({ commissionRate: 0.15 });
+
+      // Assert
+      expect(result.commissionRate).toBe(0.15);
+    });
+
+    it("佣金率超出范围应该抛出异常", async () => {
+      // Act & Assert
+      await expect(
+        service.updateSystemConfig({ commissionRate: 1.5 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+});

@@ -1,0 +1,22 @@
+# Docker 部署相关文件
+.env
+.env.local
+.env.production
+
+# 数据库备份文件
+backups/
+*.sql
+
+# 日志文件
+logs/
+*.log
+
+# 上传文件
+uploads/
+
+# Node modules
+node_modules/
+
+# 构建产物
+dist/
+build/

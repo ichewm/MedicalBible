@@ -1,0 +1,129 @@
+# 医学宝典 - 本地开发 Docker Compose 配置
+# 使用方法: docker compose up -d
+
+services:
+  # ==================== MySQL 数据库 ====================
+  mysql:
+    image: mysql:8.0
+    container_name: medical_bible_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root123456}
+      MYSQL_DATABASE: medical_bible
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./server/database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    networks:
+      - medical_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Redis 缓存 ====================
+  redis:
+    image: redis:6.2-alpine
+    container_name: medical_bible_redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - medical_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ==================== 后端服务 ====================
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: medical_bible_backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://localhost}
+      # 数据库
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:-root123456}
+      DB_DATABASE: medical_bible
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-medical-bible-dev-secret-key-2025}
+      JWT_ACCESS_EXPIRES: 7d
+      JWT_REFRESH_EXPIRES: 30d
+      # 加密密钥
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-32-characters!}
+      # 开发模式（模拟短信/支付）
+      SMS_MOCK_MODE: "true"
+      PAYMENT_MOCK_MODE: "true"
+      OSS_MOCK_MODE: "true"
+      # 创建测试用户
+      CREATE_TEST_USERS: "true"
+    env_file:
+      - path: ./config/test-users.env
+        required: false
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - medical_net
+    volumes:
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==================== 前端服务 ====================
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: medical_bible_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - medical_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+# ==================== 数据卷 ====================
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ==================== 网络 ====================
+networks:
+  medical_net:
+    driver: bridge
