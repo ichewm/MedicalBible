@@ -6,8 +6,9 @@
  */
 
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { ValidationPipe, Logger } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { ConfigService } from "@nestjs/config";
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
@@ -24,6 +25,10 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: ["error", "warn", "log", "debug", "verbose"],
   });
+
+  // 获取配置服务
+  const configService = app.get(ConfigService);
+  const logger = new Logger("Bootstrap");
 
   // 设置全局 API 前缀
   app.setGlobalPrefix("api/v1");
@@ -63,11 +68,33 @@ async function bootstrap(): Promise<void> {
   );
 
   // 启用 CORS（跨域资源共享）
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN || "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true,
-  });
+  // 从配置服务获取 CORS 设置，支持多域名白名单
+  const corsOptions = configService.get("cors");
+  if (!corsOptions) {
+    logger.error(
+      "CORS configuration not found. Please ensure corsConfig is properly registered in AppModule.",
+    );
+    throw new Error("CORS configuration is missing");
+  }
+
+  // 生产环境安全检查
+  const isProduction = process.env.NODE_ENV === "production";
+  const originValue = corsOptions.origin;
+
+  if (isProduction && (originValue === "*" || originValue === true)) {
+    logger.error(
+      "SECURITY: CORS origin is set to wildcard (*) in production environment. " +
+        'This is a security vulnerability. Please set CORS_ORIGIN to specific domain(s).',
+    );
+    throw new Error(
+      'Cannot start with wildcard CORS origin in production. Set CORS_ORIGIN to specific domain(s).',
+    );
+  }
+
+  app.enableCors(corsOptions);
+  logger.log(
+    `CORS enabled with origin: ${JSON.stringify(originValue)} (credentials: ${corsOptions.credentials})`,
+  );
 
   // 配置 Swagger API 文档
   const config = new DocumentBuilder()
