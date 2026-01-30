@@ -7,6 +7,7 @@ import { Card, Table, Select, Space, Button, Tag, Modal, Form, Input, Radio, mes
 import { EditOutlined, EyeOutlined } from '@ant-design/icons'
 import { getCategoryTree } from '@/api/sku'
 import { getTeacherPapers, getTeacherPaperQuestions, updateTeacherQuestion } from '@/api/question'
+import DOMPurify from 'dompurify'
 
 const { TextArea } = Input
 
@@ -317,7 +318,7 @@ const TeacherQuestionList = () => {
           <div>
             <div style={{ marginBottom: 16, padding: 12, background: 'var(--fill-secondary)', borderRadius: 4 }}>
               <strong>题目：</strong>
-              <div dangerouslySetInnerHTML={{ __html: editingQuestion.content }} />
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(editingQuestion.content) }} />
               <div style={{ marginTop: 8 }}>
                 <strong>选项：</strong>
                 {editingQuestion.options?.map((opt: any) => (
@@ -362,7 +363,7 @@ const TeacherQuestionList = () => {
           <div>
             <div style={{ marginBottom: 16 }}>
               <strong>题目：</strong>
-              <div dangerouslySetInnerHTML={{ __html: previewQuestion.content }} />
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewQuestion.content) }} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <strong>选项：</strong>

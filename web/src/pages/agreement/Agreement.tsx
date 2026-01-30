@@ -8,6 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Typography, Spin, Empty, Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import request from '@/utils/request'
+import DOMPurify from 'dompurify'
 import './Agreement.css'
 
 const { Title } = Typography
@@ -69,7 +70,7 @@ const Agreement = () => {
 
       <div className="agreement-content">
         {content ? (
-          <div dangerouslySetInnerHTML={{ __html: content }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
         ) : (
           <Empty description={`暂无${title}内容`} />
         )}
