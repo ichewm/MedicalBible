@@ -6,7 +6,8 @@
  */
 
 import { HttpException, HttpStatus, ArgumentsHost } from "@nestjs/common";
-import { GlobalExceptionFilter, ErrorResponse } from "./http-exception.filter";
+import { GlobalExceptionFilter } from "./http-exception.filter";
+import { ErrorResponseDto } from "../dto/error-response.dto";
 import {
   BusinessException,
   ErrorCode,
@@ -86,7 +87,7 @@ describe("GlobalExceptionFilter", () => {
       );
     });
 
-    it("应处理带数组消息的 HttpException", () => {
+    it("应处理带数组消息的 HttpException (简单字符串数组)", () => {
       const exception = new HttpException(
         { message: ["字段1错误", "字段2错误"] },
         HttpStatus.BAD_REQUEST,
@@ -96,7 +97,72 @@ describe("GlobalExceptionFilter", () => {
 
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: "字段1错误, 字段2错误",
+          message: "验证失败，请检查输入",
+          validationErrors: expect.arrayContaining([
+            expect.objectContaining({
+              field: "unknown",
+              message: "字段1错误",
+            }),
+            expect.objectContaining({
+              field: "unknown",
+              message: "字段2错误",
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it("应处理带对象数组消息的 HttpException (class-validator 格式)", () => {
+      const exception = new HttpException(
+        {
+          message: [
+            {
+              property: "email",
+              constraints: {
+                isEmail: "邮箱格式不正确",
+              },
+            },
+            {
+              property: "password",
+              constraints: {
+                minLength: "密码长度不能少于8位",
+              },
+              children: [
+                {
+                  property: "confirm",
+                  constraints: {
+                    matches: "密码确认不匹配",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+
+      filter.catch(exception, mockHost);
+
+      expect(mockResponse.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "验证失败，请检查输入",
+          validationErrors: expect.arrayContaining([
+            expect.objectContaining({
+              field: "email",
+              message: "邮箱格式不正确",
+              constraint: "isEmail",
+            }),
+            expect.objectContaining({
+              field: "password",
+              message: "密码长度不能少于8位",
+              constraint: "minLength",
+            }),
+            expect.objectContaining({
+              field: "password.confirm",
+              message: "密码确认不匹配",
+              constraint: "matches",
+            }),
+          ]),
         }),
       );
     });
@@ -294,7 +360,7 @@ describe("GlobalExceptionFilter", () => {
 
       filter.catch(exception, mockHost);
 
-      const response = mockResponse.json.mock.calls[0][0] as ErrorResponse;
+      const response = mockResponse.json.mock.calls[0][0] as ErrorResponseDto;
       expect(response.requestId).toBeUndefined();
     });
   });
@@ -305,7 +371,7 @@ describe("GlobalExceptionFilter", () => {
 
       filter.catch(exception, mockHost);
 
-      const response = mockResponse.json.mock.calls[0][0] as ErrorResponse;
+      const response = mockResponse.json.mock.calls[0][0] as ErrorResponseDto;
       expect(response.timestamp).toBeDefined();
       expect(new Date(response.timestamp).getTime()).not.toBeNaN();
     });
@@ -321,7 +387,7 @@ describe("GlobalExceptionFilter", () => {
 
       filter.catch(exception, mockHost);
 
-      const response = mockResponse.json.mock.calls[0][0] as ErrorResponse;
+      const response = mockResponse.json.mock.calls[0][0] as ErrorResponseDto;
       expect(response.error).toBeDefined();
     });
   });
