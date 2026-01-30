@@ -369,6 +369,8 @@ npm run dev
 
 ## 🔐 安全
 
+- **CORS 配置**: 环境级域名白名单，生产环境禁止通配符
+- **安全头**: Helmet 中间件防护常见 Web 漏洞
 - JWT Token 认证
 - 密码 bcrypt 加密
 - SQL 注入防护
@@ -376,6 +378,12 @@ npm run dev
 - CSRF 防护
 - Rate Limiting
 - HTTPS 支持
+
+**CORS 配置说明**:
+- 开发环境: 默认允许 `http://localhost:5173` 和 `http://localhost:3000`
+- 生产环境: 必须通过 `CORS_ORIGIN` 环境变量指定具体域名
+- 支持逗号分隔的多个域名: `https://example.com,https://app.example.com`
+- 生产环境使用通配符 (`*`) 将导致应用拒绝启动
 
 ## 📈 性能
 
