@@ -4,16 +4,17 @@
  */
 
 import { useEffect, useState } from 'react'
-import { 
-  Card, Form, InputNumber, Switch, Button, message, Typography, 
+import {
+  Card, Form, InputNumber, Switch, Button, message, Typography,
   Descriptions, Modal, Alert, Tabs, Input, Select, Space, Spin
 } from 'antd'
-import { 
-  ExclamationCircleFilled, SettingOutlined, MailOutlined, 
+import {
+  ExclamationCircleFilled, SettingOutlined, MailOutlined,
   MessageOutlined, PayCircleOutlined, FileTextOutlined,
   SafetyOutlined, EyeOutlined, CloudServerOutlined, BugOutlined, DeleteOutlined
 } from '@ant-design/icons'
 import request from '@/utils/request'
+import DOMPurify from 'dompurify'
 
 const { Title, Text } = Typography
 const { confirm } = Modal
@@ -1321,14 +1322,14 @@ const SystemSettings = () => {
         width={700}
         styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}
       >
-        <div 
-          style={{ 
-            border: '1px solid var(--border-color-secondary)', 
-            borderRadius: 8, 
+        <div
+          style={{
+            border: '1px solid var(--border-color-secondary)',
+            borderRadius: 8,
             padding: 16,
             background: 'var(--card-bg)'
           }}
-          dangerouslySetInnerHTML={{ __html: previewContent }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewContent) }}
         />
       </Modal>
     </div>

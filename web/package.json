@@ -21,11 +21,13 @@
   "dependencies": {
     "@ant-design/icons": "^5.5.1",
     "@ant-design/pro-components": "^2.7.19",
+    "@types/dompurify": "^3.0.5",
     "ahooks": "^3.8.4",
     "antd": "^5.22.2",
     "antd-img-crop": "^4.27.0",
     "axios": "^1.7.7",
     "dayjs": "^1.11.13",
+    "dompurify": "^3.3.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-pdf": "^10.2.0",

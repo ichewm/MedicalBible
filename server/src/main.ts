@@ -15,6 +15,7 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
+import helmet from "helmet";
 
 /**
  * 应用程序启动函数
@@ -32,6 +33,29 @@ async function bootstrap(): Promise<void> {
 
   // 设置全局 API 前缀
   app.setGlobalPrefix("api/v1");
+
+  // 启用安全头中间件（Helmet）
+  // 设置各种 HTTP 头以提高安全性，防止常见 Web 漏洞
+  // 注意：需要配置 contentSecurityPolicy 以允许 Swagger 和静态资源
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false, // 禁用以兼容某些第三方资源
+    }),
+  );
+  logger.log("Helmet security headers enabled");
 
   // 配置请求追踪中间件
   app.use(
