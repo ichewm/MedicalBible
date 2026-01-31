@@ -6,6 +6,7 @@
 import * as Minio from "minio";
 import * as path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { Logger } from "@nestjs/common";
 import {
   IStorageAdapter,
   UploadOptions,
@@ -24,6 +25,8 @@ export interface MinioStorageConfig {
 }
 
 export class MinioStorageAdapter implements IStorageAdapter {
+  private readonly logger = new Logger(MinioStorageAdapter.name);
+
   private client: Minio.Client;
   private bucket: string;
   private endpoint: string;
@@ -69,7 +72,7 @@ export class MinioStorageAdapter implements IStorageAdapter {
         await this.client.setBucketPolicy(this.bucket, JSON.stringify(policy));
       }
     } catch (error) {
-      console.error("Failed to ensure bucket:", error);
+      this.logger.error("Failed to ensure bucket", error);
     }
   }
 

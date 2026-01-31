@@ -26,6 +26,7 @@ import { useAuthStore } from '@/stores/auth'
 import Logo from '@/components/Logo'
 import request from '@/utils/request'
 import type { MenuProps } from 'antd'
+import { logger } from '@/utils'
 
 const { Header, Sider, Content } = Layout
 const { useBreakpoint } = Grid
@@ -50,7 +51,7 @@ const MainLayout = () => {
         const res: any = await request.get('/admin/public/test-mode')
         setTestModeEnabled(res.testModeEnabled || false)
       } catch (error) {
-        console.error('获取测试模式状态失败', error)
+        logger.error('获取测试模式状态失败', error)
       }
     }
     fetchTestMode()
@@ -63,7 +64,7 @@ const MainLayout = () => {
         const res: any = await request.get('/chat/unread')
         setChatUnreadCount(res.count || 0)
       } catch (error) {
-        console.error('获取未读消息数失败', error)
+        logger.error('获取未读消息数失败', error)
       }
     }
     fetchUnreadCount()

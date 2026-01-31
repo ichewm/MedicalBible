@@ -8,6 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Typography, Spin, Empty, Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import request from '@/utils/request'
+import { logger } from '@/utils'
 import './Agreement.css'
 
 const { Title } = Typography
@@ -28,7 +29,7 @@ const Agreement = () => {
         const data: any = await request.get(endpoint)
         setContent(data.content || '')
       } catch (error) {
-        console.error(error)
+        logger.error('获取协议内容失败', error)
       } finally {
         setLoading(false)
       }

@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons'
 import { getPaperDetail, submitAnswer, startExam, submitExam, getExamProgress, type Question } from '@/api/question'
 import AnswerCard, { type AnswerStatus } from '@/components/AnswerCard'
+import { logger } from '@/utils'
 import './QuestionDetail.css'
 
 const { Title, Paragraph, Text } = Typography
@@ -74,7 +75,7 @@ const QuestionDetail = () => {
           }
         }
       } catch (error) {
-        console.error(error)
+        logger.error('加载试卷失败', error)
         message.error('加载试卷失败')
       } finally {
         setLoading(false)
@@ -93,7 +94,7 @@ const QuestionDetail = () => {
         message.success('考试结束')
         navigate(`/questions/result/${sessionId}`)
       } catch (error) {
-        console.error(error)
+        logger.error('提交试卷失败', error)
         message.error('提交失败')
       }
     } else {
@@ -140,7 +141,7 @@ const QuestionDetail = () => {
         setResults(prev => ({ ...prev, [currentQuestion.id]: res }))
       }
     } catch (error) {
-      console.error(error)
+      logger.error('提交答案失败', error)
     }
   }
 

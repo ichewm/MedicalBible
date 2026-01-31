@@ -17,6 +17,7 @@ import { getCategoryTree } from '@/api/sku'
 import { getSubscriptions, setCurrentLevel as setCurrentLevelApi } from '@/api/user'
 import { getUserPracticeStats, UserPracticeStats } from '@/api/question'
 import './Home.css'
+import { logger } from '@/utils'
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
@@ -39,7 +40,7 @@ const Home = () => {
         const data: any = await getCategoryTree()
         setCategoryTree(data || [])
       } catch (error) {
-        console.error(error)
+        logger.error(error)
       }
     }
     fetchData()
@@ -52,7 +53,7 @@ const Home = () => {
         const data = await getUserPracticeStats()
         setStats(data)
       } catch (error) {
-        console.error('获取统计数据失败:', error)
+        logger.error('获取统计数据失败', error)
       }
     }
     fetchStats()
@@ -74,7 +75,7 @@ const Home = () => {
       }
       
       if (!token) {
-        console.log('No token found, skipping subscriptions fetch')
+        logger.log('No token found, skipping subscriptions fetch')
         return
       }
       
@@ -84,7 +85,7 @@ const Home = () => {
           setSubscriptions(data)
         }
       } catch (error) {
-        console.error('获取订阅失败:', error)
+        logger.error('获取订阅失败', error)
         // 不要因为订阅获取失败而影响页面
       }
     }
@@ -141,7 +142,7 @@ const Home = () => {
     if (selectedLevel) {
       setCurrentLevel?.(selectedLevel)
       // 同步到后端
-      setCurrentLevelApi(selectedLevel).catch(console.error)
+      setCurrentLevelApi(selectedLevel).catch((e) => logger.error("切换考种失败", e))
     }
   }, [selectedLevel, setCurrentLevel])
 

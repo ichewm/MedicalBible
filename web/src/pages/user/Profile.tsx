@@ -12,6 +12,7 @@ import { useThemeStore, ThemeMode } from '@/stores/theme'
 import { updateProfile, getProfile, getDevices, removeDevice, closeAccount, cancelCloseAccount, setCurrentLevel, getSubscriptions, bindPhone, bindEmail } from '@/api/user'
 import { sendVerificationCode, VerificationCodeType, resetPasswordByCode, sendChangePasswordCode, changePasswordByCode } from '@/api/auth'
 import { MobileOutlined, MailOutlined } from '@ant-design/icons'
+import { logger } from '@/utils'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
@@ -51,7 +52,7 @@ const Profile = () => {
         const data = await getDevices()
         setDevices(data)
       } catch (error) {
-        console.error(error)
+        logger.error('获取设备列表失败', error)
       }
     }
     fetchDevices()
@@ -69,7 +70,7 @@ const Profile = () => {
           closedAt: profile.closedAt,
         })
       } catch (error) {
-        console.error(error)
+        logger.error('获取用户信息失败', error)
       }
     }
     if (user) {
@@ -84,7 +85,7 @@ const Profile = () => {
         const data = await getSubscriptions()
         setSubscriptions(data || [])
       } catch (error) {
-        console.error(error)
+        logger.error('获取订阅列表失败', error)
       }
     }
     fetchSubscriptions()
@@ -150,7 +151,7 @@ const Profile = () => {
       message.success('保存成功')
       setEditModalOpen(false)
     } catch (error) {
-      console.error(error)
+      logger.error('保存昵称失败', error)
     } finally {
       setLoading(false)
     }
@@ -163,7 +164,7 @@ const Profile = () => {
       setDevices(devices.filter((d) => d.deviceId !== deviceId))
       message.success('设备已移除')
     } catch (error) {
-      console.error(error)
+      logger.error('移除设备失败', error)
     }
   }
 
@@ -192,7 +193,7 @@ const Profile = () => {
         })
       }, 1000)
     } catch (error) {
-      console.error(error)
+      logger.error('发送修改密码验证码失败', error)
     }
   }
 
@@ -219,7 +220,7 @@ const Profile = () => {
       passwordForm.resetFields()
       logout()
     } catch (error) {
-      console.error(error)
+      logger.error('修改密码失败', error)
     } finally {
       setLoading(false)
     }
@@ -247,7 +248,7 @@ const Profile = () => {
         })
       }, 1000)
     } catch (error) {
-      console.error(error)
+      logger.error('发送绑定验证码失败', error)
     }
   }
 
@@ -264,7 +265,7 @@ const Profile = () => {
         setUser({ ...user, phone: values.phone })
       }
     } catch (error) {
-      console.error(error)
+      logger.error('绑定手机号失败', error)
     } finally {
       setLoading(false)
     }
@@ -283,7 +284,7 @@ const Profile = () => {
         setUser({ ...user, email: values.email })
       }
     } catch (error) {
-      console.error(error)
+      logger.error('绑定邮箱失败', error)
     } finally {
       setLoading(false)
     }
@@ -311,7 +312,7 @@ const Profile = () => {
       message.success('注销申请已提交，7天后生效')
       setCloseAccountModalOpen(false)
     } catch (error) {
-      console.error(error)
+      logger.error('申请注销账号失败', error)
     } finally {
       setLoading(false)
     }
@@ -333,7 +334,7 @@ const Profile = () => {
           setUser({ ...user!, status: 1, closedAt: undefined })
           message.success('注销申请已取消，账号恢复正常')
         } catch (error) {
-          console.error(error)
+          logger.error('取消注销申请失败', error)
         } finally {
           setLoading(false)
         }
@@ -437,7 +438,7 @@ const Profile = () => {
       // 刷新页面以更新内容
       window.location.reload()
     } catch (error) {
-      console.error(error)
+      logger.error('切换考种失败', error)
     } finally {
       setLoading(false)
     }

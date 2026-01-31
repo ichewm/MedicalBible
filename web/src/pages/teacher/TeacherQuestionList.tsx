@@ -7,6 +7,7 @@ import { Card, Table, Select, Space, Button, Tag, Modal, Form, Input, Radio, mes
 import { EditOutlined, EyeOutlined } from '@ant-design/icons'
 import { getCategoryTree } from '@/api/sku'
 import { getTeacherPapers, getTeacherPaperQuestions, updateTeacherQuestion } from '@/api/question'
+import { logger } from '@/utils'
 
 const { TextArea } = Input
 
@@ -41,7 +42,7 @@ const TeacherQuestionList = () => {
         const data: any = await getCategoryTree()
         setProfessions(data)
       } catch (error) {
-        console.error(error)
+        logger.error('获取分类树失败', error)
       }
     }
     fetchTree()
@@ -92,7 +93,7 @@ const TeacherQuestionList = () => {
       setSelectedPaper(undefined)
       setQuestions([])
     } catch (error) {
-      console.error(error)
+      logger.error('获取试卷列表失败', error)
     } finally {
       setLoading(false)
     }
@@ -113,7 +114,7 @@ const TeacherQuestionList = () => {
       const data: any = await getTeacherPaperQuestions(selectedPaper)
       setQuestions(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取题目列表失败', error)
     } finally {
       setQuestionsLoading(false)
     }
@@ -143,7 +144,7 @@ const TeacherQuestionList = () => {
       setEditModalOpen(false)
       fetchQuestions()
     } catch (error) {
-      console.error(error)
+      logger.error('保存题目失败', error)
       message.error('保存失败')
     } finally {
       setSaving(false)

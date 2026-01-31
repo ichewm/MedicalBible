@@ -6,7 +6,7 @@
  */
 
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { ValidationPipe, Logger } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
@@ -24,6 +24,8 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: ["error", "warn", "log", "debug", "verbose"],
   });
+
+  const logger = new Logger("Bootstrap");
 
   // 设置全局 API 前缀
   app.setGlobalPrefix("api/v1");
@@ -102,16 +104,16 @@ async function bootstrap(): Promise<void> {
   // 启动应用
   await app.listen(port);
 
-  console.log(`
-  ╔═══════════════════════════════════════════════════════╗
-  ║                                                       ║
-  ║   医学宝典 API 服务已启动                              ║
-  ║                                                       ║
-  ║   运行环境: ${process.env.NODE_ENV || "development"}                              ║
-  ║   服务地址: http://localhost:${port}                       ║
-  ║   API 文档: http://localhost:${port}/api-docs              ║
-  ║                                                       ║
-  ╚═══════════════════════════════════════════════════════╝
+  logger.log(`
+╔═══════════════════════════════════════════════════════╗
+║                                                       ║
+║   医学宝典 API 服务已启动                              ║
+║                                                       ║
+║   运行环境: ${process.env.NODE_ENV || "development"}                              ║
+║   服务地址: http://localhost:${port}                       ║
+║   API 文档: http://localhost:${port}/api-docs              ║
+║                                                       ║
+╚═══════════════════════════════════════════════════════╝
   `);
 }
 
