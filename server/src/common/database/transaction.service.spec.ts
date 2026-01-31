@@ -6,7 +6,7 @@
  */
 
 import { Test, TestingModule } from "@nestjs/testing";
-import { TransactionService } from "./transaction.service";
+import { TransactionService, IsolationLevel } from "./transaction.service";
 import { DataSource, QueryRunner, Repository } from "typeorm";
 import { Logger } from "@nestjs/common";
 
@@ -104,7 +104,7 @@ describe("TransactionService", () => {
 
     it("should support custom isolation level", async () => {
       const mockCallback = jest.fn().mockResolvedValue("success");
-      const isolationLevel = "SERIALIZABLE";
+      const isolationLevel = IsolationLevel.SERIALIZABLE;
 
       await service.runInTransaction(mockCallback, { isolationLevel });
 

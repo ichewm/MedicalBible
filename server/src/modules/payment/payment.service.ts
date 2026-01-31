@@ -507,22 +507,22 @@ export class PaymentService {
       const platformCert = await this.getConfig(
         SystemConfigKeys.PAY_WECHAT_PLATFORM_CERT,
       );
-      
-      // 如果没有配置平台证书，跳过验证（开发环境）
+
+      // 如果没有配置平台证书，拒绝验证（安全优先）
       if (!platformCert) {
-        this.logger.warn("WeChat platform cert not configured, skipping signature verification");
-        return true;
+        this.logger.error("WeChat platform cert not configured, rejecting callback");
+        return false;
       }
 
       // 构造验签字符串
       const signMessage = `${timestamp}\n${nonce}\n${body}\n`;
-      
+
       // 使用平台证书公钥验签
       const isValid = crypto
         .createVerify("RSA-SHA256")
         .update(signMessage)
         .verify(platformCert, signature, "base64");
-      
+
       return isValid;
     } catch (error) {
       this.logger.error(`WeChat signature verification error: ${error.message}`);

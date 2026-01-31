@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
 import { DataSource, DataSourceOptions, ObjectLiteral, QueryRunner, Repository } from "typeorm";
 
 /**
@@ -14,6 +14,21 @@ import { DataSource, DataSourceOptions, ObjectLiteral, QueryRunner, Repository }
  * @returns The result of the transaction
  */
 export type TransactionCallback<T> = (queryRunner: QueryRunner) => Promise<T>;
+
+/**
+ * Transaction isolation levels for MySQL
+ * These correspond to the standard SQL isolation levels
+ */
+export enum IsolationLevel {
+  /** Lowest level - dirty reads possible */
+  READ_UNCOMMITTED = "READ UNCOMMITTED",
+  /** Default level - prevents dirty reads */
+  READ_COMMITTED = "READ COMMITTED",
+  /** Prevents non-repeatable reads */
+  REPEATABLE_READ = "REPEATABLE READ",
+  /** Highest level - serializable transactions */
+  SERIALIZABLE = "SERIALIZABLE",
+}
 
 /**
  * Transaction options
@@ -26,9 +41,9 @@ export interface TransactionOptions {
   maxRetries?: number;
   /**
    * Isolation level for the transaction
-   * @default 'READ COMMITTED'
+   * @default IsolationLevel.READ_COMMITTED
    */
-  isolationLevel?: any;
+  isolationLevel?: IsolationLevel;
 }
 
 /**
@@ -36,7 +51,7 @@ export interface TransactionOptions {
  */
 const DEFAULT_OPTIONS: Required<TransactionOptions> = {
   maxRetries: 3,
-  isolationLevel: "READ COMMITTED",
+  isolationLevel: IsolationLevel.READ_COMMITTED,
 };
 
 /**
@@ -97,7 +112,7 @@ export class TransactionService {
         lastError = error as Error;
         await queryRunner.rollbackTransaction();
         this.logger.warn(
-          `Transaction rolled back (attempt ${attempt}/${opts.maxRetries}): ${lastError.message}`,
+          `Transaction rolled back (attempt ${attempt}/${opts.maxRetries}): ${this.sanitizeErrorMessage(lastError)}`,
         );
 
         // Check if this is a deadlock error that might be resolved by retrying
@@ -118,7 +133,7 @@ export class TransactionService {
     }
 
     this.logger.error(
-      `Transaction failed after ${opts.maxRetries} attempts: ${lastError?.message}`,
+      `Transaction failed after ${opts.maxRetries} attempts: ${this.sanitizeErrorMessage(lastError!)}`,
     );
     throw lastError;
   }
@@ -161,10 +176,49 @@ export class TransactionService {
   }
 
   /**
+   * Sanitize error message for logging to prevent leaking sensitive data
+   * Removes potential SQL queries, table names, and other sensitive details
+   */
+  private sanitizeErrorMessage(error: Error): string {
+    const message = error.message;
+
+    // Check for common database error patterns that might contain sensitive data
+    const hasSensitiveData = /select|insert|update|delete|create|alter|drop|truncate|table|column|constraint/i.test(message);
+
+    if (hasSensitiveData) {
+      // Return generic error message if sensitive patterns detected
+      return "Database operation failed (details sanitized for security)";
+    }
+
+    return message;
+  }
+
+  /**
    * Sleep for a specified number of milliseconds
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Validate savepoint name to prevent SQL injection
+   * MySQL savepoint names must be valid identifiers:
+   * - Start with letter or underscore
+   * - Contain only letters, digits, and underscores
+   * - Maximum 64 characters
+   */
+  private validateSavepointName(name: string): void {
+    if (!name || typeof name !== 'string') {
+      throw new BadRequestException('Savepoint name must be a non-empty string');
+    }
+    if (name.length > 64) {
+      throw new BadRequestException('Savepoint name must not exceed 64 characters');
+    }
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+      throw new BadRequestException(
+        'Savepoint name must start with letter or underscore and contain only letters, digits, and underscores'
+      );
+    }
   }
 
   /**
@@ -199,12 +253,13 @@ export class TransactionService {
    * Allows partial rollback to a specific point
    *
    * @param queryRunner - The query runner from the transaction callback
-   * @param name - Savepoint name
+   * @param name - Savepoint name (must be valid MySQL identifier)
    */
   async createSavepoint(
     queryRunner: QueryRunner,
     name: string,
   ): Promise<void> {
+    this.validateSavepointName(name);
     await queryRunner.query(`SAVEPOINT ${name}`);
     this.logger.debug(`Savepoint '${name}' created`);
   }
@@ -213,12 +268,13 @@ export class TransactionService {
    * Rollback to a specific savepoint
    *
    * @param queryRunner - The query runner from the transaction callback
-   * @param name - Savepoint name
+   * @param name - Savepoint name (must be valid MySQL identifier)
    */
   async rollbackToSavepoint(
     queryRunner: QueryRunner,
     name: string,
   ): Promise<void> {
+    this.validateSavepointName(name);
     await queryRunner.query(`ROLLBACK TO SAVEPOINT ${name}`);
     this.logger.debug(`Rolled back to savepoint '${name}'`);
   }
@@ -227,12 +283,13 @@ export class TransactionService {
    * Release a savepoint
    *
    * @param queryRunner - The query runner from the transaction callback
-   * @param name - Savepoint name
+   * @param name - Savepoint name (must be valid MySQL identifier)
    */
   async releaseSavepoint(
     queryRunner: QueryRunner,
     name: string,
   ): Promise<void> {
+    this.validateSavepointName(name);
     await queryRunner.query(`RELEASE SAVEPOINT ${name}`);
     this.logger.debug(`Savepoint '${name}' released`);
   }
