@@ -89,11 +89,24 @@ import DOMPurify from "dompurify";
 - Token 通过 Authorization Header 传递（非 Cookie）
 - CORS 配置限制跨域请求
 
+**CORS 安全配置 (SEC-002)**:
+- 环境级域名白名单 (`server/src/config/cors.config.ts`)
+- 开发环境: 默认允许 `localhost:5173` 和 `localhost:3000`
+- 生产环境: 必须指定具体域名，禁止使用通配符 (`*`)
+- 支持多域名配置（逗号分隔）
+- 生产环境使用通配符将导致应用拒绝启动（安全检查）
+- 24 小时预检请求缓存
+
 ### 2.4 敏感信息保护 ✅
 
 - 密码使用 bcrypt 加密存储
 - 日志记录时敏感信息脱敏
 - 环境变量管理密钥
+- **结构化日志 (SEC-009)**: 使用 NestJS Logger 替代 console.log，防止敏感信息泄露
+  - LoggingInterceptor: 记录请求/响应元数据（method, URL, status, duration, IP）
+  - RequestTrackingMiddleware: 为每个请求生成唯一 ID 用于追踪
+  - 日志级别基于状态码（400-499: warn, 500+: error）
+  - 慢请求检测（>= 3000ms 标记为 [SLOW]）
 
 ---
 
@@ -135,22 +148,24 @@ import DOMPurify from "dompurify";
 
 ### 4.1 短期优化（1-2天）
 
-1. **XSS 防护增强**
+1. ~~**添加 Helmet 中间件**~~ ✅ **已完成 (SEC-002)**
+   - 已在 `server/src/main.ts` 中集成 Helmet
+   - 配置了 CSP (Content Security Policy)
+   - 启用了各项安全响应头
+
+2. ~~**CORS 安全配置**~~ ✅ **已完成 (SEC-002)**
+   - 实现了环境级域名白名单
+   - 生产环境强制验证，禁止通配符
+
+3. **XSS 防护增强**
    ```bash
    cd web && npm install dompurify @types/dompurify
    ```
    为所有 `dangerouslySetInnerHTML` 添加净化
 
-2. **前端依赖更新**
+4. **前端依赖更新**
    ```bash
    cd web && npm audit fix
-   ```
-
-3. **添加 Helmet 中间件**
-   ```typescript
-   // main.ts
-   import helmet from "helmet";
-   app.use(helmet());
    ```
 
 ### 4.2 中期优化（1周）
@@ -195,3 +210,6 @@ import DOMPurify from "dompurify";
 | 2025-01-XX | 依赖安全检查 | 完成 |
 | 2025-01-XX | 代码安全检查 | 完成 |
 | 2025-01-XX | 认证安全检查 | 完成 |
+| 2025-01-31 | SEC-009 结构化日志实现 | 完成 - 移除所有 console.log，使用 NestJS Logger |
+| 2025-01-31 | CORS 安全配置 (SEC-002) | ✅ 完成环境级域名白名单 |
+| 2025-01-31 | Helmet 中间件集成 (SEC-002) | ✅ 完成安全头配置 |

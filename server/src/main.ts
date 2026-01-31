@@ -6,14 +6,17 @@
  */
 
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { ValidationPipe, Logger } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { ConfigService } from "@nestjs/config";
+import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
+import helmet from "helmet";
 
 /**
  * 应用程序启动函数
@@ -25,8 +28,35 @@ async function bootstrap(): Promise<void> {
     logger: ["error", "warn", "log", "debug", "verbose"],
   });
 
+  // 获取配置服务
+  const configService = app.get(ConfigService);
+  const logger = new Logger("Bootstrap");
+
   // 设置全局 API 前缀
   app.setGlobalPrefix("api/v1");
+
+  // 启用安全头中间件（Helmet）
+  // 设置各种 HTTP 头以提高安全性，防止常见 Web 漏洞
+  // 注意：需要配置 contentSecurityPolicy 以允许 Swagger 和静态资源
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          mediaSrc: ["'self'"],
+          frameSrc: ["'none'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false, // 禁用以兼容某些第三方资源
+    }),
+  );
+  logger.log("Helmet security headers enabled");
 
   // 配置请求追踪中间件
   app.use(
@@ -63,11 +93,33 @@ async function bootstrap(): Promise<void> {
   );
 
   // 启用 CORS（跨域资源共享）
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN || "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true,
-  });
+  // 从配置服务获取 CORS 设置，支持多域名白名单
+  const corsOptions = configService.get("cors");
+  if (!corsOptions) {
+    logger.error(
+      "CORS configuration not found. Please ensure corsConfig is properly registered in AppModule.",
+    );
+    throw new Error("CORS configuration is missing");
+  }
+
+  // 生产环境安全检查
+  const isProduction = process.env.NODE_ENV === "production";
+  const originValue = corsOptions.origin;
+
+  if (isProduction && (originValue === "*" || originValue === true)) {
+    logger.error(
+      "SECURITY: CORS origin is set to wildcard (*) in production environment. " +
+        'This is a security vulnerability. Please set CORS_ORIGIN to specific domain(s).',
+    );
+    throw new Error(
+      'Cannot start with wildcard CORS origin in production. Set CORS_ORIGIN to specific domain(s).',
+    );
+  }
+
+  app.enableCors(corsOptions);
+  logger.log(
+    `CORS enabled with origin: ${JSON.stringify(originValue)} (credentials: ${corsOptions.credentials})`,
+  );
 
   // 配置 Swagger API 文档
   const config = new DocumentBuilder()
@@ -102,16 +154,16 @@ async function bootstrap(): Promise<void> {
   // 启动应用
   await app.listen(port);
 
-  console.log(`
-  ╔═══════════════════════════════════════════════════════╗
-  ║                                                       ║
-  ║   医学宝典 API 服务已启动                              ║
-  ║                                                       ║
-  ║   运行环境: ${process.env.NODE_ENV || "development"}                              ║
-  ║   服务地址: http://localhost:${port}                       ║
-  ║   API 文档: http://localhost:${port}/api-docs              ║
-  ║                                                       ║
-  ╚═══════════════════════════════════════════════════════╝
+  logger.log(`
+╔═══════════════════════════════════════════════════════╗
+║                                                       ║
+║   医学宝典 API 服务已启动                              ║
+║                                                       ║
+║   运行环境: ${process.env.NODE_ENV || "development"}                              ║
+║   服务地址: http://localhost:${port}                       ║
+║   API 文档: http://localhost:${port}/api-docs              ║
+║                                                       ║
+╚═══════════════════════════════════════════════════════╝
   `);
 }
 

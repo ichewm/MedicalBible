@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleDestroy, OnModuleInit, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Redis from "ioredis";
 
@@ -24,6 +24,8 @@ import Redis from "ioredis";
  */
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
+
   /** Redis 客户端实例 */
   private client: Redis;
 
@@ -47,11 +49,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on("connect", () => {
-      console.log("✅ Redis 连接成功");
+      this.logger.log("Redis 连接成功");
     });
 
     this.client.on("error", (error) => {
-      console.error("❌ Redis 连接错误:", error);
+      this.logger.error("Redis 连接错误", error);
     });
   }
 

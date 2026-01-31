@@ -17,6 +17,8 @@ import {
 import { getCategoryTree } from '@/api/sku'
 import request from '@/utils/request'
 
+import { logger } from '@/utils'
+
 const { Text, Title } = Typography
 const { TextArea } = Input
 
@@ -60,7 +62,7 @@ const PaperManagement = () => {
         const data: any = await getCategoryTree()
         setProfessions(data || [])
       } catch (error) {
-        console.error(error)
+        logger.error('获取分类树失败', error)
       }
     }
     fetchTree()
@@ -110,7 +112,7 @@ const PaperManagement = () => {
       const data: any = await request.get('/question/admin/papers', { params })
       setPapers(Array.isArray(data) ? data : data.items || [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取试卷列表失败', error)
     } finally {
       setPapersLoading(false)
     }
@@ -163,7 +165,7 @@ const PaperManagement = () => {
       paperForm.resetFields()
       fetchPapers()
     } catch (error) {
-      console.error(error)
+      logger.error('提交试卷失败', error)
     }
   }
 
@@ -173,7 +175,7 @@ const PaperManagement = () => {
       message.success('删除成功')
       fetchPapers()
     } catch (error) {
-      console.error(error)
+      logger.error('删除试卷失败', error)
     }
   }
 
@@ -185,7 +187,7 @@ const PaperManagement = () => {
       message.success(newStatus === 1 ? '发布成功' : '已下架')
       fetchPapers()
     } catch (error) {
-      console.error(error)
+      logger.error('更新试卷状态失败', error)
     }
   }
 
@@ -203,7 +205,7 @@ const PaperManagement = () => {
       const data: any = await request.get(`/question/admin/papers/${paperId}/questions`)
       setQuestions(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取试题失败', error)
       setQuestions([])
     } finally {
       setQuestionsLoading(false)
@@ -290,7 +292,7 @@ const PaperManagement = () => {
       // 刷新试卷列表以更新题目数
       fetchPapers()
     } catch (error) {
-      console.error(error)
+      logger.error('提交试题失败', error)
     }
   }
 
@@ -302,7 +304,7 @@ const PaperManagement = () => {
       fetchQuestions(currentPaper.id)
       fetchPapers()
     } catch (error) {
-      console.error(error)
+      logger.error('删除试题失败', error)
     }
   }
 
@@ -348,7 +350,7 @@ const PaperManagement = () => {
       fetchQuestions(currentPaper.id)
       fetchPapers()
     } catch (error) {
-      console.error(error)
+      logger.error('导入JSON失败', error)
     } finally {
       setImportLoading(false)
     }

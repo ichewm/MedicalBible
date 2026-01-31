@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, LessThan } from "typeorm";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -24,6 +24,8 @@ import {
 
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
+
   constructor(
     @InjectRepository(Conversation)
     private readonly conversationRepository: Repository<Conversation>,
@@ -393,7 +395,7 @@ export class ChatService {
     });
 
     if (result.affected && result.affected > 0) {
-      console.log(`[ChatService] 清理了 ${result.affected} 条过期消息`);
+      this.logger.log(`清理了 ${result.affected} 条过期消息`);
     }
   }
 }

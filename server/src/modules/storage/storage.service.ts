@@ -3,7 +3,7 @@
  * @description 根据配置自动选择存储后端，提供统一的文件上传/删除接口
  */
 
-import { Injectable, OnModuleInit, Logger } from "@nestjs/common";
+import { Injectable, OnModuleInit, Logger,InternalServerErrorException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import {
@@ -170,28 +170,28 @@ export class StorageService implements OnModuleInit {
   private async createAdapter(config: StorageConfig): Promise<IStorageAdapter> {
     switch (config.provider) {
       case "aliyun-oss":
-        if (!config.oss) throw new Error("OSS config is missing");
+        if (!config.oss) throw new InternalServerErrorException("OSS 配置缺失");
         return new OSSStorageAdapter({
           ...config.oss,
           cdnDomain: config.cdnDomain,
         });
 
       case "tencent-cos":
-        if (!config.cos) throw new Error("COS config is missing");
+        if (!config.cos) throw new InternalServerErrorException("COS 配置缺失");
         return new COSStorageAdapter({
           ...config.cos,
           cdnDomain: config.cdnDomain,
         });
 
       case "aws-s3":
-        if (!config.s3) throw new Error("S3 config is missing");
+        if (!config.s3) throw new InternalServerErrorException("S3 配置缺失");
         return new S3StorageAdapter({
           ...config.s3,
           cdnDomain: config.cdnDomain,
         });
 
       case "minio":
-        if (!config.minio) throw new Error("MinIO config is missing");
+        if (!config.minio) throw new InternalServerErrorException("MinIO 配置缺失");
         return new MinioStorageAdapter({
           ...config.minio,
           cdnDomain: config.cdnDomain,

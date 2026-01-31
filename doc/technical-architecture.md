@@ -98,6 +98,11 @@ graph TD
    - API 接口启用 Rate Limiting (限流)。
    - 数据库连接使用内网 IP。
    - 敏感配置 (数据库密码等) 通过环境变量注入。
+4. **日志策略 (SEC-009)**:
+   - 使用 NestJS Logger 进行结构化日志记录（禁止 console.log）。
+   - 请求追踪：每个请求分配唯一 ID (x-request-id header)。
+   - 日志级别：error (5xx)、warn (4xx、慢请求)、log (正常请求)。
+   - 日志内容：method、URL、status、duration、IP、userId、requestId。
 
 ---
 

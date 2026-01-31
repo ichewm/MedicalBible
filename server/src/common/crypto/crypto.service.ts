@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 
@@ -62,7 +62,7 @@ export class CryptoService {
       return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
     } catch (error) {
       this.logger.error(`Encryption failed: ${error.message}`);
-      throw new Error("Encryption failed");
+      throw new InternalServerErrorException("加密失败");
     }
   }
 
@@ -79,7 +79,7 @@ export class CryptoService {
     try {
       const parts = encryptedText.split(":");
       if (parts.length !== 3) {
-        throw new Error("Invalid encrypted text format");
+        throw new BadRequestException("无效的加密文本格式");
       }
 
       const iv = Buffer.from(parts[0], "hex");
@@ -99,8 +99,12 @@ export class CryptoService {
 
       return decrypted;
     } catch (error) {
+      // If it's already a BadRequestException from the format check, rethrow it
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       this.logger.error(`Decryption failed: ${error.message}`);
-      throw new Error("Decryption failed");
+      throw new InternalServerErrorException("解密失败");
     }
   }
 

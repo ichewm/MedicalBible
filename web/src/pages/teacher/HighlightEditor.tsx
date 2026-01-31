@@ -9,6 +9,7 @@ import { LeftOutlined, RightOutlined, SaveOutlined, DeleteOutlined, ClearOutline
 import { Document, Page, pdfjs } from 'react-pdf'
 import { getTeacherLectureDetail, getTeacherHighlights, createHighlight, deleteHighlight, type Lecture, type Highlight } from '@/api/lecture'
 import { getFileUrl } from '@/utils/file'
+import { logger } from '@/utils'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -65,7 +66,7 @@ const HighlightEditor = () => {
         const highlightsData: any = await getTeacherHighlights(Number(id))
         setHighlights(Array.isArray(highlightsData) ? highlightsData : highlightsData.items || [])
       } catch (error) {
-        console.error(error)
+        logger.error('加载讲义失败', error)
         message.error('加载讲义失败')
       } finally {
         setLoading(false)
@@ -170,11 +171,11 @@ const HighlightEditor = () => {
       // 刷新重点列表
       const highlightsData: any = await getTeacherHighlights(Number(id))
       setHighlights(Array.isArray(highlightsData) ? highlightsData : highlightsData.items || [])
-      
+
       message.success('保存成功')
       setOriginalRects([...drawnRects])
     } catch (error) {
-      console.error(error)
+      logger.error('保存失败', error)
       message.error('保存失败')
     } finally {
       setSaving(false)
@@ -222,7 +223,7 @@ const HighlightEditor = () => {
       setHighlights(prev => prev.filter(h => h.id !== existingHighlight.id))
       message.success('已删除')
     } catch (error) {
-      console.error(error)
+      logger.error('删除标注失败', error)
     }
   }
 

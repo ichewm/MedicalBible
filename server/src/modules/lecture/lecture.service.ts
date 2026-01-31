@@ -10,6 +10,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, MoreThan, In } from "typeorm";
@@ -41,6 +42,8 @@ import {
  */
 @Injectable()
 export class LectureService {
+  private readonly logger = new Logger(LectureService.name);
+
   constructor(
     @InjectRepository(Lecture)
     private readonly lectureRepository: Repository<Lecture>,
@@ -786,12 +789,12 @@ export class LectureService {
         // 检查文件是否存在并删除
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
-          console.log(`[Lecture] 已删除旧文件: ${fileName}`);
+          this.logger.debug(`已删除旧文件: ${fileName}`);
         }
       }
     } catch (error) {
       // 文件删除失败不影响主流程，只记录日志
-      console.error(`[Lecture] 删除旧文件失败:`, error.message);
+      this.logger.warn(`删除旧文件失败: ${(error as Error).message}`);
     }
   }
 }

@@ -23,11 +23,11 @@ module.exports = {
 
   // 模块路径别名映射
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^@common/(.*)$': '<rootDir>/src/common/$1',
-    '^@modules/(.*)$': '<rootDir>/src/modules/$1',
-    '^@entities/(.*)$': '<rootDir>/src/entities/$1',
-    '^@config/(.*)$': '<rootDir>/src/config/$1',
+    '^@/(.*)$': '<rootDir>/../src/$1',
+    '^@common/(.*)$': '<rootDir>/../src/common/$1',
+    '^@modules/(.*)$': '<rootDir>/../src/modules/$1',
+    '^@entities/(.*)$': '<rootDir>/../src/entities/$1',
+    '^@config/(.*)$': '<rootDir>/../src/config/$1',
   },
 
   // 测试超时时间

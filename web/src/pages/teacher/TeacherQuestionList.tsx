@@ -5,8 +5,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Card, Table, Select, Space, Button, Tag, Modal, Form, Input, Radio, message, Tooltip } from 'antd'
 import { EditOutlined, EyeOutlined } from '@ant-design/icons'
+import DOMPurify from 'dompurify'
 import { getCategoryTree } from '@/api/sku'
 import { getTeacherPapers, getTeacherPaperQuestions, updateTeacherQuestion } from '@/api/question'
+import { logger } from '@/utils'
 
 const { TextArea } = Input
 
@@ -41,7 +43,7 @@ const TeacherQuestionList = () => {
         const data: any = await getCategoryTree()
         setProfessions(data)
       } catch (error) {
-        console.error(error)
+        logger.error('获取分类树失败', error)
       }
     }
     fetchTree()
@@ -92,7 +94,7 @@ const TeacherQuestionList = () => {
       setSelectedPaper(undefined)
       setQuestions([])
     } catch (error) {
-      console.error(error)
+      logger.error('获取试卷列表失败', error)
     } finally {
       setLoading(false)
     }
@@ -113,7 +115,7 @@ const TeacherQuestionList = () => {
       const data: any = await getTeacherPaperQuestions(selectedPaper)
       setQuestions(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取题目列表失败', error)
     } finally {
       setQuestionsLoading(false)
     }
@@ -143,7 +145,7 @@ const TeacherQuestionList = () => {
       setEditModalOpen(false)
       fetchQuestions()
     } catch (error) {
-      console.error(error)
+      logger.error('保存题目失败', error)
       message.error('保存失败')
     } finally {
       setSaving(false)
@@ -317,7 +319,7 @@ const TeacherQuestionList = () => {
           <div>
             <div style={{ marginBottom: 16, padding: 12, background: 'var(--fill-secondary)', borderRadius: 4 }}>
               <strong>题目：</strong>
-              <div dangerouslySetInnerHTML={{ __html: editingQuestion.content }} />
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(editingQuestion.content) }} />
               <div style={{ marginTop: 8 }}>
                 <strong>选项：</strong>
                 {editingQuestion.options?.map((opt: any) => (
@@ -362,7 +364,7 @@ const TeacherQuestionList = () => {
           <div>
             <div style={{ marginBottom: 16 }}>
               <strong>题目：</strong>
-              <div dangerouslySetInnerHTML={{ __html: previewQuestion.content }} />
+              <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewQuestion.content) }} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <strong>选项：</strong>

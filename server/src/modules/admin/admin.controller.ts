@@ -18,6 +18,7 @@ import {
   ParseIntPipe,
   Res,
   StreamableFile,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -454,7 +455,7 @@ export class AdminController {
     @Body() dto: UpdateAgreementDto,
   ) {
     if (type !== "termsOfService" && type !== "privacyPolicy") {
-      throw new Error("无效的协议类型");
+      throw new BadRequestException("无效的协议类型");
     }
     await this.adminService.updateAgreement(type, dto.content);
     return { message: "协议更新成功" };

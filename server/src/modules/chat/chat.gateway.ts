@@ -20,6 +20,7 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { ChatService } from "./chat.service";
 import { SendMessageDto } from "./dto";
+import { parseCorsOrigins } from "../../config/cors.config";
 
 // Socket 扩展，添加用户信息
 interface AuthenticatedSocket {
@@ -34,13 +35,22 @@ interface AuthenticatedSocket {
   disconnect(): void;
 }
 
-@WebSocketGateway({
-  namespace: "/chat",
-  cors: {
-    origin: "*",
-    credentials: true,
-  },
-})
+/**
+ * WebSocket CORS 配置函数
+ * 从环境变量获取允许的源地址，避免硬编码通配符
+ */
+function getWebSocketCorsConfig() {
+  const originString = process.env.CORS_ORIGIN;
+  return {
+    namespace: "/chat",
+    cors: {
+      origin: parseCorsOrigins(originString),
+      credentials: true,
+    },
+  };
+}
+
+@WebSocketGateway(getWebSocketCorsConfig())
 @Injectable()
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()

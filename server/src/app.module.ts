@@ -16,6 +16,7 @@ import { join } from "path";
 import { databaseConfig } from "./config/database.config";
 import { redisConfig } from "./config/redis.config";
 import { jwtConfig } from "./config/jwt.config";
+import { corsConfig } from "./config/cors.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -69,7 +70,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig],
       envFilePath: [".env.local", ".env"],
     }),
 

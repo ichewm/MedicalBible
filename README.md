@@ -211,7 +211,7 @@ chmod +x deploy.sh
 - **缓存**: Redis 6.2 + CacheService (Cache-Aside 模式)
 - **ORM**: TypeORM
 - **文档**: Swagger/OpenAPI
-- **测试**: Jest (297个单元测试 + 集成测试)
+- **测试**: Jest (299个测试 + 集成测试)
 
 ### 前端技术
 
@@ -230,6 +230,7 @@ chmod +x deploy.sh
 - **反向代理**: Nginx
 - **CI/CD**: GitHub Actions (可选)
 - **监控**: 日志系统 + 健康检查
+- **日志**: NestJS Logger 结构化日志（无 console.log）
 
 ## 📁 项目结构
 
@@ -279,6 +280,8 @@ MedicalBible/
 - [产品需求文档](./doc/prd.md) - PRD 3.0
 - [API 接口文档](http://localhost:3000/api-docs) - Swagger 文档（需启动服务）
 - [API 错误码文档](./doc/API_ERROR_CODES.md) - 错误码说明与处理
+- [错误处理文档](./server/docs/error-handling.md) - 标准化错误响应格式
+- [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
@@ -302,7 +305,7 @@ npm run test:cov
 npm run test:e2e
 ```
 
-**测试结果**: ✅ 297/297 单元测试通过 + 集成测试覆盖
+**测试结果**: ✅ 299/299 测试通过（包含单元测试、集成测试和 E2E 测试）
 
 ### 前端测试
 
@@ -370,6 +373,8 @@ npm run dev
 
 ## 🔐 安全
 
+- **CORS 配置**: 环境级域名白名单，生产环境禁止通配符
+- **安全头**: Helmet 中间件防护常见 Web 漏洞
 - JWT Token 认证
 - 密码 bcrypt 加密
 - SQL 注入防护
@@ -377,6 +382,13 @@ npm run dev
 - CSRF 防护
 - Rate Limiting
 - HTTPS 支持
+- **结构化日志**: 使用 NestJS Logger（无 console.log，防止敏感信息泄露）
+
+**CORS 配置说明**:
+- 开发环境: 默认允许 `http://localhost:5173` 和 `http://localhost:3000`
+- 生产环境: 必须通过 `CORS_ORIGIN` 环境变量指定具体域名
+- 支持逗号分隔的多个域名: `https://example.com,https://app.example.com`
+- 生产环境使用通配符 (`*`) 将导致应用拒绝启动
 
 ## 📈 性能
 

@@ -19,6 +19,8 @@ import request from '@/utils/request'
 import { getFileUrl } from '@/utils/file'
 import LecturePreview from '@/components/LecturePreview'
 
+import { logger } from '@/utils'
+
 const { Text } = Typography
 const { TextArea } = Input
 
@@ -76,7 +78,7 @@ const LectureManagement = () => {
           }))
         })))
       } catch (error) {
-        console.error(error)
+        logger.error('获取分类树失败', error)
       }
     }
     fetchCategories()
@@ -129,7 +131,7 @@ const LectureManagement = () => {
       const data: any = await getLectures(params)
       setLectures(Array.isArray(data) ? data : data.items || [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取讲义列表失败', error)
     } finally {
       setLoading(false)
     }
@@ -172,7 +174,7 @@ const LectureManagement = () => {
       message.success('删除成功')
       fetchLectures()
     } catch (error) {
-      console.error(error)
+      logger.error('删除讲义失败', error)
     }
   }
 
@@ -190,7 +192,7 @@ const LectureManagement = () => {
       message.success(newStatus === 1 ? '发布成功' : '已下架')
       fetchLectures()
     } catch (error) {
-      console.error(error)
+      logger.error('更新讲义状态失败', error)
     }
   }
 
@@ -198,7 +200,7 @@ const LectureManagement = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      
+
       if (modalMode === 'edit' && editingLecture) {
         await updateLecture(editingLecture.id, {
           title: values.title,
@@ -217,11 +219,11 @@ const LectureManagement = () => {
         })
         message.success('添加成功')
       }
-      
+
       setModalOpen(false)
       fetchLectures()
     } catch (error) {
-      console.error(error)
+      logger.error('提交讲义表单失败', error)
     }
   }
 

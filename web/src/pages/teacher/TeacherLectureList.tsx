@@ -10,6 +10,7 @@ import { getCategoryTree } from '@/api/sku'
 import { getTeacherLectures } from '@/api/lecture'
 import { getFileUrl } from '@/utils/file'
 import LecturePreview from '@/components/LecturePreview'
+import { logger } from '@/utils'
 
 const TeacherLectureList = () => {
   const navigate = useNavigate()
@@ -34,7 +35,7 @@ const TeacherLectureList = () => {
         const data: any = await getCategoryTree()
         setProfessions(data)
       } catch (error) {
-        console.error(error)
+        logger.error('获取分类树失败', error)
       }
     }
     fetchTree()
@@ -84,7 +85,7 @@ const TeacherLectureList = () => {
       const data: any = await getTeacherLectures(params)
       setLectures(Array.isArray(data) ? data : data.items || [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取讲义列表失败', error)
     } finally {
       setLoading(false)
     }

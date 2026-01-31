@@ -10,6 +10,8 @@ import { getAdminWithdrawals, auditWithdrawal, getAdminOrders } from '@/api/admi
 import request from '@/utils/request'
 import dayjs from 'dayjs'
 
+import { logger } from '@/utils'
+
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
 const { Option } = Select
@@ -60,7 +62,7 @@ const Finance = () => {
         pendingAmount: pending.reduce((sum: number, w: any) => sum + Number(w.amount || 0), 0)
       }))
     } catch (error) {
-      console.error(error)
+      logger.error('获取提现列表失败', error)
     } finally {
       setLoading(false)
     }
@@ -87,7 +89,7 @@ const Finance = () => {
         monthRevenue: res.totalPaidAmount || 0
       }))
     } catch (error) {
-      console.error(error)
+      logger.error('获取订单列表失败', error)
     } finally {
       setLoading(false)
     }
@@ -105,7 +107,7 @@ const Finance = () => {
       message.success('审核通过')
       fetchWithdrawals()
     } catch (error) {
-      console.error(error)
+      logger.error('审核通过失败', error)
     }
   }
 
@@ -116,7 +118,7 @@ const Finance = () => {
       message.success('已确认打款完成')
       fetchWithdrawals()
     } catch (error) {
-      console.error(error)
+      logger.error('确认打款失败', error)
     }
   }
 
@@ -125,8 +127,8 @@ const Finance = () => {
     if (!currentWithdrawal) return
     try {
       const values = await rejectForm.validateFields()
-      await auditWithdrawal(currentWithdrawal.id, { 
-        approved: false, 
+      await auditWithdrawal(currentWithdrawal.id, {
+        approved: false,
         rejectReason: values.rejectReason,
         refundAmount: values.refundAmount
       })
@@ -136,7 +138,7 @@ const Finance = () => {
       setCurrentWithdrawal(null)
       fetchWithdrawals()
     } catch (error) {
-      console.error(error)
+      logger.error('拒绝提现失败', error)
     }
   }
 

@@ -7,6 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Result, Button, Row, Col, Statistic, Table, Tag, Typography, Divider } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, TrophyOutlined, BookOutlined } from '@ant-design/icons'
 import { getExamResult } from '@/api/question'
+import { logger } from '@/utils'
 
 const { Title, Text } = Typography
 
@@ -23,7 +24,7 @@ const ExamResult = () => {
         const data = await getExamResult(sessionId)
         setResult(data)
       } catch (error) {
-        console.error(error)
+        logger.error('获取考试结果失败', error)
       } finally {
         setLoading(false)
       }

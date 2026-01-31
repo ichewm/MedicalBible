@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getPapers, getWrongBook, removeFromWrongBook, generateWrongPaper, getExamHistory, submitExam, deleteExamRecord, type Paper } from '@/api/question'
 import { getCategoryTree } from '@/api/sku'
 import { useAuthStore } from '@/stores/auth'
+import { logger } from '@/utils'
 import './QuestionBank.css'
 
 const { useBreakpoint } = Grid
@@ -82,7 +83,7 @@ const QuestionBank = () => {
           setWrongSubject(foundSubjects[0].subjectId)
         }
       } catch (error) {
-        console.error(error)
+        logger.error('获取科目列表失败', error)
       }
     }
     fetchSubjects()
@@ -98,7 +99,7 @@ const QuestionBank = () => {
           // 假设 API 返回 { items: [] } 或直接 []
           setPapers(Array.isArray(res) ? res : res.items || [])
         } catch (error) {
-          console.error(error)
+          logger.error('获取试卷列表失败', error)
         } finally {
           setLoading(false)
         }
@@ -116,7 +117,7 @@ const QuestionBank = () => {
           const res: any = await getWrongBook({ subjectId: wrongSubject })
           setWrongQuestions(Array.isArray(res) ? res : res.items || [])
         } catch (error) {
-          console.error(error)
+          logger.error('获取错题本失败', error)
         } finally {
           setWrongLoading(false)
         }
@@ -135,7 +136,7 @@ const QuestionBank = () => {
           setExamHistory(res.items || [])
           setExamTotal(res.total || 0)
         } catch (error) {
-          console.error(error)
+          logger.error('获取考试记录失败', error)
         } finally {
           setExamLoading(false)
         }
@@ -151,7 +152,7 @@ const QuestionBank = () => {
       setWrongQuestions(wrongQuestions.filter(q => q.questionId !== questionId))
       message.success('已从错题本移除')
     } catch (error) {
-      console.error(error)
+      logger.error('移除错题失败', error)
     }
   }
 
@@ -172,7 +173,7 @@ const QuestionBank = () => {
           setExamHistory(res.items || [])
           setExamTotal(res.total || 0)
         } catch (error) {
-          console.error(error)
+          logger.error('放弃考试失败', error)
           message.error('操作失败')
         }
       },
@@ -189,7 +190,7 @@ const QuestionBank = () => {
       setExamHistory(res.items || [])
       setExamTotal(res.total || 0)
     } catch (error) {
-      console.error(error)
+      logger.error('删除考试记录失败', error)
       message.error('删除失败')
     }
   }
@@ -217,7 +218,7 @@ const QuestionBank = () => {
         message.warning('没有找到错题')
       }
     } catch (error) {
-      console.error(error)
+      logger.error('生成错题试卷失败', error)
     }
   }
 
