@@ -27,6 +27,7 @@ import {
   SystemConfig,
   SystemConfigKeys,
 } from "../../entities/system-config.entity";
+import { TransactionService } from "../../common/database/transaction.service";
 import {
   BindResultDto,
   CommissionQueryDto,
@@ -70,6 +71,8 @@ export class AffiliateService {
 
     @InjectRepository(SystemConfig)
     private readonly systemConfigRepository: Repository<SystemConfig>,
+
+    private readonly transactionService: TransactionService,
   ) {}
 
   /**
@@ -331,6 +334,8 @@ export class AffiliateService {
 
   /**
    * 申请提现
+   * CRITICAL: This method deducts balance and creates withdrawal record.
+   * Uses transaction to ensure atomicity - both operations succeed or both roll back.
    * @param userId - 用户ID
    * @param dto - 提现信息
    * @returns 创建的提现记录
@@ -341,7 +346,7 @@ export class AffiliateService {
   ): Promise<Withdrawal> {
     const { amount, accountInfo } = dto;
 
-    // 检查是否有未完成的提现申请
+    // 检查是否有未完成的提现申请（在事务外检查，避免不必要的锁）
     const pendingWithdrawal = await this.withdrawalRepository.findOne({
       where: {
         userId,
@@ -352,7 +357,7 @@ export class AffiliateService {
       throw new BadRequestException("您有一笔提现申请正在处理中，请等待处理完成后再申请");
     }
 
-    // 从数据库获取最低提现金额配置
+    // 从数据库获取最低提现金额配置（在事务外检查）
     const minWithdrawalStr = await this.getConfigValue(
       SystemConfigKeys.MIN_WITHDRAWAL,
       "10",
@@ -364,29 +369,35 @@ export class AffiliateService {
       throw new BadRequestException(`最低提现金额为${minWithdrawal}元`);
     }
 
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    // Use transaction for atomic balance deduction and withdrawal creation
+    return this.transactionService.runInTransaction(async (qr) => {
+      const userRepo = this.transactionService.getRepository(qr, User);
+      const withdrawalRepo = this.transactionService.getRepository(qr, Withdrawal);
 
-    if (!user) {
-      throw new NotFoundException("用户不存在");
-    }
+      const user = await userRepo.findOne({ where: { id: userId } });
 
-    if (Number(user.balance) < amount) {
-      throw new BadRequestException("余额不足");
-    }
+      if (!user) {
+        throw new NotFoundException("用户不存在");
+      }
 
-    // 扣减余额
-    user.balance = Number(user.balance) - amount;
-    await this.userRepository.save(user);
+      if (Number(user.balance) < amount) {
+        throw new BadRequestException("余额不足");
+      }
 
-    // 创建提现记录
-    const withdrawal = this.withdrawalRepository.create({
-      userId,
-      amount,
-      accountInfo,
-      status: WithdrawalStatus.PENDING,
+      // 扣减余额
+      user.balance = Number(user.balance) - amount;
+      await userRepo.save(user);
+
+      // 创建提现记录
+      const withdrawal = withdrawalRepo.create({
+        userId,
+        amount,
+        accountInfo,
+        status: WithdrawalStatus.PENDING,
+      });
+
+      return withdrawalRepo.save(withdrawal);
     });
-
-    return this.withdrawalRepository.save(withdrawal);
   }
 
   /**
@@ -441,38 +452,46 @@ export class AffiliateService {
 
   /**
    * 取消提现申请
+   * CRITICAL: This method updates withdrawal status and refunds balance.
+   * Uses transaction to ensure atomicity - both operations succeed or both roll back.
    * @param userId - 用户ID
    * @param withdrawalId - 提现ID
    * @throws NotFoundException 提现记录不存在
    * @throws BadRequestException 无法取消
    */
   async cancelWithdrawal(userId: number, withdrawalId: number): Promise<void> {
-    const withdrawal = await this.withdrawalRepository.findOne({
-      where: { id: withdrawalId, userId },
+    // Use transaction for atomic withdrawal update and balance refund
+    await this.transactionService.runInTransaction(async (qr) => {
+      const withdrawalRepo = this.transactionService.getRepository(qr, Withdrawal);
+      const userRepo = this.transactionService.getRepository(qr, User);
+
+      const withdrawal = await withdrawalRepo.findOne({
+        where: { id: withdrawalId, userId },
+      });
+
+      if (!withdrawal) {
+        throw new NotFoundException("提现记录不存在");
+      }
+
+      if (withdrawal.status !== WithdrawalStatus.PENDING) {
+        throw new BadRequestException("只能取消待审核的提现申请");
+      }
+
+      // 更新状态为已取消
+      withdrawal.status = WithdrawalStatus.REJECTED;
+      withdrawal.rejectReason = "用户主动取消";
+      withdrawal.refundAmount = withdrawal.amount;
+      await withdrawalRepo.save(withdrawal);
+
+      // 退回余额
+      const user = await userRepo.findOne({
+        where: { id: userId },
+      });
+      if (user) {
+        user.balance = Number(user.balance) + Number(withdrawal.amount);
+        await userRepo.save(user);
+      }
     });
-
-    if (!withdrawal) {
-      throw new NotFoundException("提现记录不存在");
-    }
-
-    if (withdrawal.status !== WithdrawalStatus.PENDING) {
-      throw new BadRequestException("只能取消待审核的提现申请");
-    }
-
-    // 更新状态为已取消
-    withdrawal.status = WithdrawalStatus.REJECTED;
-    withdrawal.rejectReason = "用户主动取消";
-    withdrawal.refundAmount = withdrawal.amount;
-    await this.withdrawalRepository.save(withdrawal);
-
-    // 退回余额
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-    if (user) {
-      user.balance = Number(user.balance) + Number(withdrawal.amount);
-      await this.userRepository.save(user);
-    }
   }
 
   // ==================== 下线管理 ====================
@@ -571,6 +590,8 @@ export class AffiliateService {
 
   /**
    * 审核提现（管理员）
+   * CRITICAL: This method updates withdrawal status and may refund balance.
+   * Uses transaction to ensure atomicity - both operations succeed or both roll back.
    * @param withdrawalId - 提现ID
    * @param adminId - 管理员ID
    * @param approved - 是否通过
@@ -584,43 +605,49 @@ export class AffiliateService {
     rejectReason?: string,
     refundAmount?: number,
   ): Promise<Withdrawal> {
-    const withdrawal = await this.withdrawalRepository.findOne({
-      where: { id: withdrawalId },
-    });
+    // Use transaction for atomic withdrawal update and balance refund (if rejected)
+    return this.transactionService.runInTransaction(async (qr) => {
+      const withdrawalRepo = this.transactionService.getRepository(qr, Withdrawal);
+      const userRepo = this.transactionService.getRepository(qr, User);
 
-    if (!withdrawal) {
-      throw new NotFoundException("提现记录不存在");
-    }
+      const withdrawal = await withdrawalRepo.findOne({
+        where: { id: withdrawalId },
+      });
 
-    if (withdrawal.status !== WithdrawalStatus.PENDING) {
-      throw new BadRequestException("该提现已处理");
-    }
+      if (!withdrawal) {
+        throw new NotFoundException("提现记录不存在");
+      }
 
-    withdrawal.adminId = adminId;
+      if (withdrawal.status !== WithdrawalStatus.PENDING) {
+        throw new BadRequestException("该提现已处理");
+      }
 
-    if (approved) {
-      withdrawal.status = WithdrawalStatus.APPROVED;
-    } else {
-      withdrawal.status = WithdrawalStatus.REJECTED;
-      withdrawal.rejectReason = rejectReason || "审核未通过";
-      
-      // 退款金额：如果指定了则使用指定值，否则全额退回
-      const actualRefundAmount = refundAmount !== undefined ? refundAmount : Number(withdrawal.amount);
-      withdrawal.refundAmount = actualRefundAmount;
+      withdrawal.adminId = adminId;
 
-      // 退回余额（如果有退款金额）
-      if (actualRefundAmount > 0) {
-        const user = await this.userRepository.findOne({
-          where: { id: withdrawal.userId },
-        });
-        if (user) {
-          user.balance = Number(user.balance) + actualRefundAmount;
-          await this.userRepository.save(user);
+      if (approved) {
+        withdrawal.status = WithdrawalStatus.APPROVED;
+      } else {
+        withdrawal.status = WithdrawalStatus.REJECTED;
+        withdrawal.rejectReason = rejectReason || "审核未通过";
+
+        // 退款金额：如果指定了则使用指定值，否则全额退回
+        const actualRefundAmount = refundAmount !== undefined ? refundAmount : Number(withdrawal.amount);
+        withdrawal.refundAmount = actualRefundAmount;
+
+        // 退回余额（如果有退款金额）
+        if (actualRefundAmount > 0) {
+          const user = await userRepo.findOne({
+            where: { id: withdrawal.userId },
+          });
+          if (user) {
+            user.balance = Number(user.balance) + actualRefundAmount;
+            await userRepo.save(user);
+          }
         }
       }
-    }
 
-    return this.withdrawalRepository.save(withdrawal);
+      return withdrawalRepo.save(withdrawal);
+    });
   }
 
   /**
@@ -653,6 +680,8 @@ export class AffiliateService {
 
   /**
    * 解冻到期佣金（定时任务，每5分钟执行一次）
+   * CRITICAL: This method updates commission status and user balances.
+   * Uses transaction to ensure atomicity - all updates succeed or all roll back.
    * @returns 解冻数量
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
@@ -675,30 +704,36 @@ export class AffiliateService {
 
     this.logger.log(`Found ${frozenCommissions.length} commissions to unlock`);
 
-    // 按用户分组累计金额
-    const userAmounts: Record<number, number> = {};
-    for (const c of frozenCommissions) {
-      c.status = CommissionStatus.AVAILABLE;
-      userAmounts[c.userId] = (userAmounts[c.userId] || 0) + Number(c.amount);
-    }
+    // Use transaction for atomic commission status update and balance updates
+    return this.transactionService.runInTransaction(async (qr) => {
+      const commissionRepo = this.transactionService.getRepository(qr, Commission);
+      const userRepo = this.transactionService.getRepository(qr, User);
 
-    // 批量更新佣金状态
-    await this.commissionRepository.save(frozenCommissions);
-
-    // 更新用户余额
-    for (const [userId, amount] of Object.entries(userAmounts)) {
-      const user = await this.userRepository.findOne({
-        where: { id: Number(userId) },
-      });
-      if (user) {
-        user.balance = Number(user.balance) + amount;
-        await this.userRepository.save(user);
-        this.logger.log(`Added ${amount} to user ${userId} balance, new balance: ${user.balance}`);
+      // 按用户分组累计金额
+      const userAmounts: Record<number, number> = {};
+      for (const c of frozenCommissions) {
+        c.status = CommissionStatus.AVAILABLE;
+        userAmounts[c.userId] = (userAmounts[c.userId] || 0) + Number(c.amount);
       }
-    }
 
-    this.logger.log(`Unlocked ${frozenCommissions.length} commissions`);
-    return { unlocked: frozenCommissions.length };
+      // 批量更新佣金状态
+      await commissionRepo.save(frozenCommissions);
+
+      // 更新用户余额
+      for (const [userId, amount] of Object.entries(userAmounts)) {
+        const user = await userRepo.findOne({
+          where: { id: Number(userId) },
+        });
+        if (user) {
+          user.balance = Number(user.balance) + amount;
+          await userRepo.save(user);
+          this.logger.log(`Added ${amount} to user ${userId} balance, new balance: ${user.balance}`);
+        }
+      }
+
+      this.logger.log(`Unlocked ${frozenCommissions.length} commissions`);
+      return { unlocked: frozenCommissions.length };
+    });
   }
 
   /**

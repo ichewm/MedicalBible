@@ -283,6 +283,7 @@ MedicalBible/
 - [API 错误码文档](./doc/API_ERROR_CODES.md) - 错误码说明与处理
 - [错误处理文档](./server/docs/error-handling.md) - 标准化错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
+- [事务模式文档](./docs/TRANSACTION_PATTERNS.md) - 数据库事务使用指南
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
