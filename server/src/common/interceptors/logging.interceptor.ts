@@ -1,8 +1,8 @@
 /**
  * @file 日志拦截器
- * @description 记录请求和响应日志，支持请求 ID 追踪
+ * @description 基于 Pino 的结构化日志记录，支持关联 ID 追踪
  * @author Medical Bible Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import {
@@ -10,18 +10,21 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
-  Logger,
 } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { tap } from "rxjs/operators";
 import { Request, Response } from "express";
-import { getRequestId } from "../middleware/request-tracking.middleware";
+import { LoggerService, LogContext } from "../logger/logger.service";
+import { getCorrelationId, getRequestId } from "../middleware/request-tracking.middleware";
 
 /**
  * 请求日志格式接口
+ * @description 定义请求日志中包含的所有字段
  */
 interface RequestLogEntry {
-  /** 请求 ID */
+  /** 关联 ID（用于跨服务追踪） */
+  correlationId?: string;
+  /** 请求 ID（单个请求的唯一标识） */
   requestId?: string;
   /** HTTP 方法 */
   method: string;
@@ -43,16 +46,26 @@ interface RequestLogEntry {
 
 /**
  * 日志拦截器
- * @description 记录每个请求的方法、路径、耗时、请求 ID 等信息
+ * @description 使用 Pino 记录每个请求的结构化日志
+ *
+ * 特性：
+ * - 自动关联 ID 追踪
+ * - 请求耗时统计
+ * - 慢请求警告（> 3000ms）
+ * - 基于状态码的日志级别（error/warn/info）
+ * - 完整的请求上下文（用户、IP、路径等）
  */
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  private readonly logger = new Logger("HTTP");
+  /** 日志服务实例 */
+  private readonly logger: LoggerService;
 
-  /**
-   * 慢请求阈值（毫秒）
-   */
+  /** 慢请求阈值（毫秒） */
   private readonly SLOW_REQUEST_THRESHOLD = 3000;
+
+  constructor() {
+    this.logger = new LoggerService();
+  }
 
   /**
    * 拦截请求并记录日志
@@ -91,64 +104,56 @@ export class LoggingInterceptor implements NestInterceptor {
   ): void {
     const duration = Date.now() - startTime;
     const requestId = getRequestId(request);
+    const correlationId = getCorrelationId(request);
     const statusCode = error?.status || response.statusCode;
     const userId = (request as any).user?.id;
 
-    const logEntry: RequestLogEntry = {
-      requestId,
-      method: request.method,
-      url: request.url,
-      statusCode,
-      duration,
-      ip: this.getClientIp(request),
-      userAgent: request.get("user-agent") || "-",
+    const clientIp = this.getClientIp(request);
+    const userAgent = request.get("user-agent") || "-";
+
+    // 构建日志上下文
+    const logContext: LogContext = {
+      correlationId,
       userId,
-      contentLength:
-        parseInt(request.get("content-length") || "0", 10) || undefined,
+      path: request.url,
+      method: request.method,
+      ip: clientIp,
+      userAgent,
     };
 
-    // 构建日志消息
-    const logMessage = this.formatLogMessage(logEntry);
+    // 根据状态码和耗时决定日志级别和消息
+    const logMessage = `${request.method} ${request.url} ${statusCode} ${duration}ms`;
+    const isSlowRequest = duration >= this.SLOW_REQUEST_THRESHOLD;
 
-    // 根据状态码和耗时决定日志级别
     if (error) {
       if (statusCode >= 500) {
-        this.logger.error(logMessage, error.stack);
+        this.logger.error(
+          logMessage,
+          error,
+          { ...logContext, statusCode, duration } as LogContext,
+        );
       } else if (statusCode >= 400) {
-        this.logger.warn(logMessage);
+        this.logger.warn(
+          logMessage,
+          { context: logContext, data: { statusCode, duration } },
+        );
       } else {
-        this.logger.log(logMessage);
+        this.logger.info(
+          logMessage,
+          { context: logContext, data: { statusCode, duration } },
+        );
       }
-    } else if (duration >= this.SLOW_REQUEST_THRESHOLD) {
-      this.logger.warn(`[SLOW] ${logMessage}`);
+    } else if (isSlowRequest) {
+      this.logger.warn(
+        `[SLOW] ${logMessage}`,
+        { context: logContext, data: { statusCode, duration } },
+      );
     } else {
-      this.logger.log(logMessage);
+      this.logger.info(
+        logMessage,
+        { context: logContext, data: { statusCode, duration } },
+      );
     }
-  }
-
-  /**
-   * 格式化日志消息
-   * @param entry 日志条目
-   */
-  private formatLogMessage(entry: RequestLogEntry): string {
-    const parts: string[] = [
-      `[${entry.requestId || "-"}]`,
-      `${entry.method}`,
-      `${entry.url}`,
-      `${entry.statusCode}`,
-      `${entry.duration}ms`,
-      `- ${entry.ip}`,
-    ];
-
-    if (entry.userId) {
-      parts.push(`- user:${entry.userId}`);
-    }
-
-    if (entry.contentLength) {
-      parts.push(`- ${this.formatBytes(entry.contentLength)}`);
-    }
-
-    return parts.join(" ");
   }
 
   /**
@@ -169,17 +174,5 @@ export class LoggingInterceptor implements NestInterceptor {
     }
 
     return request.ip || request.socket?.remoteAddress || "-";
-  }
-
-  /**
-   * 格式化字节大小
-   * @param bytes 字节数
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return "0B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
   }
 }

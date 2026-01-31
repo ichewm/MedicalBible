@@ -23,3 +23,6 @@ export * from "./filters";
 
 // Exceptions
 export * from "./exceptions";
+
+// Logger
+export * from "./logger";
