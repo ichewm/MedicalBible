@@ -46,7 +46,7 @@ import {
  * @description 提供登录、注册、验证码等接口
  */
 @ApiTags("Auth")
-@Controller("auth")
+@Controller({ path: "auth", version: "1" })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

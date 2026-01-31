@@ -46,7 +46,7 @@ import {
  * 提供 SKU 相关的 API 接口
  */
 @ApiTags("SKU")
-@Controller("sku")
+@Controller({ path: "sku", version: "1" })
 export class SkuController {
   constructor(private readonly skuService: SkuService) {}
 

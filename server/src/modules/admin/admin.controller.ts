@@ -52,7 +52,7 @@ import {
 
 @ApiTags("管理后台")
 @ApiBearerAuth("JWT-auth")
-@Controller("admin")
+@Controller({ path: "admin", version: "1" })
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles("admin")
 export class AdminController {
