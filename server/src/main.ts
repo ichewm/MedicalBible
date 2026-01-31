@@ -8,6 +8,7 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
@@ -26,6 +27,21 @@ async function bootstrap(): Promise<void> {
   });
 
   const logger = new Logger("Bootstrap");
+
+  // 启用 Helmet 安全头中间件
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", "data:", "https:"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   // 设置全局 API 前缀
   app.setGlobalPrefix("api/v1");

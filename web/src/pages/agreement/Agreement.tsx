@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Typography, Spin, Empty, Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
+import DOMPurify from 'dompurify'
 import request from '@/utils/request'
 import { logger } from '@/utils'
 import './Agreement.css'
@@ -70,7 +71,7 @@ const Agreement = () => {
 
       <div className="agreement-content">
         {content ? (
-          <div dangerouslySetInnerHTML={{ __html: content }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
         ) : (
           <Empty description={`暂无${title}内容`} />
         )}
