@@ -41,7 +41,7 @@ import {
 import { Request } from "express";
 
 @ApiTags("订单")
-@Controller("order")
+@Controller({ path: "order", version: "1" })
 export class OrderController {
   private readonly logger = new Logger(OrderController.name);
 

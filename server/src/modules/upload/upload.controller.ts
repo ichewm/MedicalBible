@@ -24,7 +24,7 @@ import { JwtAuthGuard, RolesGuard } from "@common/guards";
 import { Roles, Public } from "@common/decorators";
 
 @ApiTags("文件上传")
-@Controller("upload")
+@Controller({ path: "upload", version: "1" })
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 

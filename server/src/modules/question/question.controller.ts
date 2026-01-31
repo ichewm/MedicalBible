@@ -61,7 +61,7 @@ import {
 } from "./dto";
 
 @ApiTags("题库")
-@Controller("question")
+@Controller({ path: "question", version: "1" })
 export class QuestionController {
   constructor(private readonly questionService: QuestionService) {}
 
