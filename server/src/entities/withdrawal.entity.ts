@@ -13,6 +13,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from "typeorm";
 import { User } from "./user.entity";
 
@@ -51,6 +52,7 @@ export interface AccountInfo {
  * @description 存储用户提现申请信息
  */
 @Entity("withdrawals")
+@Index("idx_withdrawals_user_status", ["userId", "status"])
 export class Withdrawal {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键" })

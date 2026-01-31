@@ -37,6 +37,7 @@ import { ChatModule } from "./modules/chat/chat.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
+import { DatabaseMonitoringModule } from "./common/database/database.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
@@ -102,6 +103,9 @@ class HealthController {
 
     // 加密服务模块
     CryptoModule,
+
+    // 数据库监控模块
+    DatabaseMonitoringModule,
 
     // 静态文件服务（上传文件访问）
     ServeStaticModule.forRoot({
