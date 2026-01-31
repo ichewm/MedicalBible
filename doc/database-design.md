@@ -300,9 +300,28 @@ erDiagram
 | users | parent_id | INDEX | 查询下线 |
 | user_devices | user_id, device_id | UNIQUE | 用户设备唯一 |
 | user_answers | user_id, paper_id | INDEX | 用户试卷答题记录 |
+| user_answers | session_id, user_id | INDEX | 答题会话查询 (PERF-002) |
 | user_wrong_books | user_id, subject_id, is_deleted | INDEX | 错题本筛选 |
 | orders | order_no | UNIQUE | 订单号唯一 |
 | orders | user_id, status | INDEX | 用户订单查询 |
 | subscriptions | user_id, level_id, expire_at | INDEX | 权益校验 |
 | commissions | user_id, status | INDEX | 佣金查询 |
+| commissions | status, unlock_at | INDEX | 佣金解冻查询 (PERF-002) |
+| withdrawals | user_id, status | INDEX | 提现工单查询 (PERF-002) |
+| exam_sessions | user_id, is_deleted, start_at | INDEX | 用户考试历史查询 (PERF-002) |
+| exam_sessions | id, user_id | INDEX | 考试会话查询 (PERF-002) |
+| questions | paper_id, sort_order | INDEX | 试卷题目查询 (PERF-002) |
+| papers | subject_id, status | INDEX | 科目试卷筛选 (PERF-002) |
+| papers | year, type | INDEX | 年份类型排序 (PERF-002) |
+| lectures | subject_id, is_active, status | INDEX | 科目讲义筛选 (PERF-002) |
 | lecture_highlights | lecture_id, page_index | INDEX | 按页查重点 |
+| reading_progress | user_id, lecture_id | UNIQUE | 用户讲义阅读进度 |
+| verification_codes | phone, type | INDEX | 手机验证码查询 |
+| verification_codes | email, type | INDEX | 邮箱验证码查询 |
+
+### 8.1 索引策略说明
+
+详见 [数据库索引策略文档](../docs/database-index-strategy.md)，包含：
+- 完整的索引分析与实施计划
+- 查询性能优化目标
+- 索引监控与维护策略

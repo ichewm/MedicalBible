@@ -1,22 +1,26 @@
 /**
  * @file Database Module
- * @description Exports TransactionService for use across the application
+ * @description Database utilities including transaction management and monitoring
  * @author Medical Bible Team
  * @version 1.0.0
  */
 
 import { Module, Global } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { DatabaseMonitoringService } from "./database-monitoring.service";
+import { DatabaseMonitoringController } from "./database-monitoring.controller";
 import { TransactionService } from "./transaction.service";
 
 /**
  * Global database module
- * Provides transaction management utilities to all modules
+ * @description Provides transaction management and database monitoring utilities
+ * @global 全局模块，可在整个应用中使用
  */
 @Global()
 @Module({
   imports: [TypeOrmModule],
-  providers: [TransactionService],
-  exports: [TransactionService],
+  controllers: [DatabaseMonitoringController],
+  providers: [DatabaseMonitoringService, TransactionService],
+  exports: [DatabaseMonitoringService, TransactionService],
 })
 export class DatabaseModule {}

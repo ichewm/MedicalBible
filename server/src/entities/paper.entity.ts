@@ -12,6 +12,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from "typeorm";
 import { Subject } from "./subject.entity";
 import { Question } from "./question.entity";
@@ -38,6 +39,8 @@ export { PublishStatus };
  * @description 存储试卷信息，包含多道题目
  */
 @Entity("papers")
+@Index("idx_papers_subject_status", ["subjectId", "status"])
+@Index("idx_papers_year_type", ["year", "type"])
 export class Paper {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键" })

@@ -12,6 +12,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from "typeorm";
 import { Subject } from "./subject.entity";
 import { LectureHighlight } from "./lecture-highlight.entity";
@@ -29,6 +30,7 @@ export { PublishStatus as LecturePublishStatus };
  * @description 存储 PDF 讲义信息
  */
 @Entity("lectures")
+@Index("idx_lectures_subject_active", ["subjectId", "isActive", "status"])
 export class Lecture {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "int", comment: "主键" })
