@@ -9,6 +9,61 @@ import { Injectable, Logger } from "@nestjs/common";
 import { RedisService } from "../redis/redis.service";
 
 /**
+ * 安全的 JSON 解析函数
+ * @description 防止原型污染攻击，过滤 __proto__ 和 constructor 属性
+ * @param json JSON 字符串
+ * @returns 解析后的对象或 null
+ *
+ * SECURITY: This function prevents prototype pollution by sanitizing
+ * the parsed JSON object to remove dangerous properties that could
+ * modify Object.prototype.
+ */
+function safeJsonParse<T>(json: string): T | null {
+  try {
+    const parsed = JSON.parse(json);
+
+    // Recursively sanitize the parsed object to remove prototype pollution keys
+    const sanitize = (obj: any): any => {
+      if (obj === null || typeof obj !== "object") {
+        return obj;
+      }
+
+      if (Array.isArray(obj)) {
+        return obj.map(sanitize);
+      }
+
+      const sanitized: any = {};
+      for (const key of Object.keys(obj)) {
+        // Skip dangerous properties that could lead to prototype pollution
+        if (key === "__proto__" || key === "constructor" || key === "prototype") {
+          continue;
+        }
+        sanitized[key] = sanitize(obj[key]);
+      }
+      return sanitized;
+    };
+
+    return sanitize(parsed);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 脱敏缓存键用于日志输出
+ * @description 避免在日志中泄露敏感的用户 ID 或其他信息
+ * @param key 原始缓存键
+ * @returns 脱敏后的缓存键
+ */
+function sanitizeCacheKey(key: string): string {
+  // 如果键太长，截断它
+  if (key.length > 50) {
+    return key.substring(0, 50) + "...";
+  }
+  return key;
+}
+
+/**
  * 缓存指标接口
  */
 export interface CacheMetrics {
@@ -73,7 +128,7 @@ export class CacheService {
 
     // 如果跳过缓存，直接调用工厂函数
     if (skipCache) {
-      this.logger.debug(`Cache skip: ${cacheKey}`);
+      this.logger.debug(`Cache skip: ${sanitizeCacheKey(cacheKey)}`);
       const data = await factory();
       if (ttl) {
         await this.set(cacheKey, data, ttl);
@@ -85,13 +140,13 @@ export class CacheService {
     const cached = await this.get<T>(cacheKey);
     if (cached !== null) {
       this.metrics.hits++;
-      this.logger.debug(`Cache hit: ${cacheKey}`);
+      this.logger.debug(`Cache hit: ${sanitizeCacheKey(cacheKey)}`);
       return cached;
     }
 
     // 缓存未命中，调用工厂函数
     this.metrics.misses++;
-    this.logger.debug(`Cache miss: ${cacheKey}`);
+    this.logger.debug(`Cache miss: ${sanitizeCacheKey(cacheKey)}`);
 
     const data = await factory();
 
@@ -120,13 +175,13 @@ export class CacheService {
     keys.forEach((key, index) => {
       const value = values[index];
       if (value) {
-        try {
-          result.set(key, JSON.parse(value) as T);
-          this.metrics.hits++;
-        } catch {
+        const parsed = safeJsonParse<T>(value);
+        if (parsed !== null) {
+          result.set(key, parsed);
+        } else {
           result.set(key, value as unknown as T);
-          this.metrics.hits++;
         }
+        this.metrics.hits++;
       } else {
         result.set(key, null);
         this.metrics.misses++;

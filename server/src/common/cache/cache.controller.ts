@@ -10,14 +10,23 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { CacheService } from "./cache.service";
 import { CacheKeyBuilder } from "./cache.decorator";
+import { JwtAuthGuard } from "../guards/jwt-auth.guard";
+import { RolesGuard } from "../guards/roles.guard";
+import { Roles } from "../decorators/roles.decorator";
+import { RateLimit } from "../guards/rate-limit.guard";
 
 /**
  * 缓存管理控制器
  * @description 提供缓存指标查询、缓存清除等管理功能
  * @example GET /cache/metrics - 获取缓存指标
  * @example DELETE /cache/pattern/user:* - 清除匹配模式的缓存
+ *
+ * SECURITY: All endpoints require authentication and admin role to prevent
+ * unauthorized cache manipulation and information disclosure.
  */
 @Controller("cache")
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("admin")
 export class CacheController {
   constructor(
     private readonly cacheService: CacheService,
@@ -73,8 +82,12 @@ export class CacheController {
   /**
    * 按模式删除缓存
    * @param pattern 键名模式
+   *
+   * SECURITY: Rate limited to prevent DoS attacks via mass cache deletion.
+   * Only authenticated admins can access this endpoint.
    */
   @Delete("pattern/:pattern")
+  @RateLimit({ ttl: 60, limit: 10, scope: "user", keyPrefix: "cache_delete" })
   async deleteByPattern(
     @Param("pattern") pattern: string,
   ): Promise<{ success: boolean; deleted: number }> {

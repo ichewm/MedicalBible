@@ -106,7 +106,9 @@ export function CacheClear(...patterns: string[]) {
           // 替换 {args} 为实际参数
           const key = replaceArgsPattern(pattern, args);
           cacheService.delByPattern(key).catch((err) => {
-            console.error(`Failed to clear cache pattern ${key}:`, err);
+            // Sanitize key in error logs to avoid leaking sensitive data
+            const sanitizedKey = key.length > 50 ? key.substring(0, 50) + "..." : key;
+            console.error(`Failed to clear cache pattern ${sanitizedKey}:`, err);
           });
         }
       } else {
@@ -123,18 +125,37 @@ export function CacheClear(...patterns: string[]) {
 /**
  * 默认参数哈希函数
  * @description 将参数转换为简单的字符串哈希
+ *
+ * SECURITY: Limits cache key length and object size to prevent abuse.
+ * - Maximum object JSON size: 1KB (1024 bytes)
+ * - Maximum cache key length: 250 characters (Redis compatible)
  */
 function defaultHashArgs(...args: any[]): string {
-  return args
+  const MAX_OBJECT_SIZE = 1024; // 1KB max for object JSON
+  const MAX_KEY_LENGTH = 250; // Redis-safe key length
+
+  const hashed = args
     .map((arg) => {
       if (arg === null || arg === undefined) return "";
       if (typeof arg === "object") {
-        return JSON.stringify(arg);
+        const json = JSON.stringify(arg);
+        // Truncate large objects to prevent excessive cache key sizes
+        if (json.length > MAX_OBJECT_SIZE) {
+          return json.substring(0, MAX_OBJECT_SIZE) + "...[truncated]";
+        }
+        return json;
       }
       return String(arg);
     })
     .join(":")
     .replace(/[^a-zA-Z0-9:_-]/g, "_");
+
+  // Enforce maximum cache key length
+  if (hashed.length > MAX_KEY_LENGTH) {
+    return hashed.substring(0, MAX_KEY_LENGTH) + "...[truncated]";
+  }
+
+  return hashed;
 }
 
 /**
