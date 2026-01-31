@@ -8,6 +8,7 @@ import { CrownOutlined, CheckCircleOutlined, AlipayCircleOutlined, WechatOutline
 import { getCategoryTree, getLevelPrices, type SkuPrice } from '@/api/sku'
 import { getSubscriptions } from '@/api/user'
 import { createOrder, getPayUrl, getPaymentInfo, type PaymentInfo } from '@/api/order'
+import { logger } from '@/utils'
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
@@ -41,13 +42,13 @@ const Subscription = () => {
         setCategoryTree(treeData || [])
         setSubscriptions(subscriptionsData || [])
         setPaymentInfo(payInfo || { testMode: false, providers: [] })
-        
+
         // 设置默认支付方式为第一个启用的支付方式
         if (payInfo?.providers?.length > 0) {
           setPayMethod(payInfo.providers[0])
         }
       } catch (error) {
-        console.error(error)
+        logger.error('获取订阅信息失败', error)
       }
     }
     fetchData()
@@ -61,7 +62,7 @@ const Subscription = () => {
           const data = await getLevelPrices(selectedLevel)
           setPrices(data)
         } catch (error) {
-          console.error(error)
+          logger.error('获取价格列表失败', error)
         }
       }
       fetchPrices()
@@ -100,7 +101,7 @@ const Subscription = () => {
         message.error('获取支付链接失败')
       }
     } catch (error) {
-      console.error(error)
+      logger.error('支付发起失败', error)
       message.error('支付发起失败')
     } finally {
       setLoading(false)

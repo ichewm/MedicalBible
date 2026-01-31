@@ -20,6 +20,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import isToday from 'dayjs/plugin/isToday'
 import isYesterday from 'dayjs/plugin/isYesterday'
 import 'dayjs/locale/zh-cn'
+import { logger } from '@/utils'
 
 dayjs.extend(relativeTime)
 dayjs.extend(isToday)
@@ -69,7 +70,7 @@ const ChatPage = () => {
       // 标记已读
       await request.put('/chat/read')
     } catch (error) {
-      console.error('获取消息失败', error)
+      logger.error('获取消息失败', error)
     } finally {
       setLoading(false)
     }
@@ -88,12 +89,12 @@ const ChatPage = () => {
     })
 
     socket.on('connect', () => {
-      console.log('WebSocket 已连接')
+      logger.log('WebSocket 已连接')
       setConnected(true)
     })
 
     socket.on('disconnect', () => {
-      console.log('WebSocket 已断开')
+      logger.log('WebSocket 已断开')
       setConnected(false)
     })
 

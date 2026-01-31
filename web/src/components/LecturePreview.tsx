@@ -59,7 +59,7 @@ const LecturePreview = ({ open, onClose, lectureId, title, pdfUrl, pageCount }: 
           const data: any = await getTeacherHighlights(lectureId)
           setHighlights(Array.isArray(data) ? data : data.items || [])
         } catch (error) {
-          console.error(error)
+          logger.error(error)
         } finally {
           setLoading(false)
         }

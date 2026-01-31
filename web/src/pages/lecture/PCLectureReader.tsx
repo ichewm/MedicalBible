@@ -10,6 +10,7 @@ import { LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { getLectureDetail, getHighlights, updateProgress, type Lecture, type Highlight } from '@/api/lecture'
 import { getFileUrl } from '@/utils/file'
+import { logger } from '@/utils'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -42,7 +43,7 @@ const PCLectureReader = () => {
         await updateProgress(Number(id), page)
         lastSavedPage.current = page
       } catch (error) {
-        console.error('保存进度失败:', error)
+        logger.error('保存进度失败', error)
       }
     }, 1000)
   }, [id])
@@ -66,10 +67,10 @@ const PCLectureReader = () => {
           const highlightsData: any = await getHighlights(Number(id))
           setHighlights(Array.isArray(highlightsData) ? highlightsData : highlightsData.items || [])
         } catch (highlightError) {
-          console.error('加载重点标注失败:', highlightError)
+          logger.error('加载重点标注失败', highlightError)
         }
       } catch (error) {
-        console.error(error)
+        logger.error('加载讲义失败', error)
       } finally {
         setLoading(false)
       }

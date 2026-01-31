@@ -94,7 +94,12 @@ graph TD
 ### 关键策略
 1. **无状态服务**: API Server 不存储 Session，使用 Redis 存储 Token 黑名单和缓存数据，支持水平扩展。
 2. **动静分离**: 前端静态资源 (JS/CSS) 通过 Nginx 或 CDN 分发，后端只处理 API 请求。
-3. **安全策略**: 
+3. **安全策略**:
    - API 接口启用 Rate Limiting (限流)。
    - 数据库连接使用内网 IP。
    - 敏感配置 (数据库密码等) 通过环境变量注入。
+4. **日志策略 (SEC-009)**:
+   - 使用 NestJS Logger 进行结构化日志记录（禁止 console.log）。
+   - 请求追踪：每个请求分配唯一 ID (x-request-id header)。
+   - 日志级别：error (5xx)、warn (4xx、慢请求)、log (正常请求)。
+   - 日志内容：method、URL、status、duration、IP、userId、requestId。

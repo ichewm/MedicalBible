@@ -211,7 +211,7 @@ chmod +x deploy.sh
 - **缓存**: Redis 6.2
 - **ORM**: TypeORM
 - **文档**: Swagger/OpenAPI
-- **测试**: Jest (254个单元测试)
+- **测试**: Jest (297个单元测试)
 
 ### 前端技术
 
@@ -230,6 +230,7 @@ chmod +x deploy.sh
 - **反向代理**: Nginx
 - **CI/CD**: GitHub Actions (可选)
 - **监控**: 日志系统 + 健康检查
+- **日志**: NestJS Logger 结构化日志（无 console.log）
 
 ## 📁 项目结构
 
@@ -303,7 +304,7 @@ npm run test:cov
 npm run test:e2e
 ```
 
-**测试结果**: ✅ 297/297 测试通过
+**测试结果**: ✅ 299/299 测试通过（包含日志安全 E2E 测试）
 
 ### 前端测试
 
@@ -380,6 +381,7 @@ npm run dev
 - CSRF 防护
 - Rate Limiting
 - HTTPS 支持
+- **结构化日志**: 使用 NestJS Logger（无 console.log，防止敏感信息泄露）
 
 **CORS 配置说明**:
 - 开发环境: 默认允许 `http://localhost:5173` 和 `http://localhost:3000`

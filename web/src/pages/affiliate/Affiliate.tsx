@@ -8,6 +8,7 @@ import { TeamOutlined, WalletOutlined, ShareAltOutlined, CopyOutlined } from '@a
 import { useAuthStore } from '@/stores/auth'
 import { getAffiliateStats, getCommissions, getWithdrawals, applyWithdrawal, getInvitees } from '@/api/affiliate'
 import Logo from '@/components/Logo'
+import { logger } from '@/utils'
 
 const { Title, Text } = Typography
 
@@ -43,7 +44,7 @@ const Affiliate = () => {
       const inviteesData: any = await getInvitees()
       setInvitees(Array.isArray(inviteesData) ? inviteesData : inviteesData.items || [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取分销中心数据失败', error)
     }
   }
 
@@ -83,7 +84,7 @@ const Affiliate = () => {
       form.resetFields()
       fetchAffiliateData()
     } catch (error) {
-      console.error(error)
+      logger.error('申请提现失败', error)
     } finally {
       setLoading(false)
     }

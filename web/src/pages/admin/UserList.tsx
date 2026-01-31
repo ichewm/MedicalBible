@@ -8,6 +8,7 @@ import { Table, Card, Input, Space, Tag, Button, message, Select, Modal, Descrip
 import { SearchOutlined, UserOutlined, MobileOutlined, MailOutlined, LockOutlined, UnlockOutlined, EyeOutlined, DownOutlined } from '@ant-design/icons'
 import { getUserList, updateUserStatus } from '@/api/admin'
 import request from '@/utils/request'
+import { logger } from '@/utils'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
@@ -57,7 +58,7 @@ const UserList = () => {
         total: res.meta?.totalItems || res.total || 0,
       }))
     } catch (error) {
-      console.error(error)
+      logger.error('获取用户列表失败', error)
     } finally {
       setLoading(false)
     }
@@ -83,7 +84,7 @@ const UserList = () => {
       message.success(newStatus === 1 ? '已启用' : '已禁用')
       fetchUsers(pagination.current, pagination.pageSize)
     } catch (error) {
-      console.error(error)
+      logger.error('更新用户状态失败', error)
     }
   }
 
@@ -102,7 +103,7 @@ const UserList = () => {
       }
       setUserDevices(devices || [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取用户详情失败', error)
     } finally {
       setDeviceLoading(false)
     }
@@ -118,7 +119,7 @@ const UserList = () => {
       const devices: any = await getUserDevices(currentUser.id)
       setUserDevices(devices || [])
     } catch (error) {
-      console.error(error)
+      logger.error('踢出设备失败', error)
     }
   }
 

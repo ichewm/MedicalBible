@@ -16,6 +16,7 @@ import { io, Socket } from 'socket.io-client'
 import request from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
 import dayjs from 'dayjs'
+import { logger } from '@/utils'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import isToday from 'dayjs/plugin/isToday'
 import isYesterday from 'dayjs/plugin/isYesterday'
@@ -83,7 +84,7 @@ const CustomerService = () => {
       const data: any = await request.get('/chat/admin/conversations', { params })
       setConversations(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('获取会话列表失败', error)
+       logger.error('获取会话列表失败', error)
     } finally {
       setLoading(false)
     }
@@ -105,7 +106,7 @@ const CustomerService = () => {
         c.id === conversationId ? { ...c, unreadCount: 0 } : c
       ))
     } catch (error) {
-      console.error('获取会话详情失败', error)
+       logger.error('获取会话详情失败', error)
     } finally {
       setMessagesLoading(false)
     }
@@ -124,11 +125,11 @@ const CustomerService = () => {
     })
 
     socket.on('connect', () => {
-      console.log('WebSocket 已连接')
+      logger.log('WebSocket 已连接')
     })
 
     socket.on('disconnect', () => {
-      console.log('WebSocket 已断开')
+      logger.log('WebSocket 已断开')
     })
 
     socket.on('newMessage', (data: { userId?: number; conversationId?: number; message: Message }) => {
