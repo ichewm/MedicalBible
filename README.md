@@ -279,9 +279,11 @@ MedicalBible/
 - [部署指南](./doc/DEPLOY.md) - 本地开发与生产部署
 - [产品需求文档](./doc/prd.md) - PRD 3.0
 - [API 接口文档](http://localhost:3000/api-docs) - Swagger 文档（需启动服务）
+- [API 版本控制](./server/docs/api-versioning.md) - API 版本策略和迁移指南
 - [API 错误码文档](./doc/API_ERROR_CODES.md) - 错误码说明与处理
 - [错误处理文档](./server/docs/error-handling.md) - 标准化错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
+- [事务模式文档](./docs/TRANSACTION_PATTERNS.md) - 数据库事务使用指南
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
@@ -306,7 +308,7 @@ npm run test:cov
 npm run test:e2e
 ```
 
-**测试结果**: ✅ 299/299 测试通过（包含单元测试、集成测试和 E2E 测试）
+**测试结果**: ✅ 312/312 测试通过 (含 E2E 测试)
 
 ### 前端测试
 
@@ -410,6 +412,13 @@ npm run dev
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.1.0 (2026-01-31)
+
+- ✅ 实现 API 版本控制 (URI 版本策略)
+- ✅ 所有 API 端点迁移至 `/api/v1/` 路径
+- ✅ 添加 API 版本控制 E2E 测试
+- ✅ 新增 API 版本控制文档
 
 ### v1.0.0 (2025-12-01)
 

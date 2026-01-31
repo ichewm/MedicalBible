@@ -40,7 +40,7 @@ import {
 } from "./dto";
 
 @ApiTags("客服")
-@Controller("chat")
+@Controller({ path: "chat", version: "1" })
 export class ChatController {
   constructor(
     private readonly chatService: ChatService,

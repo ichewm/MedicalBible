@@ -46,7 +46,7 @@ interface UserPayload {
 
 @ApiTags("分销")
 @ApiBearerAuth("JWT-auth")
-@Controller("affiliate")
+@Controller({ path: "affiliate", version: "1" })
 @UseGuards(JwtAuthGuard)
 export class AffiliateController {
   constructor(private readonly affiliateService: AffiliateService) {}

@@ -6,7 +6,7 @@
  */
 
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe, Logger } from "@nestjs/common";
+import { ValidationPipe, Logger, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import helmet from "helmet";
@@ -31,8 +31,16 @@ async function bootstrap(): Promise<void> {
   const configService = app.get(ConfigService);
   const logger = new Logger("Bootstrap");
 
+  // 启用 API 版本控制
+  // 使用 URI 版本策略: /api/v1/..., /api/v2/...
+  // 默认版本为 v1，当未指定版本时自动路由到 v1
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: "1",
+  });
+
   // 设置全局 API 前缀
-  app.setGlobalPrefix("api/v1");
+  app.setGlobalPrefix("api");
 
   // 启用安全头中间件（Helmet）
   // 设置各种 HTTP 头以提高安全性，防止常见 Web 漏洞

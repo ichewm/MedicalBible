@@ -42,7 +42,7 @@ import {
 } from "./dto";
 
 @ApiTags("讲义")
-@Controller("lecture")
+@Controller({ path: "lecture", version: "1" })
 export class LectureController {
   constructor(private readonly lectureService: LectureService) {}
 
