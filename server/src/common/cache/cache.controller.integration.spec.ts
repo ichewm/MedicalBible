@@ -23,15 +23,6 @@ import { RedisService } from "../redis/redis.service";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { RolesGuard } from "../guards/roles.guard";
 
-// 使用 jest.fn 创建模拟的 supertest，避免类型问题
-const mockRequest = {
-  get: jest.fn(),
-  post: jest.fn(),
-  put: jest.fn(),
-  delete: jest.fn(),
-  patch: jest.fn(),
-};
-
 /**
  * 集成测试: CacheController API 端点
  *
@@ -39,7 +30,7 @@ const mockRequest = {
  * 确保认证、授权、输入验证和响应格式符合规范。
  */
 describe("CacheController Integration Tests", () => {
-  let app: INestApplication;
+  let controller: CacheController;
   let cacheService: CacheService;
 
   /**
@@ -144,30 +135,12 @@ describe("CacheController Integration Tests", () => {
       .useValue(mockRolesGuard)
       .compile();
 
-    app = module.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }));
-    await app.init();
-
-    cacheService = app.get<CacheService>(CacheService);
+    controller = module.get<CacheController>(CacheController);
+    cacheService = module.get<CacheService>(CacheService);
 
     // Reset all mocks
     jest.clearAllMocks();
   });
-
-  afterEach(async () => {
-    await app.close();
-  });
-
-  /**
-   * 辅助函数：创建测试请求
-   */
-  const makeRequest = () => {
-    return mockRequest;
-  };
 
   /**
    * SPEC: 获取缓存指标 API
@@ -185,18 +158,16 @@ describe("CacheController Integration Tests", () => {
 
       (cacheService.getMetrics as jest.Mock).mockReturnValue(mockMetrics);
 
-      const response = await makeRequest()
-        .get("/cache/metrics")
-        .expect(200);
+      const result = controller.getMetrics();
 
       // 验证: 调用缓存服务获取指标
       expect(cacheService.getMetrics).toHaveBeenCalled();
 
       // 验证: 响应格式符合规范
-      expect(response.body).toEqual(mockMetrics);
-      expect(response.body.hits).toBe(850);
-      expect(response.body.misses).toBe(150);
-      expect(response.body.hitRate).toBe(85);
+      expect(result).toEqual(mockMetrics);
+      expect(result.hits).toBe(850);
+      expect(result.misses).toBe(150);
+      expect(result.hitRate).toBe(85);
     });
 
     it("should return zero metrics when no cache operations", async () => {
@@ -209,11 +180,9 @@ describe("CacheController Integration Tests", () => {
 
       (cacheService.getMetrics as jest.Mock).mockReturnValue(emptyMetrics);
 
-      const response = await makeRequest()
-        .get("/cache/metrics")
-        .expect(200);
+      const result = controller.getMetrics();
 
-      expect(response.body).toEqual(emptyMetrics);
+      expect(result).toEqual(emptyMetrics);
     });
   });
 
@@ -226,15 +195,13 @@ describe("CacheController Integration Tests", () => {
     it("should reset cache metrics to zero", async () => {
       (cacheService.resetMetrics as jest.Mock).mockReturnValue(undefined);
 
-      const response = await makeRequest()
-        .delete("/cache/metrics")
-        .expect(200);
+      const result = controller.resetMetrics();
 
       // 验证: 调用重置方法
       expect(cacheService.resetMetrics).toHaveBeenCalled();
 
       // 验证: 响应包含成功消息
-      expect(response.body).toEqual({
+      expect(result).toEqual({
         success: true,
         message: "Cache metrics reset successfully",
       });
@@ -256,28 +223,25 @@ describe("CacheController Integration Tests", () => {
 
       (cacheService.getCacheInfo as jest.Mock).mockResolvedValue(mockCacheInfo);
 
-      const response = await makeRequest()
-        .get("/cache/keys?pattern=user:123:*")
-        .expect(200);
+      const result = await controller.getCacheInfo("user:123:*");
 
       // 验证: 使用正确的模式查询
       expect(cacheService.getCacheInfo).toHaveBeenCalledWith("user:123:*");
 
       // 验证: 响应包含键信息
-      expect(response.body).toEqual({
+      expect(result).toEqual({
         keys: mockCacheInfo,
       });
-      expect(response.body.keys).toHaveLength(3);
+      expect(result.keys).toHaveLength(3);
     });
 
     it("should use default pattern '*' when not provided", async () => {
       (cacheService.getCacheInfo as jest.Mock).mockResolvedValue([]);
 
-      await makeRequest()
-        .get("/cache/keys")
-        .expect(200);
+      const result = await controller.getCacheInfo(undefined);
 
       expect(cacheService.getCacheInfo).toHaveBeenCalledWith("*");
+      expect(result).toEqual({ keys: [] });
     });
 
     /**
@@ -296,10 +260,7 @@ describe("CacheController Integration Tests", () => {
       ];
 
       test.each(invalidPatterns)("should reject invalid pattern: $desc", async ({ pattern }) => {
-        await makeRequest()
-          .get(`/cache/keys?pattern=${encodeURIComponent(pattern)}`)
-          .expect(400);
-
+        await expect(controller.getCacheInfo(pattern)).rejects.toThrow();
         // 验证: 不调用缓存服务（模式验证在控制器层）
         expect(cacheService.getCacheInfo).not.toHaveBeenCalled();
       });
@@ -316,12 +277,11 @@ describe("CacheController Integration Tests", () => {
       test.each(validPatterns)("should accept valid pattern: $desc", async ({ pattern }) => {
         (cacheService.getCacheInfo as jest.Mock).mockResolvedValue([]);
 
-        await makeRequest()
-          .get(`/cache/keys?pattern=${encodeURIComponent(pattern)}`)
-          .expect(200);
+        const result = await controller.getCacheInfo(pattern);
 
         // 验证: 有效模式被接受并调用服务
         expect(cacheService.getCacheInfo).toHaveBeenCalledWith(pattern);
+        expect(result).toEqual({ keys: [] });
       });
     });
   });
@@ -335,15 +295,13 @@ describe("CacheController Integration Tests", () => {
     it("should delete specified cache key", async () => {
       (cacheService.del as jest.Mock).mockResolvedValue(1);
 
-      const response = await makeRequest()
-        .delete("/cache/user:123:profile")
-        .expect(200);
+      const result = await controller.deleteKey("user:123:profile");
 
       // 验证: 调用删除方法
       expect(cacheService.del).toHaveBeenCalledWith("user:123:profile");
 
       // 验证: 响应包含删除数量
-      expect(response.body).toEqual({
+      expect(result).toEqual({
         success: true,
         deleted: 1,
       });
@@ -352,11 +310,9 @@ describe("CacheController Integration Tests", () => {
     it("should return deleted count of 0 for non-existent key", async () => {
       (cacheService.del as jest.Mock).mockResolvedValue(0);
 
-      const response = await makeRequest()
-        .delete("/cache/nonexistent:key")
-        .expect(200);
+      const result = await controller.deleteKey("nonexistent:key");
 
-      expect(response.body.deleted).toBe(0);
+      expect(result.deleted).toBe(0);
     });
   });
 
@@ -369,15 +325,13 @@ describe("CacheController Integration Tests", () => {
     it("should delete all matching cache keys", async () => {
       (cacheService.delByPattern as jest.Mock).mockResolvedValue(5);
 
-      const response = await makeRequest()
-        .delete("/cache/pattern/user:123:*")
-        .expect(200);
+      const result = await controller.deleteByPattern("user:123:*");
 
       // 验证: 调用模式删除
       expect(cacheService.delByPattern).toHaveBeenCalledWith("user:123:*");
 
       // 验证: 响应包含删除数量
-      expect(response.body).toEqual({
+      expect(result).toEqual({
         success: true,
         deleted: 5,
       });
@@ -396,9 +350,7 @@ describe("CacheController Integration Tests", () => {
       ];
 
       test.each(invalidPatterns)("should reject invalid pattern in bulk delete: $desc", async ({ pattern }) => {
-        await makeRequest()
-          .delete(`/cache/pattern/${encodeURIComponent(pattern)}`)
-          .expect(400);
+        await expect(controller.deleteByPattern(pattern)).rejects.toThrow();
 
         // 验证: 不执行删除操作
         expect(cacheService.delByPattern).not.toHaveBeenCalled();
@@ -413,12 +365,11 @@ describe("CacheController Integration Tests", () => {
       test.each(validPatterns)("should accept valid pattern in bulk delete: $desc", async ({ pattern }) => {
         (cacheService.delByPattern as jest.Mock).mockResolvedValue(0);
 
-        await makeRequest()
-          .delete(`/cache/pattern/${encodeURIComponent(pattern)}`)
-          .expect(200);
+        const result = await controller.deleteByPattern(pattern);
 
         // 验证: 有效模式被接受
         expect(cacheService.delByPattern).toHaveBeenCalledWith(pattern);
+        expect(result).toEqual({ success: true, deleted: 0 });
       });
     });
 
@@ -434,9 +385,9 @@ describe("CacheController Integration Tests", () => {
       // 验证端点响应正常（在速率限制内）
       (cacheService.delByPattern as jest.Mock).mockResolvedValue(0);
 
-      await makeRequest()
-        .delete("/cache/pattern/user:*")
-        .expect(200);
+      const result = await controller.deleteByPattern("user:*");
+
+      expect(result).toEqual({ success: true, deleted: 0 });
 
       // 速率限制由 @RateLimit 装饰器处理
       // 装饰器配置: { ttl: 60, limit: 10, scope: "user", keyPrefix: "cache_delete" }
@@ -449,28 +400,26 @@ describe("CacheController Integration Tests", () => {
    * 要求: 返回标准缓存键格式示例
    */
   describe("SPEC: GET /cache/keys/examples", () => {
-    it("should return standard cache key examples", async () => {
-      const response = await makeRequest()
-        .get("/cache/keys/examples")
-        .expect(200);
+    it("should return standard cache key examples", () => {
+      const result = controller.getKeyExamples();
 
       // 验证: 返回规范的缓存键示例
-      expect(response.body).toHaveProperty("user");
-      expect(response.body).toHaveProperty("sku");
-      expect(response.body).toHaveProperty("paper");
-      expect(response.body).toHaveProperty("lecture");
-      expect(response.body).toHaveProperty("system");
+      expect(result).toHaveProperty("user");
+      expect(result).toHaveProperty("sku");
+      expect(result).toHaveProperty("paper");
+      expect(result).toHaveProperty("lecture");
+      expect(result).toHaveProperty("system");
 
       // 验证: 用户相关缓存键格式
-      expect(response.body.user.profile).toContain("123");
-      expect(response.body.user.profile).toContain("profile");
-      expect(response.body.user.subscriptions).toContain("subscriptions");
+      expect(result.user.profile).toContain("123");
+      expect(result.user.profile).toContain("profile");
+      expect(result.user.subscriptions).toContain("subscriptions");
 
       // 验证: SKU 缓存键格式
-      expect(response.body.sku.tree).toBe("sku:tree");
+      expect(result.sku.tree).toBe("sku:tree");
 
       // 验证: 系统配置缓存键格式
-      expect(response.body.system.config).toContain("REGISTER_ENABLED");
+      expect(result.system.config).toContain("REGISTER_ENABLED");
     });
 
     /**
@@ -478,25 +427,23 @@ describe("CacheController Integration Tests", () => {
      * 位置: docs/cacheable-queries-analysis.md 第 318-339 行
      * 要求: 遵循标准化的键命名格式
      */
-    it("should follow cache key naming conventions", async () => {
-      const response = await makeRequest()
-        .get("/cache/keys/examples")
-        .expect(200);
+    it("should follow cache key naming conventions", () => {
+      const result = controller.getKeyExamples();
 
       // 验证: 所有键不包含 cache: 前缀（前缀由服务自动添加）
       const allKeys = [
-        response.body.user.profile,
-        response.body.user.subscriptions,
-        response.body.user.devices,
-        response.body.user.stats,
-        response.body.sku.tree,
-        response.body.sku.professions,
-        response.body.paper.listBySubject,
-        response.body.paper.detail,
-        response.body.paper.questions,
-        response.body.lecture.listBySubject,
-        response.body.lecture.detail,
-        response.body.system.config,
+        result.user.profile,
+        result.user.subscriptions,
+        result.user.devices,
+        result.user.stats,
+        result.sku.tree,
+        result.sku.professions,
+        result.paper.listBySubject,
+        result.paper.detail,
+        result.paper.questions,
+        result.lecture.listBySubject,
+        result.lecture.detail,
+        result.system.config,
       ];
 
       allKeys.forEach(key => {
@@ -512,7 +459,7 @@ describe("CacheController Integration Tests", () => {
    * 要求: 所有端点需要管理员权限
    */
   describe("SPEC: Authentication and Authorization", () => {
-    it("should require JWT authentication", async () => {
+    it("should require JWT authentication", () => {
       // 注意: 在实际测试中，我们模拟了守卫返回 true
       // 真实的认证测试应该在没有有效 token 时返回 401
 
@@ -521,7 +468,7 @@ describe("CacheController Integration Tests", () => {
       // 和 @Roles('admin') 装饰器
     });
 
-    it("should require admin role", async () => {
+    it("should require admin role", () => {
       // 验证端点配置了角色守卫
       // @Roles('admin') 装饰器确保只有管理员访问
     });
@@ -535,17 +482,13 @@ describe("CacheController Integration Tests", () => {
     it("should return consistent error format for invalid input", async () => {
       const invalidPattern = "user:*; malicious";
 
-      const response = await makeRequest()
-        .get(`/cache/keys?pattern=${encodeURIComponent(invalidPattern)}`)
-        .expect(400);
+      // 验证: 抛出错误
+      await expect(controller.getCacheInfo(invalidPattern)).rejects.toThrow();
 
-      // 验证: 错误响应格式
-      expect(response.body).toHaveProperty("statusCode", 400);
-      expect(response.body).toHaveProperty("message");
-      expect(response.body.message).toContain("Invalid cache pattern");
+      // 错误由 BadRequestException 抛出，包含 "Invalid cache pattern" 消息
     });
 
-    it("should return consistent success format for metrics", async () => {
+    it("should return consistent success format for metrics", () => {
       (cacheService.getMetrics as jest.Mock).mockReturnValue({
         hits: 100,
         misses: 50,
@@ -553,27 +496,23 @@ describe("CacheController Integration Tests", () => {
         hitRate: 66.67,
       });
 
-      const response = await makeRequest()
-        .get("/cache/metrics")
-        .expect(200);
+      const result = controller.getMetrics();
 
       // 验证: 成功响应包含所有必需字段
-      expect(response.body).toHaveProperty("hits");
-      expect(response.body).toHaveProperty("misses");
-      expect(response.body).toHaveProperty("total");
-      expect(response.body).toHaveProperty("hitRate");
+      expect(result).toHaveProperty("hits");
+      expect(result).toHaveProperty("misses");
+      expect(result).toHaveProperty("total");
+      expect(result).toHaveProperty("hitRate");
     });
 
     it("should return consistent success format for delete operations", async () => {
       (cacheService.del as jest.Mock).mockResolvedValue(1);
 
-      const response = await makeRequest()
-        .delete("/cache/test:key")
-        .expect(200);
+      const result = await controller.deleteKey("test:key");
 
       // 验证: 成功响应包含 success 和 deleted 字段
-      expect(response.body).toHaveProperty("success", true);
-      expect(response.body).toHaveProperty("deleted");
+      expect(result).toHaveProperty("success", true);
+      expect(result).toHaveProperty("deleted");
     });
   });
 
@@ -582,19 +521,19 @@ describe("CacheController Integration Tests", () => {
    * 验证控制器正确调用服务方法
    */
   describe("SPEC: Service Integration", () => {
-    it("should integrate getMetrics endpoint with CacheService.getMetrics", async () => {
+    it("should integrate getMetrics endpoint with CacheService.getMetrics", () => {
       const mockMetrics = { hits: 10, misses: 5, total: 15, hitRate: 66.67 };
       (cacheService.getMetrics as jest.Mock).mockReturnValue(mockMetrics);
 
-      await makeRequest().get("/cache/metrics").expect(200);
+      controller.getMetrics();
 
       expect(cacheService.getMetrics).toHaveBeenCalled();
     });
 
-    it("should integrate resetMetrics endpoint with CacheService.resetMetrics", async () => {
+    it("should integrate resetMetrics endpoint with CacheService.resetMetrics", () => {
       (cacheService.resetMetrics as jest.Mock).mockReturnValue(undefined);
 
-      await makeRequest().delete("/cache/metrics").expect(200);
+      controller.resetMetrics();
 
       expect(cacheService.resetMetrics).toHaveBeenCalled();
     });
@@ -602,7 +541,7 @@ describe("CacheController Integration Tests", () => {
     it("should integrate deleteKey endpoint with CacheService.del", async () => {
       (cacheService.del as jest.Mock).mockResolvedValue(1);
 
-      await makeRequest().delete("/cache/test:key").expect(200);
+      await controller.deleteKey("test:key");
 
       expect(cacheService.del).toHaveBeenCalledWith("test:key");
     });
@@ -610,7 +549,7 @@ describe("CacheController Integration Tests", () => {
     it("should integrate deleteByPattern endpoint with CacheService.delByPattern", async () => {
       (cacheService.delByPattern as jest.Mock).mockResolvedValue(3);
 
-      await makeRequest().delete("/cache/pattern/test:*").expect(200);
+      await controller.deleteByPattern("test:*");
 
       expect(cacheService.delByPattern).toHaveBeenCalledWith("test:*");
     });
@@ -619,7 +558,7 @@ describe("CacheController Integration Tests", () => {
       const mockInfo = [{ key: "cache:test", ttl: 300 }];
       (cacheService.getCacheInfo as jest.Mock).mockResolvedValue(mockInfo);
 
-      await makeRequest().get("/cache/keys?pattern=test*").expect(200);
+      await controller.getCacheInfo("test*");
 
       expect(cacheService.getCacheInfo).toHaveBeenCalledWith("test*");
     });

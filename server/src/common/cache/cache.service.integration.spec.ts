@@ -470,8 +470,15 @@ describe("CacheService Integration Tests", () => {
       // 验证: __proto__ 和 constructor 被过滤
       const sanitized = result.get("safeKey");
       expect(sanitized).toHaveProperty("normalData", "safe");
-      expect(sanitized).not.toHaveProperty("__proto__");
-      expect(sanitized).not.toHaveProperty("constructor");
+
+      // 使用 Object.keys() 检查，因为 __proto__ 和 constructor 不应该是对象自身的属性
+      const ownKeys = Object.keys(sanitized);
+      expect(ownKeys).not.toContain("__proto__");
+      expect(ownKeys).not.toContain("constructor");
+
+      // 验证: 对象没有被原型污染
+      expect((sanitized as any).__proto__).not.toHaveProperty("polluted", true);
+      expect((sanitized as any).constructor).not.toHaveProperty("polluted", true);
     });
   });
 
