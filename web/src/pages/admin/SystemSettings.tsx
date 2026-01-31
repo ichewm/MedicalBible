@@ -13,8 +13,9 @@ import {
   MessageOutlined, PayCircleOutlined, FileTextOutlined,
   SafetyOutlined, EyeOutlined, CloudServerOutlined, BugOutlined, DeleteOutlined
 } from '@ant-design/icons'
-import request from '@/utils/request'
 import DOMPurify from 'dompurify'
+import request from '@/utils/request'
+import { logger } from '@/utils'
 
 const { Title, Text } = Typography
 const { confirm } = Modal
@@ -81,7 +82,7 @@ const SystemSettings = () => {
           withdrawalFreezeDay: data.commissionLockDays ?? 7,
         })
       } catch (error) {
-        console.error(error)
+        logger.error('获取基础配置失败', error)
       }
     }
     fetchConfig()
@@ -97,7 +98,7 @@ const SystemSettings = () => {
         emailCodeTemplate: data.emailCodeTemplate || '',
       })
     } catch (error) {
-      console.error(error)
+      logger.error('加载邮件配置失败', error)
     }
   }
 
@@ -115,7 +116,7 @@ const SystemSettings = () => {
         useSSL: data.email_use_ssl !== 'false',
       })
     } catch (error) {
-      console.error(error)
+      logger.error('加载短信配置失败', error)
     }
   }
 
@@ -141,7 +142,7 @@ const SystemSettings = () => {
         ronglianTemplateId: data.sms_ronglian_template_id || '',
       })
     } catch (error) {
-      console.error(error)
+      logger.error('加载支付配置失败', error)
     }
   }
 
@@ -170,7 +171,7 @@ const SystemSettings = () => {
         stripeMode: data.pay_stripe_mode || 'test',
       })
     } catch (error) {
-      console.error(error)
+      logger.error('加载存储配置失败', error)
     }
   }
 
@@ -181,7 +182,7 @@ const SystemSettings = () => {
       setTermsContent(data.termsOfService || '')
       setPrivacyContent(data.privacyPolicy || '')
     } catch (error) {
-      console.error(error)
+      logger.error('加载协议配置失败', error)
     }
   }
 
@@ -218,7 +219,7 @@ const SystemSettings = () => {
         minioUseSSL: data.storage_minio_use_ssl === 'true',
       })
     } catch (error) {
-      console.error(error)
+      logger.error("保存基础配置失败", error)
     }
   }
 
@@ -231,7 +232,7 @@ const SystemSettings = () => {
         paymentTestMode: data.paymentTestMode || false,
       })
     } catch (error) {
-      console.error(error)
+      logger.error('加载测试环境配置失败', error)
     }
   }
 
@@ -276,7 +277,7 @@ const SystemSettings = () => {
       })
       message.success('保存成功')
     } catch (error) {
-      console.error(error)
+      logger.error('加载验证码配置失败', error)
     } finally {
       setLoading(false)
     }
@@ -289,7 +290,7 @@ const SystemSettings = () => {
       await updateCaptchaConfig(values)
       message.success('验证码配置保存成功')
     } catch (error) {
-      console.error(error)
+      logger.error('保存验证码配置失败', error)
     } finally {
       setLoading(false)
     }
@@ -302,7 +303,7 @@ const SystemSettings = () => {
       await updateEmailConfig(values)
       message.success('邮件配置保存成功')
     } catch (error) {
-      console.error(error)
+      logger.error('保存邮件配置失败', error)
     } finally {
       setLoading(false)
     }
@@ -315,7 +316,7 @@ const SystemSettings = () => {
       await updateSmsConfig(values)
       message.success('短信配置保存成功')
     } catch (error) {
-      console.error(error)
+      logger.error('保存短信配置失败', error)
     } finally {
       setLoading(false)
     }
@@ -328,7 +329,7 @@ const SystemSettings = () => {
       await updatePaymentConfig(values)
       message.success('支付配置保存成功')
     } catch (error) {
-      console.error(error)
+      logger.error('保存支付配置失败', error)
     } finally {
       setLoading(false)
     }
@@ -342,7 +343,7 @@ const SystemSettings = () => {
       await updateAgreement(type, content)
       message.success('协议保存成功')
     } catch (error) {
-      console.error(error)
+      logger.error('保存协议失败', error)
     } finally {
       setAgreementLoading(false)
     }
@@ -378,7 +379,7 @@ const SystemSettings = () => {
           setTestEnvConfig(newConfig)
           message.success('配置更新成功')
         } catch (error) {
-          console.error(error)
+          logger.error('更新测试环境配置失败', error)
           message.error('操作失败')
         } finally {
           setTestEnvLoading(false)
@@ -421,7 +422,7 @@ const SystemSettings = () => {
           message.success(result.message || '数据清空成功')
           setClearConfirmText('')
         } catch (error: any) {
-          console.error(error)
+          logger.error('清空测试数据失败', error)
           message.error(error.message || '清空失败')
         } finally {
           setClearDataLoading(false)
@@ -451,7 +452,7 @@ const SystemSettings = () => {
           setConfig({ ...config, testMode: checked })
           message.success(checked ? '测试模式已开启' : '测试模式已关闭')
         } catch (error) {
-          console.error(error)
+          logger.error('切换测试模式失败', error)
           message.error('操作失败')
         } finally {
           setTestModeLoading(false)
@@ -934,7 +935,7 @@ const SystemSettings = () => {
         await updateStorageConfig(data)
         message.success('存储配置保存成功，重启服务后生效')
       } catch (error) {
-        console.error(error)
+        logger.error('获取基础配置失败', error)
       } finally {
         setLoading(false)
       }

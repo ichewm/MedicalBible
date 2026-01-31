@@ -19,6 +19,7 @@ import {
 import { ReadingProgress } from "../../entities/reading-progress.entity";
 import { Subscription } from "../../entities/subscription.entity";
 import { Subject } from "../../entities/subject.entity";
+import { PublishStatus } from "../../entities/enums/publish-status.enum";
 
 describe("LectureService", () => {
   let service: LectureService;
@@ -43,6 +44,7 @@ describe("LectureService", () => {
     title: "第一章 临床检验概述",
     pdfUrl: "https://oss.example.com/lectures/chapter1.pdf",
     pageCount: 50,
+    status: PublishStatus.PUBLISHED,
     subject: mockSubject as Subject,
   };
 

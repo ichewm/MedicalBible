@@ -9,6 +9,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { getLectures, type Lecture } from '@/api/lecture'
 import { getCategoryTree } from '@/api/sku'
 import { useAuthStore } from '@/stores/auth'
+import { logger } from '@/utils'
 
 // PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
@@ -98,7 +99,7 @@ const LectureList = () => {
           setSelectedSubject(foundSubjects[0].subjectId)
         }
       } catch (error) {
-        console.error(error)
+        logger.error('获取科目列表失败', error)
       }
     }
     fetchSubjects()
@@ -113,7 +114,7 @@ const LectureList = () => {
           const res: any = await getLectures(selectedSubject)
           setLectures(Array.isArray(res) ? res : res.items || [])
         } catch (error) {
-          console.error(error)
+          logger.error('获取讲义列表失败', error)
         } finally {
           setLoading(false)
         }

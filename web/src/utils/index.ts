@@ -3,3 +3,4 @@
  */
 
 export { default as request } from './request'
+export { logger, createLogger, setGlobalLogLevel, LogLevel } from './logger'

@@ -208,10 +208,10 @@ chmod +x deploy.sh
 - **框架**: NestJS 10.x (Node.js 18+)
 - **语言**: TypeScript 5.x
 - **数据库**: MySQL 8.0
-- **缓存**: Redis 6.2
+- **缓存**: Redis 6.2 + CacheService (Cache-Aside 模式)
 - **ORM**: TypeORM
 - **文档**: Swagger/OpenAPI
-- **测试**: Jest (254个单元测试)
+- **测试**: Jest (299个测试 + 集成测试)
 
 ### 前端技术
 
@@ -230,6 +230,7 @@ chmod +x deploy.sh
 - **反向代理**: Nginx
 - **CI/CD**: GitHub Actions (可选)
 - **监控**: 日志系统 + 健康检查
+- **日志**: NestJS Logger 结构化日志（无 console.log）
 
 ## 📁 项目结构
 
@@ -284,6 +285,7 @@ MedicalBible/
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
+- [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
 
@@ -381,6 +383,7 @@ npm run dev
 - CSRF 防护
 - Rate Limiting
 - HTTPS 支持
+- **结构化日志**: 使用 NestJS Logger（无 console.log，防止敏感信息泄露）
 
 **CORS 配置说明**:
 - 开发环境: 默认允许 `http://localhost:5173` 和 `http://localhost:3000`

@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 import { sendVerificationCode, loginByPhone, loginByPassword, register, getSystemConfig, VerificationCodeType } from '@/api/auth'
 import SliderCaptcha from '@/components/SliderCaptcha/SliderCaptcha'
 import Logo from '@/components/Logo'
+import { logger } from '@/utils'
 
 const Login = () => {
   const [form] = Form.useForm()
@@ -118,7 +119,7 @@ const Login = () => {
       setCodeErrorCount(0)
       setCaptchaVerified(false)
     } catch (error: any) {
-      console.error(error)
+      logger.error(error)
       // 发送失败增加错误计数
       const newCount = codeErrorCount + 1
       setCodeErrorCount(newCount)
@@ -129,7 +130,7 @@ const Login = () => {
       setSending(false)
     }
   }
-  
+
   // 滑块验证成功
   const handleCaptchaSuccess = () => {
     setCaptchaVerified(true)
@@ -206,10 +207,10 @@ const Login = () => {
       }
       
       setAuth(result.accessToken, result.refreshToken, result.user)
-      
+
       // 确保状态已保存到 localStorage
-      console.log('登录成功，保存 token:', result.accessToken?.substring(0, 20) + '...')
-      
+      logger.log('登录成功，保存 token:', result.accessToken?.substring(0, 20) + '...')
+
       // 强制同步写入 localStorage
       const authState = {
         state: {
@@ -231,7 +232,7 @@ const Login = () => {
         navigate(targetPath, { replace: true })
       }, 200)
     } catch (error) {
-      console.error(error)
+      logger.error('登录/注册失败', error)
     } finally {
       setLoading(false)
     }

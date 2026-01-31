@@ -9,6 +9,8 @@ import { DownloadOutlined, UserOutlined, DollarOutlined, RiseOutlined } from '@a
 import { getRevenueStats, getUserGrowthStats, getDashboardStats } from '@/api/admin'
 import dayjs from 'dayjs'
 
+import { logger } from '@/utils'
+
 const { Title } = Typography
 const { RangePicker } = DatePicker
 
@@ -35,7 +37,7 @@ const DataAnalysis = () => {
       setUserGrowthData(users?.items || [])
       setDashboardStats(dashboard || {})
     } catch (error) {
-      console.error(error)
+      logger.error('获取统计数据失败', error)
     } finally {
       setLoading(false)
     }

@@ -9,6 +9,7 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
+import helmet from "helmet";
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
@@ -161,16 +162,16 @@ async function bootstrap(): Promise<void> {
   // 启动应用
   await app.listen(port);
 
-  console.log(`
-  ╔═══════════════════════════════════════════════════════╗
-  ║                                                       ║
-  ║   医学宝典 API 服务已启动                              ║
-  ║                                                       ║
-  ║   运行环境: ${process.env.NODE_ENV || "development"}                              ║
-  ║   服务地址: http://localhost:${port}                       ║
-  ║   API 文档: http://localhost:${port}/api-docs              ║
-  ║                                                       ║
-  ╚═══════════════════════════════════════════════════════╝
+  logger.log(`
+╔═══════════════════════════════════════════════════════╗
+║                                                       ║
+║   医学宝典 API 服务已启动                              ║
+║                                                       ║
+║   运行环境: ${process.env.NODE_ENV || "development"}                              ║
+║   服务地址: http://localhost:${port}                       ║
+║   API 文档: http://localhost:${port}/api-docs              ║
+║                                                       ║
+╚═══════════════════════════════════════════════════════╝
   `);
 }
 

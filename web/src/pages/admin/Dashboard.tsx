@@ -7,6 +7,8 @@ import { Row, Col, Card, Statistic, Typography, Table, Tag, Empty, Progress } fr
 import { UserOutlined, ShoppingCartOutlined, RiseOutlined, DollarOutlined, BookOutlined, FileTextOutlined } from '@ant-design/icons'
 import { getDashboardStats, getAdminOrders, getAdminWithdrawals } from '@/api/admin'
 
+import { logger } from '@/utils'
+
 const { Title, Text } = Typography
 
 const Dashboard = () => {
@@ -37,7 +39,7 @@ const Dashboard = () => {
         setRecentOrders(ordersData?.items || [])
         setPendingWithdrawals(withdrawalsData?.items || [])
       } catch (error) {
-        console.error(error)
+        logger.error('获取数据失败', error)
       }
     }
     fetchData()

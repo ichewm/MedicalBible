@@ -7,6 +7,7 @@ import { Card, Table, Button, Space, Tag, Modal, message, Empty } from 'antd'
 import { DeleteOutlined, EyeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { getMyHighlights, deleteMyHighlight } from '@/api/lecture'
+import { logger } from '@/utils'
 
 const TeacherMyHighlights = () => {
   const navigate = useNavigate()
@@ -20,7 +21,7 @@ const TeacherMyHighlights = () => {
       const data: any = await getMyHighlights()
       setHighlights(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error(error)
+      logger.error('获取标注列表失败', error)
     } finally {
       setLoading(false)
     }
@@ -44,7 +45,7 @@ const TeacherMyHighlights = () => {
           message.success('删除成功')
           fetchHighlights()
         } catch (error) {
-          console.error(error)
+          logger.error('删除标注失败', error)
           message.error('删除失败')
         }
       },

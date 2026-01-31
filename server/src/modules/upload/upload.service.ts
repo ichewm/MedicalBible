@@ -3,7 +3,7 @@
  * @description 处理文件存储和 PDF 解析，使用统一存储服务
  */
 
-import { Injectable, BadRequestException, Inject } from "@nestjs/common";
+import { Injectable, BadRequestException, Inject, Logger } from "@nestjs/common";
 import { PDFDocument } from "pdf-lib";
 import * as path from "path";
 import * as sharp from "sharp";
@@ -11,6 +11,8 @@ import { StorageService } from "../storage/storage.service";
 
 @Injectable()
 export class UploadService {
+  private readonly logger = new Logger(UploadService.name);
+
   constructor(private readonly storageService: StorageService) {}
 
   /**
@@ -63,7 +65,7 @@ export class UploadService {
         fileSize: result.size,
       };
     } catch (error) {
-      console.error("Avatar upload error:", error);
+      this.logger.error("Avatar upload error", error);
       throw new BadRequestException("头像处理失败");
     }
   }
@@ -87,11 +89,11 @@ export class UploadService {
 
       if (key) {
         await this.storageService.delete(key);
-        console.log(`Deleted old avatar: ${key}`);
+        this.logger.debug(`Deleted old avatar: ${key}`);
       }
     } catch (error) {
       // 删除失败不影响业务，只记录日志
-      console.error("Failed to delete old avatar:", error);
+      this.logger.warn("Failed to delete old avatar", error);
     }
   }
 
@@ -214,7 +216,7 @@ export class UploadService {
         await this.storageService.delete(key);
       }
     } catch (error) {
-      console.error("Failed to delete file:", error);
+      this.logger.warn("Failed to delete file", error);
     }
   }
 

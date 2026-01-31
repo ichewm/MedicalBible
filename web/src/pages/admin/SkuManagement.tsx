@@ -15,6 +15,8 @@ import {
 } from '@/api/admin'
 import request from '@/utils/request'
 
+import { logger } from '@/utils'
+
 const { Text } = Typography
 
 // 获取所有价格档位
@@ -93,7 +95,7 @@ const SkuManagement = () => {
       }))
       setTreeData(formattedData)
     } catch (error) {
-      console.error(error)
+      logger.error('获取树形数据失败', error)
     } finally {
       setLoading(false)
     }
@@ -133,7 +135,7 @@ const SkuManagement = () => {
       message.success(price.isActive ? '已禁用' : '已启用')
       fetchTree()
     } catch (error) {
-      console.error(error)
+      logger.error('切换价格状态失败', error)
     }
   }
 
@@ -144,7 +146,7 @@ const SkuManagement = () => {
       message.success('删除成功')
       fetchTree()
     } catch (error) {
-      console.error(error)
+      logger.error('删除价格档位失败', error)
     }
   }
 
@@ -203,7 +205,7 @@ const SkuManagement = () => {
       setSelectedNode(null)
       fetchTree()
     } catch (error) {
-      console.error(error)
+      logger.error('删除失败', error)
     }
   }
 
@@ -277,7 +279,7 @@ const SkuManagement = () => {
       setSelectedNode(null)
       fetchTree()
     } catch (error) {
-      console.error(error)
+      logger.error('操作失败', error)
     }
   }
 
