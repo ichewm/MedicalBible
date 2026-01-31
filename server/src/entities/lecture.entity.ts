@@ -19,9 +19,9 @@ import { ReadingProgress } from "./reading-progress.entity";
 
 /**
  * 发布状态枚举
- * 注意：使用 paper.entity 中的 PublishStatus，此处不再重复导出
+ * 注意：从统一枚举文件导入，避免循环依赖
  */
-import { PublishStatus } from "./paper.entity";
+import { PublishStatus } from "./enums/publish-status.enum";
 export { PublishStatus as LecturePublishStatus };
 
 /**

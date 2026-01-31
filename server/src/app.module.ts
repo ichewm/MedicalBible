@@ -35,6 +35,7 @@ import { ChatModule } from "./modules/chat/chat.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
+import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
@@ -95,6 +96,9 @@ class HealthController {
 
     // Redis 缓存模块
     RedisModule,
+
+    // 缓存管理模块
+    CacheModule,
 
     // 加密服务模块
     CryptoModule,

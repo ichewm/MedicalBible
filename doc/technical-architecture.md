@@ -103,3 +103,121 @@ graph TD
    - 请求追踪：每个请求分配唯一 ID (x-request-id header)。
    - 日志级别：error (5xx)、warn (4xx、慢请求)、log (正常请求)。
    - 日志内容：method、URL、status、duration、IP、userId、requestId。
+
+---
+
+## 4. 缓存架构 (Caching Architecture)
+
+### 缓存服务 (CacheService)
+
+**位置**: `server/src/common/cache/cache.service.ts`
+
+缓存服务提供统一的缓存管理功能，支持 Cache-Aside 模式、指标追踪和批量操作。
+
+#### 核心功能
+
+- **Cache-Aside 模式**: `getOrSet()` 方法自动处理缓存命中/未命中逻辑
+- **指标追踪**: 实时统计缓存命中/未命中次数和命中率
+- **批量操作**: 支持批量获取 (`getMany`) 和批量设置 (`setMany`)
+- **模式删除**: 使用 SCAN 命令按模式删除缓存键 (`delByPattern`)
+- **安全性**: 防止原型污染的 JSON 解析，缓存键脱敏用于日志
+
+#### 缓存键命名规范
+
+所有缓存键使用 `cache:` 前缀，采用冒号分隔的层级结构：
+
+```
+cache:user:{userId}:profile
+cache:user:{userId}:subscriptions
+cache:user:{userId}:devices
+cache:sku:tree
+cache:papers:subject:{subjectId}:published
+cache:system:config:{key}
+```
+
+#### TTL 策略
+
+| 数据类型 | TTL | 说明 |
+|---------|-----|------|
+| 系统配置 | 5 分钟 | 管理员可随时更改 |
+| 用户信息 | 5 分钟 | 用户可更新 |
+| SKU 目录 | 30 分钟 | 很少变更 |
+| 试卷/讲义 | 10 分钟 | 偶尔新增 |
+| 题目数据 | 1 小时 | 导入后基本静态 |
+
+#### 使用示例
+
+```typescript
+// Cache-Aside 模式
+const data = await cacheService.getOrSet(
+  { key: 'user:123:profile', ttl: 300 },
+  () => userRepository.findOne({ where: { id: 123 } })
+);
+
+// 批量获取
+const results = await cacheService.getMany<User>(['user:1', 'user:2']);
+
+// 按模式删除
+await cacheService.delByPattern('user:123:*');
+```
+
+### 缓存装饰器 (Cache Decorators)
+
+**位置**: `server/src/common/cache/cache.decorator.ts`
+
+提供方法级别的缓存声明式编程支持。
+
+#### @Cacheable 装饰器
+
+自动缓存方法返回值，基于方法名和参数生成缓存键：
+
+```typescript
+@Cacheable({ ttl: 300, useArgs: true })
+async getUserById(id: number) {
+  return this.userRepository.findOne({ where: { id } });
+}
+```
+
+#### @CacheClear 装饰器
+
+方法执行后清除指定的缓存：
+
+```typescript
+@CacheClear('user:{0}:profile')
+async updateUser(id: number, data: UpdateUserDto) {
+  // 更新逻辑
+}
+```
+
+### 缓存键生成器 (CacheKeyBuilder)
+
+提供类型安全的缓存键生成方法：
+
+```typescript
+CacheKeyBuilder.user(123, 'profile')      // 'user:123:profile'
+CacheKeyBuilder.sku('tree')               // 'sku:tree'
+CacheKeyBuilder.paper('detail', 1)        // 'paper:detail:1'
+CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
+```
+
+### 缓存管理 API (CacheController)
+
+**位置**: `server/src/common/cache/cache.controller.ts`
+
+提供 HTTP 接口用于缓存管理和监控（需要管理员权限）。
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/cache/metrics` | GET | 获取缓存指标（命中率、总数） |
+| `/cache/metrics` | DELETE | 重置缓存指标 |
+| `/cache/keys` | GET | 查询缓存键及其 TTL |
+| `/cache/keys/examples` | GET | 获取缓存键命名示例 |
+| `/cache/:key` | DELETE | 删除指定缓存键 |
+| `/cache/pattern/:pattern` | DELETE | 按模式批量删除缓存 |
+
+### 安全性考虑
+
+1. **原型污染防护**: JSON 解析时过滤 `__proto__` 和 `constructor` 属性
+2. **缓存键验证**: 模式参数只允许字母、数字、冒号、下划线和星号
+3. **速率限制**: 批量删除接口启用速率限制防止 DoS 攻击
+4. **权限控制**: 所有缓存管理接口需要管理员权限

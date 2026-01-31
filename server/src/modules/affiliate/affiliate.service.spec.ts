@@ -15,6 +15,7 @@ import { User } from "../../entities/user.entity";
 import { Commission, CommissionStatus } from "../../entities/commission.entity";
 import { Withdrawal, WithdrawalStatus } from "../../entities/withdrawal.entity";
 import { Order, OrderStatus } from "../../entities/order.entity";
+import { SystemConfig } from "../../entities/system-config.entity";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -22,6 +23,7 @@ describe("AffiliateService", () => {
   let commissionRepository: Repository<Commission>;
   let withdrawalRepository: Repository<Withdrawal>;
   let orderRepository: Repository<Order>;
+  let systemConfigRepository: Repository<SystemConfig>;
 
   // Mock 数据
   const mockUser = {
@@ -101,6 +103,10 @@ describe("AffiliateService", () => {
     findOne: jest.fn(),
   };
 
+  const mockSystemConfigRepository = {
+    findOne: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -115,6 +121,10 @@ describe("AffiliateService", () => {
           useValue: mockWithdrawalRepository,
         },
         { provide: getRepositoryToken(Order), useValue: mockOrderRepository },
+        {
+          provide: getRepositoryToken(SystemConfig),
+          useValue: mockSystemConfigRepository,
+        },
       ],
     }).compile();
 
@@ -127,6 +137,9 @@ describe("AffiliateService", () => {
       getRepositoryToken(Withdrawal),
     );
     orderRepository = module.get<Repository<Order>>(getRepositoryToken(Order));
+    systemConfigRepository = module.get<Repository<SystemConfig>>(
+      getRepositoryToken(SystemConfig),
+    );
 
     jest.clearAllMocks();
   });

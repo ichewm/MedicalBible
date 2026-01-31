@@ -208,10 +208,10 @@ chmod +x deploy.sh
 - **框架**: NestJS 10.x (Node.js 18+)
 - **语言**: TypeScript 5.x
 - **数据库**: MySQL 8.0
-- **缓存**: Redis 6.2
+- **缓存**: Redis 6.2 + CacheService (Cache-Aside 模式)
 - **ORM**: TypeORM
 - **文档**: Swagger/OpenAPI
-- **测试**: Jest (297个单元测试)
+- **测试**: Jest (299个测试 + 集成测试)
 
 ### 前端技术
 
@@ -284,6 +284,7 @@ MedicalBible/
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
+- [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
 
@@ -304,7 +305,7 @@ npm run test:cov
 npm run test:e2e
 ```
 
-**测试结果**: ✅ 299/299 测试通过（包含日志安全 E2E 测试）
+**测试结果**: ✅ 299/299 测试通过（包含单元测试、集成测试和 E2E 测试）
 
 ### 前端测试
 

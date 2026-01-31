@@ -387,6 +387,7 @@ describe("QuestionService", () => {
       mockExamSessionRepository.findOne.mockResolvedValue(examSession);
       mockPaperRepository.findOne.mockResolvedValue(mockPaper);
       mockQuestionRepository.find.mockResolvedValue([mockQuestion]);
+      mockUserAnswerRepository.find.mockResolvedValue([]); // No existing answers
       mockUserAnswerRepository.save.mockResolvedValue(mockUserAnswer);
       mockExamSessionRepository.save.mockResolvedValue({
         ...examSession,
@@ -550,7 +551,12 @@ describe("QuestionService", () => {
         } else {
           // 第二次调用：获取 todayAnswered
           return {
+            select: jest.fn().mockReturnThis(),
             where: jest.fn().mockReturnThis(),
+            andWhere: jest.fn().mockReturnThis(),
+            groupBy: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            getRawMany: jest.fn().mockResolvedValue([]), // Empty array for streak calculation
             getCount: jest.fn().mockResolvedValue(10),
           };
         }

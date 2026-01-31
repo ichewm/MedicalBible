@@ -12,10 +12,11 @@ import { registerAs } from "@nestjs/config";
  * @description 用于用户认证的 JWT Token 配置
  */
 export const jwtConfig = registerAs("jwt", () => ({
-  /** JWT 签名密钥（生产环境必须设置强密码） */
+  /** JWT 签名密钥（必须在所有环境中设置） */
   secret:
-    process.env.JWT_SECRET ||
-    "medical-bible-jwt-secret-key-change-in-production",
+    process.env.JWT_SECRET || (() => {
+      throw new Error('JWT_SECRET environment variable is required');
+    })(),
 
   /** Access Token 过期时间 */
   accessTokenExpires: process.env.JWT_ACCESS_EXPIRES || "2h",

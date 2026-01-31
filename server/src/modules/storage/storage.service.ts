@@ -33,9 +33,11 @@ export class StorageService implements OnModuleInit {
   private adapter: IStorageAdapter;
   private config: StorageConfig;
 
-  // 加密密钥（应从环境变量获取）
+  // 加密密钥（必须从环境变量获取）
   private readonly encryptionKey =
-    process.env.CONFIG_ENCRYPTION_KEY || "medical-bible-secret-key-32ch";
+    process.env.CONFIG_ENCRYPTION_KEY || (() => {
+      throw new Error('CONFIG_ENCRYPTION_KEY environment variable is required');
+    })();
 
   constructor(
     @InjectRepository(SystemConfig)

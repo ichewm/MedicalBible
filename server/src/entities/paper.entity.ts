@@ -16,6 +16,7 @@ import {
 import { Subject } from "./subject.entity";
 import { Question } from "./question.entity";
 import { ExamSession } from "./exam-session.entity";
+import { PublishStatus } from "./enums/publish-status.enum";
 
 /**
  * 试卷类型枚举
@@ -28,14 +29,9 @@ export enum PaperType {
 }
 
 /**
- * 发布状态枚举
+ * 发布状态枚举 (从统一枚举文件导出)
  */
-export enum PublishStatus {
-  /** 草稿（未发布） */
-  DRAFT = 0,
-  /** 已发布 */
-  PUBLISHED = 1,
-}
+export { PublishStatus };
 
 /**
  * 试卷实体类
