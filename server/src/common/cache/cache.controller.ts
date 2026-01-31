@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Controller, Get, Delete, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Delete, Param, Query, UseGuards, BadRequestException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { CacheService } from "./cache.service";
@@ -58,9 +58,15 @@ export class CacheController {
   /**
    * 获取缓存键信息
    * @param pattern 键名模式
+   *
+   * SECURITY: Pattern validation prevents Redis wildcard abuse.
    */
   @Get("keys")
   async getCacheInfo(@Query("pattern") pattern = "*") {
+    // Validate pattern: allow alphanumeric, colon, asterisk, underscore only
+    if (!/^[a-zA-Z0-9:_*]+$/.test(pattern)) {
+      throw new BadRequestException('Invalid cache pattern');
+    }
     return {
       keys: await this.cacheService.getCacheInfo(pattern),
     };
@@ -85,12 +91,17 @@ export class CacheController {
    *
    * SECURITY: Rate limited to prevent DoS attacks via mass cache deletion.
    * Only authenticated admins can access this endpoint.
+   * Pattern validation prevents Redis wildcard abuse.
    */
   @Delete("pattern/:pattern")
   @RateLimit({ ttl: 60, limit: 10, scope: "user", keyPrefix: "cache_delete" })
   async deleteByPattern(
     @Param("pattern") pattern: string,
   ): Promise<{ success: boolean; deleted: number }> {
+    // Validate pattern: allow alphanumeric, colon, asterisk, underscore only
+    if (!/^[a-zA-Z0-9:_*]+$/.test(pattern)) {
+      throw new BadRequestException('Invalid cache pattern');
+    }
     const deleted = await this.cacheService.delByPattern(pattern);
     return {
       success: true,
