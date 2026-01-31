@@ -283,6 +283,7 @@ MedicalBible/
 - [错误处理文档](./server/docs/error-handling.md) - 标准化错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [数据库设计](./doc/database-design.md) - ER图与表结构
+- [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
 - [开发计划](./doc/development-plan.md) - 开发任务清单
