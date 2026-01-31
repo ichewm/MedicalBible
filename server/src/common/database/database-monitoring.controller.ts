@@ -5,11 +5,19 @@
  * @version 1.0.0
  */
 
-import { Controller, Get, Post, Delete, Query, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Delete, Query, Param, UseGuards, Body } from "@nestjs/common";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { RolesGuard } from "../guards/roles.guard";
 import { Roles } from "../decorators/roles.decorator";
 import { DatabaseMonitoringService } from "./database-monitoring.service";
+import {
+  GetUnusedIndexesDto,
+  GetIndexInfoDto,
+  EnableSlowQueryLogDto,
+  GetTableStatsDto,
+  TableNameParamDto,
+  ExplainQueryDto,
+} from "./dto/database-monitoring.dto";
 
 /**
  * 数据库监控控制器
@@ -43,8 +51,8 @@ export class DatabaseMonitoringController {
    * GET /admin/database/indexes/unused
    */
   @Get("indexes/unused")
-  async getUnusedIndexes(@Query("days") days?: string) {
-    const checkDays = days ? parseInt(days, 10) : 30;
+  async getUnusedIndexes(@Query() queryDto: GetUnusedIndexesDto) {
+    const checkDays = queryDto.days ?? 30;
     const unusedIndexes =
       await this.databaseMonitoringService.getUnusedIndexes(checkDays);
     return {
@@ -59,8 +67,8 @@ export class DatabaseMonitoringController {
    * GET /admin/database/indexes/info
    */
   @Get("indexes/info")
-  async getIndexInfo(@Query("table") tableName?: string) {
-    const indexInfo = await this.databaseMonitoringService.getIndexInfo(tableName);
+  async getIndexInfo(@Query() queryDto: GetIndexInfoDto) {
+    const indexInfo = await this.databaseMonitoringService.getIndexInfo(queryDto.table);
 
     // 按表名分组
     const grouped: Record<string, any[]> = {};
@@ -73,8 +81,8 @@ export class DatabaseMonitoringController {
 
     return {
       success: true,
-      data: tableName
-        ? grouped[tableName] || []
+      data: queryDto.table
+        ? grouped[queryDto.table] || []
         : grouped,
     };
   }
@@ -99,12 +107,9 @@ export class DatabaseMonitoringController {
    * POST /admin/database/slow-query/enable
    */
   @Post("slow-query/enable")
-  async enableSlowQueryLog(
-    @Query("threshold") threshold?: string,
-    @Query("log-not-using-indexes") logNotUsing?: string,
-  ) {
-    const longQueryTime = threshold ? parseFloat(threshold) : 1;
-    const logNotUsingIndexes = logNotUsing !== "false";
+  async enableSlowQueryLog(@Query() queryDto: EnableSlowQueryLogDto) {
+    const longQueryTime = queryDto.threshold ?? 1;
+    const logNotUsingIndexes = queryDto.logNotUsingIndexes ?? true;
 
     const result = await this.databaseMonitoringService.enableSlowQueryLog(
       longQueryTime,
@@ -130,8 +135,8 @@ export class DatabaseMonitoringController {
    * GET /admin/database/tables/stats
    */
   @Get("tables/stats")
-  async getTableStats(@Query("table") tableName?: string) {
-    const stats = await this.databaseMonitoringService.getTableStats(tableName);
+  async getTableStats(@Query() queryDto: GetTableStatsDto) {
+    const stats = await this.databaseMonitoringService.getTableStats(queryDto.table);
     return {
       success: true,
       data: stats,
@@ -158,8 +163,8 @@ export class DatabaseMonitoringController {
    * POST /admin/database/tables/:name/analyze
    */
   @Post("tables/:name/analyze")
-  async analyzeTable(@Param("name") tableName: string) {
-    const result = await this.databaseMonitoringService.analyzeTable(tableName);
+  async analyzeTable(@Param() paramDto: TableNameParamDto) {
+    const result = await this.databaseMonitoringService.analyzeTable(paramDto.name);
     return result;
   }
 
@@ -169,8 +174,8 @@ export class DatabaseMonitoringController {
    * @warning 此操作会锁定表，大表慎用
    */
   @Post("tables/:name/optimize")
-  async optimizeTable(@Param("name") tableName: string) {
-    const result = await this.databaseMonitoringService.optimizeTable(tableName);
+  async optimizeTable(@Param() paramDto: TableNameParamDto) {
+    const result = await this.databaseMonitoringService.optimizeTable(paramDto.name);
     return result;
   }
 
@@ -195,15 +200,8 @@ export class DatabaseMonitoringController {
    * POST /admin/database/explain
    */
   @Post("explain")
-  async explainQuery(@Query("sql") sql: string) {
-    if (!sql) {
-      return {
-        success: false,
-        message: "Missing 'sql' query parameter",
-      };
-    }
-
-    const result = await this.databaseMonitoringService.explainQuery(sql);
+  async explainQuery(@Query() queryDto: ExplainQueryDto) {
+    const result = await this.databaseMonitoringService.explainQuery(queryDto.sql);
     return {
       success: true,
       data: result,

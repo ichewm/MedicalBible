@@ -157,7 +157,8 @@ export class AuthService {
           sendResult = await this.smsService.sendVerificationCode(phone, code);
           if (!sendResult.success) {
             this.logger.warn(`短信发送失败: ${sendResult.error}，目标: ${phone}`);
-            this.logger.log(`[DEV] 验证码已生成 ${phone}: ${code}`);
+            // Redact verification code for security - check database for actual code in development
+            this.logger.log(`[DEV] 验证码已生成 ${phone}: ***${code.slice(-2)}`);
           } else {
             this.logger.log(`验证码已发送到手机 ${phone}`);
           }
@@ -165,7 +166,8 @@ export class AuthService {
           sendResult = await this.emailService.sendVerificationCode(email!, code);
           if (!sendResult.success) {
             this.logger.warn(`邮件发送失败: ${sendResult.error}，目标: ${email}`);
-            this.logger.log(`[DEV] 验证码已生成 ${email}: ${code}`);
+            // Redact verification code for security - check database for actual code in development
+            this.logger.log(`[DEV] 验证码已生成 ${email}: ***${code.slice(-2)}`);
           } else {
             this.logger.log(`验证码已发送到邮箱 ${email}`);
           }

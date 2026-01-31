@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -64,10 +64,33 @@ export interface TableStats {
 export class DatabaseMonitoringService {
   private readonly logger = new Logger(DatabaseMonitoringService.name);
 
+  /**
+   * Whitelist of valid table names for admin operations
+   * Prevents SQL injection via table name in ANALYZE/OPTIMIZE operations
+   */
+  private readonly VALID_TABLES = [
+    'users', 'orders', 'subscriptions', 'user_answers', 'exam_sessions',
+    'commissions', 'withdrawals', 'user_wrong_books', 'reading_progress',
+    'verification_codes', 'user_devices', 'papers', 'questions', 'lectures',
+    'subjects', 'professions', 'levels', 'sku_prices', 'conversations',
+    'messages', 'lecture_highlights', 'system_configs'
+  ];
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * Validates that a table name is in the whitelist
+   * @param tableName The table name to validate
+   * @throws BadRequestException if table name is invalid
+   */
+  private validateTableName(tableName: string): void {
+    if (!this.VALID_TABLES.includes(tableName)) {
+      throw new BadRequestException(`Invalid table name: ${tableName}`);
+    }
+  }
 
   // ==================== 索引监控 ====================
 
@@ -427,6 +450,9 @@ export class DatabaseMonitoringService {
    */
   async analyzeTable(tableName: string): Promise<{ success: boolean; message: string }> {
     try {
+      // Validate table name against whitelist to prevent SQL injection
+      this.validateTableName(tableName);
+
       await this.dataSource.query(`ANALYZE TABLE ${tableName}`);
       this.logger.log(`Table ${tableName} analyzed successfully`);
       return {
@@ -449,6 +475,9 @@ export class DatabaseMonitoringService {
    */
   async optimizeTable(tableName: string): Promise<{ success: boolean; message: string }> {
     try {
+      // Validate table name against whitelist to prevent SQL injection
+      this.validateTableName(tableName);
+
       await this.dataSource.query(`OPTIMIZE TABLE ${tableName}`);
       this.logger.log(`Table ${tableName} optimized successfully`);
       return {
@@ -533,16 +562,51 @@ export class DatabaseMonitoringService {
    */
   async explainQuery(sql: string): Promise<any[]> {
     try {
-      // 安全检查：只允许 EXPLAIN 查询
-      const sanitizedSql = sql.trim().toUpperCase();
-      if (!sanitizedSql.startsWith("SELECT") && !sanitizedSql.startsWith("EXPLAIN")) {
-        throw new Error("Only SELECT queries can be explained");
+      // 安全检查：只允许 SELECT 查询
+      // Strict validation to prevent SQL injection
+      const trimmedSql = sql.trim();
+
+      // Check for dangerous patterns that could indicate injection attempts
+      const dangerousPatterns = [
+        /--/,               // SQL comments
+        /\/\*/,             // Multi-line comments
+        /;/,                // Statement separators
+        /\bDROP\b/i,        // DROP statements
+        /\bDELETE\b/i,      // DELETE statements
+        /\bINSERT\b/i,      // INSERT statements
+        /\bUPDATE\b/i,      // UPDATE statements
+        /\bALTER\b/i,       // ALTER statements
+        /\bCREATE\b/i,      // CREATE statements
+        /\bTRUNCATE\b/i,    // TRUNCATE statements
+        /\bEXEC\b/i,        // EXEC statements
+        /\bEXECUTE\b/i,     // EXECUTE statements
+        /\bUNION\b/i,       // UNION (potential injection)
+      ];
+
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(trimmedSql)) {
+          throw new BadRequestException("Query contains forbidden SQL patterns");
+        }
       }
 
-      const result = await this.dataSource.query(`EXPLAIN ${sql}`);
+      // Only allow SELECT statements (case-insensitive check)
+      if (!/^\s*SELECT\s/i.test(trimmedSql)) {
+        throw new BadRequestException("Only SELECT queries can be explained");
+      }
+
+      // Additional check: ensure the query doesn't have multiple statements
+      if (trimmedSql.includes(';')) {
+        throw new BadRequestException("Semicolons and multiple statements are not allowed");
+      }
+
+      const result = await this.dataSource.query(`EXPLAIN ${trimmedSql}`);
       return result;
     } catch (error) {
       this.logger.error(`Failed to explain query: ${error.message}`);
+      // Re-throw BadRequestException for client-facing errors
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       return [];
     }
   }
