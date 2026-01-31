@@ -20,26 +20,8 @@ import {
   CannotCreateEntityIdMapError,
 } from "typeorm";
 import { BusinessException, ErrorCode } from "../exceptions/business.exception";
-
-/**
- * 错误响应接口
- */
-export interface ErrorResponse {
-  /** HTTP 状态码 */
-  code: number;
-  /** 业务错误码 */
-  errorCode?: string;
-  /** 错误消息 */
-  message: string;
-  /** 错误详情（仅开发环境） */
-  error?: string;
-  /** 请求路径 */
-  path: string;
-  /** 请求 ID */
-  requestId?: string;
-  /** 时间戳 */
-  timestamp: string;
-}
+import { ErrorResponseDto } from "../dto/error-response.dto";
+import { ValidationErrorDto } from "../dto/validation-error.dto";
 
 /**
  * 敏感字段列表（用于脱敏）
@@ -75,13 +57,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const requestId = (request.headers["x-request-id"] as string) || undefined;
 
     // 解析异常
-    const { status, message, errorCode, error } = this.parseException(
-      exception,
-      request,
-    );
+    const { status, message, errorCode, error, validationErrors } =
+      this.parseException(exception, request);
 
     // 构建错误响应
-    const errorResponse: ErrorResponse = {
+    const errorResponse: ErrorResponseDto = {
       code: status,
       message,
       path: request.url,
@@ -100,6 +80,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       errorResponse.error = error;
     }
 
+    if (validationErrors && validationErrors.length > 0) {
+      errorResponse.validationErrors = validationErrors;
+    }
+
     response.status(status).json(errorResponse);
   }
 
@@ -111,7 +95,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private parseException(
     exception: unknown,
     request: Request,
-  ): { status: number; message: string; errorCode?: string; error?: string } {
+  ): {
+    status: number;
+    message: string;
+    errorCode?: string;
+    error?: string;
+    validationErrors?: ValidationErrorDto[];
+  } {
     // 业务异常
     if (exception instanceof BusinessException) {
       return this.handleBusinessException(exception, request);
@@ -178,18 +168,32 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private handleHttpException(
     exception: HttpException,
     request: Request,
-  ): { status: number; message: string; error?: string } {
+  ): {
+    status: number;
+    message: string;
+    error?: string;
+    validationErrors?: ValidationErrorDto[];
+  } {
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse();
 
     let message: string;
+    let validationErrors: ValidationErrorDto[] | undefined;
+
     if (typeof exceptionResponse === "string") {
       message = exceptionResponse;
     } else if (typeof exceptionResponse === "object") {
       const responseObj = exceptionResponse as Record<string, any>;
-      message = responseObj.message || exception.message;
-      if (Array.isArray(message)) {
-        message = message.join(", ");
+      const responseMessage = responseObj.message || exception.message;
+
+      // 检查是否是验证错误数组 (class-validator 格式)
+      if (Array.isArray(responseMessage)) {
+        message = "验证失败，请检查输入";
+        validationErrors = this.parseValidationErrors(responseMessage);
+      } else if (typeof responseMessage === "string") {
+        message = responseMessage;
+      } else {
+        message = exception.message;
       }
     } else {
       message = exception.message;
@@ -206,7 +210,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
-    return { status, message };
+    return { status, message, validationErrors };
   }
 
   /**
@@ -412,5 +416,69 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     );
 
     return sanitized;
+  }
+
+  /**
+   * 解析验证错误数组
+   * @param errors 验证错误数组
+   * @returns 标准化的验证错误 DTO 数组
+   */
+  private parseValidationErrors(
+    errors: unknown[],
+  ): ValidationErrorDto[] {
+    const validationErrors: ValidationErrorDto[] = [];
+
+    for (const error of errors) {
+      if (typeof error === "string") {
+        // 简单字符串错误
+        validationErrors.push({
+          field: "unknown",
+          message: error,
+        });
+      } else if (typeof error === "object" && error !== null) {
+        // class-validator 错误对象格式
+        const errorObj = error as Record<string, any>;
+        const constraints = errorObj.constraints;
+        const children = errorObj.children;
+        const property = errorObj.property;
+
+        // 处理当前字段的约束错误
+        if (constraints && typeof constraints === "object") {
+          for (const [constraintType, message] of Object.entries(constraints)) {
+            if (typeof message === "string") {
+              validationErrors.push({
+                field: property || "unknown",
+                message,
+                constraint: constraintType,
+              });
+            }
+          }
+        }
+
+        // 处理嵌套对象的验证错误
+        if (Array.isArray(children) && children.length > 0) {
+          // 嵌套对象验证错误，递归处理
+          const nestedErrors = this.parseValidationErrors(children);
+          // 添加父字段前缀
+          for (const nested of nestedErrors) {
+            validationErrors.push({
+              field: `${property}.${nested.field}`,
+              message: nested.message,
+              constraint: nested.constraint,
+            });
+          }
+        }
+
+        // 如果没有约束和子错误，但有消息，则使用消息
+        if (!constraints && !children && errorObj.message) {
+          validationErrors.push({
+            field: property || "unknown",
+            message: String(errorObj.message),
+          });
+        }
+      }
+    }
+
+    return validationErrors;
   }
 }
