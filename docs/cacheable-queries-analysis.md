@@ -25,6 +25,46 @@ This document identifies all cacheable queries and data in the Medical Bible pla
 - `sadd/sismember/srem` - Set operations (used for token blacklists)
 - `incr/incrWithExpire` - Counter operations (used for rate limiting)
 
+### Cache Service (NEW)
+**Location**: `server/src/common/cache/cache.service.ts`
+
+**New Operations**:
+- `getOrSet(options, factory)` - Cache-Aside pattern with automatic miss handling
+- `getMany(keys)` - Batch get using MGET
+- `setMany(items, ttl)` - Batch set with TTL
+- `del(...keys)` - Delete single or multiple keys
+- `delByPattern(pattern)` - Pattern-based deletion using SCAN
+- `exists(key)` - Check if key exists
+- `expire(key, ttl)` - Set expiration time
+- `ttl(key)` - Get remaining TTL
+- `getMetrics()` - Get cache hit/miss statistics
+- `resetMetrics()` - Reset metrics counters
+- `getCacheInfo(pattern)` - Query keys with TTL information
+
+**Features**:
+- Automatic key prefix normalization (`cache:` prefix)
+- Built-in metrics tracking (hits, misses, hit rate)
+- Security: Prototype pollution prevention in JSON parsing
+- Security: Cache key sanitization for logs
+
+### Cache Decorators (NEW)
+**Location**: `server/src/common/cache/cache.decorator.ts`
+
+- `@Cacheable(options)` - Method-level caching decorator
+- `@CacheClear(...patterns)` - Cache invalidation decorator
+- `CacheKeyBuilder` - Type-safe cache key generation utility
+
+### Cache Controller (NEW)
+**Location**: `server/src/common/cache/cache.controller.ts`
+
+**Admin Endpoints** (Requires authentication + admin role):
+- `GET /cache/metrics` - Get cache metrics
+- `DELETE /cache/metrics` - Reset cache metrics
+- `GET /cache/keys?pattern=*` - Query cache keys with TTL
+- `GET /cache/keys/examples` - Get cache key examples
+- `DELETE /cache/:key` - Delete single cache key
+- `DELETE /cache/pattern/:pattern` - Delete by pattern (rate limited)
+
 ### Existing Caching Usage
 
 1. **SKU Category Tree** (`server/src/modules/sku/sku.service.ts:66-81`)
@@ -393,21 +433,29 @@ getMetrics() { return this.metrics; }
 
 ## Implementation Priority
 
-### Phase 1: High Impact (Implement First)
+### Phase 1: Infrastructure (COMPLETED ✅)
+1. ✅ CacheService with Cache-Aside pattern
+2. ✅ Cache decorators (@Cacheable, @CacheClear)
+3. ✅ Cache management API endpoints
+4. ✅ Cache metrics tracking
+5. ✅ Security hardening (prototype pollution prevention, key validation)
+6. ✅ Integration and E2E tests
+
+### Phase 2: High Impact (Implement First)
 1. ✅ SKU Category Tree (already done)
 2. System Configuration Queries
 3. User Subscription Status
 4. Paper/Lecture Catalog Queries
 
-### Phase 2: Medium Impact
+### Phase 3: Medium Impact
 5. User Profile Queries
 6. Question Data Queries
 7. User Practice Stats
 
-### Phase 3: Lower Priority
+### Phase 4: Lower Priority
 8. User Device Queries
 9. Wrong Book Data
-10. Cache Hit/Miss Metrics
+10. Cache Hit/Miss Metrics (infrastructure ready, monitor in production)
 
 ---
 
