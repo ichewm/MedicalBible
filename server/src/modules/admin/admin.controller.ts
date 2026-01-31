@@ -527,6 +527,7 @@ export class AdminController {
    * POST /admin/test-data/clear
    */
   @Post("test-data/clear")
+  @Roles("admin")
   @ApiOperation({ summary: "清空测试数据" })
   @ApiResponse({ status: 200, description: "数据清空成功" })
   @ApiResponse({ status: 400, description: "确认文本错误" })
