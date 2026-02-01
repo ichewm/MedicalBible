@@ -107,6 +107,9 @@ export class CommissionListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
+
+  @ApiProperty({ description: "是否有下一页" })
+  hasNext: boolean;
 }
 
 /**
@@ -228,6 +231,9 @@ export class WithdrawalListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
+
+  @ApiProperty({ description: "是否有下一页" })
+  hasNext: boolean;
 }
 
 // ==================== 下线 DTO ====================
@@ -275,6 +281,9 @@ export class InviteeListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
+
+  @ApiProperty({ description: "是否有下一页" })
+  hasNext: boolean;
 }
 
 // ==================== 管理 DTO ====================

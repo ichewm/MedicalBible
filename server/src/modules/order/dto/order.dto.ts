@@ -157,6 +157,9 @@ export class OrderListDto {
   @ApiProperty({ description: "总页数" })
   totalPages: number;
 
+  @ApiProperty({ description: "是否有下一页" })
+  hasNext: boolean;
+
   @ApiPropertyOptional({ description: "筛选条件下已支付订单总金额" })
   totalPaidAmount?: number;
 

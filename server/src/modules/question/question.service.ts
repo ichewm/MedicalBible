@@ -141,6 +141,7 @@ export class QuestionService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -261,6 +262,7 @@ export class QuestionService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -1243,6 +1245,7 @@ export class QuestionService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 

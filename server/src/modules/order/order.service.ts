@@ -236,6 +236,7 @@ export class OrderService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -565,6 +566,7 @@ export class OrderService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
       totalPaidAmount,
       todayRevenue,
     };
