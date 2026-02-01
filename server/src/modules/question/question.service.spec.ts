@@ -13,6 +13,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from "@nestjs/common";
+import { plainToInstance } from "class-transformer";
 
 import { QuestionService } from "./question.service";
 import { Paper, PaperType } from "../../entities/paper.entity";
@@ -22,6 +23,7 @@ import { UserWrongBook } from "../../entities/user-wrong-book.entity";
 import { ExamSession } from "../../entities/exam-session.entity";
 import { Subscription } from "../../entities/subscription.entity";
 import { Subject } from "../../entities/subject.entity";
+import { WrongBookQueryDto } from "./dto/wrong-book.dto";
 
 describe("QuestionService", () => {
   let service: QuestionService;
@@ -446,7 +448,10 @@ describe("QuestionService", () => {
       ]);
 
       // Act
-      const result = await service.getWrongBooks(1, { page: 1, pageSize: 20 });
+      const result = await service.getWrongBooks(
+        1,
+        plainToInstance(WrongBookQueryDto, { page: 1, pageSize: 20 }),
+      );
 
       // Assert
       expect(result.items).toHaveLength(1);
@@ -458,11 +463,14 @@ describe("QuestionService", () => {
       mockUserWrongBookRepository.findAndCount.mockResolvedValue([[], 0]);
 
       // Act
-      const result = await service.getWrongBooks(1, {
-        page: 1,
-        pageSize: 20,
-        subjectId: 1,
-      });
+      const result = await service.getWrongBooks(
+        1,
+        plainToInstance(WrongBookQueryDto, {
+          page: 1,
+          pageSize: 20,
+          subjectId: 1,
+        }),
+      );
 
       // Assert
       expect(mockUserWrongBookRepository.findAndCount).toHaveBeenCalledWith(
