@@ -1,8 +1,161 @@
-# Error Handling Documentation
+# API Response Format Documentation
 
 ## Overview
 
-This document describes the standardized error response format used across all API endpoints in the Medical Bible application.
+This document describes the standardized response formats used across all API endpoints in the Medical Bible application, including successful responses (with pagination), error responses, and validation errors.
+
+## Success Response Format
+
+All API success responses return a consistent JSON format defined by `ApiResponseDto<T>`.
+
+### Response Structure
+
+```typescript
+{
+  "code": number,           // HTTP status code (always 200 for success)
+  "message": string,        // Response message (usually "success")
+  "data": any,             // Response data (varies by endpoint)
+  "timestamp": string      // ISO 8601 timestamp
+}
+```
+
+### Field Descriptions
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `code` | number | Yes | HTTP status code (always 200 for successful responses) |
+| `message` | string | Yes | Response message, typically "success" |
+| `data` | any | Yes | Actual response data, structure varies by endpoint |
+| `timestamp` | string | Yes | ISO 8601 formatted timestamp when response was generated |
+
+### Example Success Response
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": 123,
+    "phone": "13800138000",
+    "username": "testuser"
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+## Pagination
+
+List/query endpoints support pagination to handle large datasets efficiently. All paginated endpoints use a consistent request and response format.
+
+### Pagination Request Parameters
+
+Paginated endpoints accept the following query parameters:
+
+| Parameter | Type | Required | Default | Min | Max | Description |
+|-----------|------|----------|---------|-----|-----|-------------|
+| `page` | number | No | 1 | 1 | - | Current page number (starts at 1) |
+| `pageSize` | number | No | 20 | 1 | 100 | Number of items per page |
+
+### Example Paginated Request
+
+```bash
+# Get page 2 with 30 items per page
+GET /api/v1/admin/users?page=2&pageSize=30
+```
+
+### Paginated Response Format
+
+Paginated endpoints return data in `PaginatedResponseDto<T>` format within the `data` field:
+
+```typescript
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": T[],           // Array of items for current page
+    "total": number,        // Total number of items matching query
+    "page": number,         // Current page number
+    "pageSize": number,     // Number of items per page
+    "totalPages": number,   // Total number of pages
+    "hasNext": boolean      // Whether there is a next page
+  },
+  "timestamp": string
+}
+```
+
+### Paginated Response Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `items` | array | Array of items for the current page |
+| `total` | number | Total count of items matching the query criteria |
+| `page` | number | Current page number (from request) |
+| `pageSize` | number | Number of items per page (from request) |
+| `totalPages` | number | Total number of pages calculated as `Math.ceil(total / pageSize)` |
+| `hasNext` | boolean | Whether a next page exists (`page < totalPages`) |
+
+### Example Paginated Response
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      { "id": 1, "phone": "13800138001", "username": "user1" },
+      { "id": 2, "phone": "13800138002", "username": "user2" }
+    ],
+    "total": 100,
+    "page": 1,
+    "pageSize": 20,
+    "totalPages": 5,
+    "hasNext": true
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Pagination Validation Errors
+
+Invalid pagination parameters return a 400 error with validation details:
+
+```json
+{
+  "code": 400,
+  "message": "验证失败，请检查输入",
+  "path": "/api/v1/admin/users",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "validationErrors": [
+    {
+      "field": "page",
+      "message": "页码最小为1"
+    }
+  ]
+}
+```
+
+### Endpoints Supporting Pagination
+
+The following endpoints support pagination:
+
+| Endpoint | Description | Additional Filters |
+|----------|-------------|-------------------|
+| `GET /api/v1/admin/users` | User list | phone, username, status |
+| `GET /api/v1/affiliate/users` | Referral users list | - |
+| `GET /api/v1/affiliate/commissions` | Commission list | - |
+| `GET /api/v1/affiliate/withdrawals` | Withdrawal list | status |
+| `GET /api/v1/order/list` | Order list | - |
+| `GET /api/v1/question/papers` | Paper list | - |
+| `GET /api/v1/question/wrong-book` | Wrong question list | - |
+| `GET /api/v1/lecture/history/reading` | Reading history | - |
+
+### Pagination Best Practices
+
+1. **Use sensible defaults**: When not specified, `page=1` and `pageSize=20` are used
+2. **Limit page size**: Maximum `pageSize` is 100 to prevent performance issues
+3. **Check `hasNext`**: Use this field to determine if "Load More" functionality should be enabled
+4. **Handle empty pages**: Requests beyond the last page return empty `items` array
+5. **Combine with filters**: Pagination works alongside other query parameters for filtering
 
 ## Error Response Format
 
@@ -241,7 +394,9 @@ Set via `NODE_ENV` environment variable.
 
 ## Related Files
 
+- `src/common/dto/api-response.dto.ts` - Success response, pagination request/response DTOs
 - `src/common/exceptions/business.exception.ts` - Business exception definitions
 - `src/common/dto/error-response.dto.ts` - Error response DTO
 - `src/common/dto/validation-error.dto.ts` - Validation error DTO
 - `src/common/filters/http-exception.filter.ts` - Global exception filter
+- `src/common/interceptors/transform.interceptor.ts` - Response transformation interceptor
