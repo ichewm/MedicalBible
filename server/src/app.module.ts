@@ -17,6 +17,7 @@ import { databaseConfig } from "./config/database.config";
 import { redisConfig } from "./config/redis.config";
 import { jwtConfig } from "./config/jwt.config";
 import { corsConfig } from "./config/cors.config";
+import { loggerConfig } from "./config/logger.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -38,6 +39,7 @@ import { RedisModule } from "./common/redis/redis.module";
 import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
 import { DatabaseModule } from "./common/database/database.module";
+import { LoggerModule } from "./common/logger";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
@@ -71,7 +73,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -106,6 +108,9 @@ class HealthController {
 
     // 数据库模块（全局）- 提供事务管理和监控功能
     DatabaseModule,
+
+    // 结构化日志模块（全局）
+    LoggerModule,
 
     // 静态文件服务（上传文件访问）
     ServeStaticModule.forRoot({

@@ -6,6 +6,10 @@
  */
 
 import { CacheService } from "./cache.service";
+import { createPinoLogger } from "../../config/logger.config";
+
+// Create a dedicated logger for cache decorators
+const cacheLogger = createPinoLogger({ level: 'warn' });
 
 /**
  * 缓存装饰器选项
@@ -54,7 +58,7 @@ export function Cacheable(options: CacheableOptions = {}) {
     descriptor.value = async function (...args: any[]) {
       const cacheService: CacheService = this.cacheService;
       if (!cacheService) {
-        console.warn(`CacheService not found in ${className}, skipping cache`);
+        cacheLogger.warn({ class: className }, `CacheService not found, skipping cache`);
         return originalMethod.apply(this, args);
       }
 
@@ -108,11 +112,11 @@ export function CacheClear(...patterns: string[]) {
           cacheService.delByPattern(key).catch((err) => {
             // Sanitize key in error logs to avoid leaking sensitive data
             const sanitizedKey = key.length > 50 ? key.substring(0, 50) + "..." : key;
-            console.error(`Failed to clear cache pattern ${sanitizedKey}:`, err);
+            cacheLogger.error({ pattern: sanitizedKey, err }, `Failed to clear cache pattern`);
           });
         }
       } else {
-        console.warn(`CacheService not found in ${className}, skipping cache clear`);
+        cacheLogger.warn({ class: className }, `CacheService not found, skipping cache clear`);
       }
 
       return result;

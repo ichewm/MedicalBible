@@ -207,13 +207,30 @@ TypeORM errors are automatically caught and mapped to appropriate responses:
 
 ## Request Tracing
 
-Include `X-Request-ID` header in requests for tracing:
+The application supports request tracing with two headers:
+
+- `X-Request-ID`: Unique ID for the current request
+- `X-Correlation-ID`: ID for tracking requests across multiple services (distributed tracing)
+
+### Client-Side Usage
+
+Include these headers in your requests for tracing:
 
 ```bash
-curl -H "X-Request-ID: my-request-123" https://api.example.com/users
+curl -H "X-Request-ID: my-request-123" \
+     -H "X-Correlation-ID: trace-abc-456" \
+     https://api.example.com/users
 ```
 
-The response will include the `requestId` field for correlation in logs.
+The response will include the same headers back, and the `requestId` field in error responses for log correlation.
+
+### Automatic Header Generation
+
+If not provided, the application automatically generates both:
+- A unique request ID for each incoming request
+- A correlation ID (defaults to the request ID if not provided)
+
+This allows you to trace a single request through all log entries, even across multiple microservices.
 
 ## Environment Differences
 
@@ -245,3 +262,5 @@ Set via `NODE_ENV` environment variable.
 - `src/common/dto/error-response.dto.ts` - Error response DTO
 - `src/common/dto/validation-error.dto.ts` - Validation error DTO
 - `src/common/filters/http-exception.filter.ts` - Global exception filter
+- `src/common/logger/logger.service.ts` - Structured logging service with correlation ID support
+- `src/common/middleware/request-tracking.middleware.ts` - Request/correlation ID middleware

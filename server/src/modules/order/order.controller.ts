@@ -180,7 +180,9 @@ export class OrderController {
     @Body() body: Record<string, string>,
   ): Promise<string> {
     try {
-      this.logger.log(`Alipay callback received: ${JSON.stringify(body)}`);
+      // Sanitize external input before logging to prevent log injection
+      const sanitizedBody = JSON.stringify(body).replace(/[\n\r\t]/g, ' ');
+      this.logger.log(`Alipay callback received: ${sanitizedBody}`);
       
       // 验证签名
       const isValid = await this.paymentService.verifyAlipayCallback(body);
@@ -220,8 +222,10 @@ export class OrderController {
     @Body() body: any,
   ): Promise<{ code: string; message: string }> {
     try {
+      // Sanitize external input before logging to prevent log injection
       const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
-      this.logger.log(`Wechat callback received: ${bodyStr}`);
+      const sanitizedBody = bodyStr.replace(/[\n\r\t]/g, ' ');
+      this.logger.log(`Wechat callback received: ${sanitizedBody}`);
       
       // 验证签名
       const isValid = await this.paymentService.verifyWechatCallback(
@@ -264,7 +268,9 @@ export class OrderController {
   @ApiResponse({ status: 200, description: "处理成功" })
   async paypalCallback(@Body() body: any): Promise<string> {
     try {
-      this.logger.log(`PayPal callback received: ${JSON.stringify(body)}`);
+      // Sanitize external input before logging to prevent log injection
+      const sanitizedBody = JSON.stringify(body).replace(/[\n\r\t]/g, ' ');
+      this.logger.log(`PayPal callback received: ${sanitizedBody}`);
       
       // PayPal Webhook 验证由 PayPal SDK 处理
       // 这里简化处理
