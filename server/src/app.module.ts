@@ -33,6 +33,7 @@ import { NotificationModule } from "./modules/notification/notification.module";
 import { PaymentModule } from "./modules/payment/payment.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { ChatModule } from "./modules/chat/chat.module";
+import { FhirModule } from "./modules/fhir/fhir.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
@@ -135,6 +136,7 @@ class HealthController {
     NotificationModule, // 通知模块（邮件/短信）
     PaymentModule, // 支付模块
     ChatModule, // 客服模块
+    FhirModule, // FHIR医疗数据互操作性模块
   ],
   providers: [
     // 全局 JWT 认证守卫
