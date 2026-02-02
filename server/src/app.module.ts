@@ -33,6 +33,7 @@ import { NotificationModule } from "./modules/notification/notification.module";
 import { PaymentModule } from "./modules/payment/payment.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { ChatModule } from "./modules/chat/chat.module";
+import { AnalyticsModule } from "./modules/analytics/analytics.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
@@ -43,6 +44,8 @@ import { LoggerModule } from "./common/logger";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
+import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 
 /**
  * 健康检查控制器
@@ -135,12 +138,18 @@ class HealthController {
     NotificationModule, // 通知模块（邮件/短信）
     PaymentModule, // 支付模块
     ChatModule, // 客服模块
+    AnalyticsModule, // 分析模块
   ],
   providers: [
     // 全局 JWT 认证守卫
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // 全局活动追踪拦截器
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityTrackingInterceptor,
     },
   ],
 })
