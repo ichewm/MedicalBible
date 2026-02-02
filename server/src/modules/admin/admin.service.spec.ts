@@ -50,6 +50,24 @@ describe("AdminService", () => {
     createdAt: new Date(),
   };
 
+  // Mock QueryBuilder
+  const mockQueryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue([]),
+    getRawOne: jest.fn().mockResolvedValue(null),
+    getMany: jest.fn().mockResolvedValue([]),
+    getOne: jest.fn().mockResolvedValue(null),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+  };
+
   // Mock Repositories
   const mockUserRepository = {
     find: jest.fn(),
@@ -58,7 +76,7 @@ describe("AdminService", () => {
     save: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
   };
 
   const mockOrderRepository = {
@@ -66,7 +84,7 @@ describe("AdminService", () => {
     findOne: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
   };
 
   const mockSubscriptionRepository = {
@@ -74,21 +92,21 @@ describe("AdminService", () => {
     findOne: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
   };
 
   const mockCommissionRepository = {
     find: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
   };
 
   const mockWithdrawalRepository = {
     find: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
   };
 
   const mockUserDeviceRepository = {
@@ -358,6 +376,7 @@ describe("AdminService", () => {
       // 佣金查询
       const commissionQueryBuilder = {
         select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ total: "5000" }),
       };
       mockCommissionRepository.createQueryBuilder.mockReturnValue(
