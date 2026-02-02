@@ -40,6 +40,7 @@ import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
 import { DatabaseModule } from "./common/database/database.module";
 import { LoggerModule } from "./common/logger";
+import { CircuitBreakerModule } from "./common/circuit-breaker";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
@@ -111,6 +112,9 @@ class HealthController {
 
     // 结构化日志模块（全局）
     LoggerModule,
+
+    // 断路器模块（全局）
+    CircuitBreakerModule,
 
     // 静态文件服务（上传文件访问）
     ServeStaticModule.forRoot({
