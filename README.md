@@ -284,6 +284,7 @@ MedicalBible/
 - [错误处理文档](./server/docs/error-handling.md) - 标准化错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [事务模式文档](./docs/TRANSACTION_PATTERNS.md) - 数据库事务使用指南
+- [数据加载策略](./docs/data-loading-strategies.md) - TypeORM 懒加载与优化指南
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
