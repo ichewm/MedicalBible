@@ -106,7 +106,7 @@ class HealthController {
     // 加密服务模块
     CryptoModule,
 
-    // 数据库事务服务模块（全局）
+    // 数据库模块（全局）- 提供事务管理和监控功能
     DatabaseModule,
 
     // 结构化日志模块（全局）

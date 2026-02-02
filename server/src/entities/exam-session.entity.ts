@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { User } from "./user.entity";
 import { Paper } from "./paper.entity";
 
@@ -24,6 +24,8 @@ export enum ExamSessionStatus {
  * @description 存储考试/练习会话信息，支持断点续答
  */
 @Entity("exam_sessions")
+@Index("idx_exam_sessions_user_deleted_time", ["userId", "isDeleted", "startAt"])
+@Index("idx_exam_sessions_id_user", ["id", "userId"])
 export class ExamSession {
   /** 会话 ID (UUID) */
   @PrimaryColumn({ type: "varchar", length: 36, comment: "会话 ID (UUID)" })

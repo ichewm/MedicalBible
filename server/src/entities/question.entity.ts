@@ -12,6 +12,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from "typeorm";
 import { Paper } from "./paper.entity";
 import { UserAnswer } from "./user-answer.entity";
@@ -42,6 +43,7 @@ export interface QuestionOption {
  * @description 存储题目信息，包括题干、选项、答案、解析等
  */
 @Entity("questions")
+@Index("idx_questions_paper_order", ["paperId", "sortOrder"])
 export class Question {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键" })
