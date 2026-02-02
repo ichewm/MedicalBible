@@ -8,3 +8,4 @@ export * from "./database.config";
 export * from "./jwt.config";
 export * from "./logger.config";
 export * from "./redis.config";
+export * from "./websocket.config";
