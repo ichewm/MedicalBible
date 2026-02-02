@@ -229,6 +229,10 @@ export class SkuService {
    * 删除职业大类
    * @param id - 职业大类ID
    * @returns 删除结果
+   * @throws NotFoundException 当职业大类不存在时
+   * @throws BadRequestException 当该职业下存在等级时（包含具体数量）
+   * @description 删除前会检查该职业下是否存在等级，存在则不允许删除。
+   *              成功删除后会清除 SKU 分类树缓存。
    */
   async deleteProfession(id: number): Promise<{ success: boolean }> {
     const profession = await this.professionRepository.findOne({
@@ -360,6 +364,14 @@ export class SkuService {
    * 删除等级
    * @param id - 等级ID
    * @returns 删除结果
+   * @throws NotFoundException 当等级不存在时
+   * @throws BadRequestException 当该等级下存在关联资源时（包含各类型资源的具体数量）
+   * @description 删除前会检查是否存在以下关联资源：
+   *              - 科目 (subjects)
+   *              - 价格档位 (prices)
+   *              - 订单 (orders)
+   *              - 订阅 (subscriptions)
+   *              存在任何关联资源则不允许删除。成功删除后会清除 SKU 分类树缓存。
    */
   async deleteLevel(id: number): Promise<{ success: boolean }> {
     const level = await this.levelRepository.findOne({
@@ -508,6 +520,12 @@ export class SkuService {
    * 删除科目
    * @param id - 科目ID
    * @returns 删除结果
+   * @throws NotFoundException 当科目不存在时
+   * @throws BadRequestException 当该科目下存在关联资源时（包含各类型资源的具体数量）
+   * @description 删除前会检查是否存在以下关联资源：
+   *              - 试卷 (papers)
+   *              - 讲义 (lectures)
+   *              存在任何关联资源则不允许删除。成功删除后会清除 SKU 分类树缓存。
    */
   async deleteSubject(id: number): Promise<{ success: boolean }> {
     const subject = await this.subjectRepository.findOne({
@@ -680,6 +698,10 @@ export class SkuService {
    * 删除价格档位
    * @param id - 价格档位ID
    * @returns 删除结果
+   * @throws NotFoundException 当价格档位不存在时
+   * @throws BadRequestException 当该价格档位下存在关联订单时（包含订单数量）
+   * @description 删除前会检查是否存在关联的订单 (orders)。
+   *              存在订单则不允许删除。注意：此操作不会清除 SKU 分类树缓存。
    */
   async deleteSkuPrice(id: number): Promise<{ success: boolean }> {
     const price = await this.skuPriceRepository.findOne({
