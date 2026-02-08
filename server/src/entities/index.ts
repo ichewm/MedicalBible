@@ -40,3 +40,7 @@ export * from "./withdrawal.entity";
 // ==================== 客服系统 ====================
 export * from "./conversation.entity";
 export * from "./message.entity";
+
+// ==================== 可穿戴设备集成 ====================
+export * from "./wearable-connection.entity";
+export * from "./wearable-health-data.entity";
