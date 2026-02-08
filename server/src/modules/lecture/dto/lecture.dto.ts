@@ -17,7 +17,6 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { PaginationDto } from "@common/dto";
 
 // ==================== 讲义 DTO ====================
 
@@ -158,7 +157,22 @@ export class ProgressResponseDto {
 /**
  * 阅读历史查询 DTO
  */
-export class ReadingHistoryQueryDto extends PaginationDto {}
+export class ReadingHistoryQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  @Max(100)
+  pageSize?: number = 20;
+}
 
 /**
  * 阅读历史项 DTO
@@ -204,9 +218,6 @@ export class ReadingHistoryListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
-
-  @ApiProperty({ description: "是否有下一页" })
-  hasNext: boolean;
 }
 
 // ==================== 重点标注 DTO ====================

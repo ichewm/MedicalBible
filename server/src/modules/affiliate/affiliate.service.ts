@@ -248,8 +248,8 @@ export class AffiliateService {
       where: whereCondition,
       relations: ["sourceOrder"],
       order: { id: "DESC" },
-      skip: query.getSkip(),
-      take: query.getTake(),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
     // 佣金状态映射
@@ -272,7 +272,6 @@ export class AffiliateService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -421,8 +420,8 @@ export class AffiliateService {
     const [items, total] = await this.withdrawalRepository.findAndCount({
       where: whereCondition,
       order: { id: "DESC" },
-      skip: query.getSkip(),
-      take: query.getTake(),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
     // 状态映射
@@ -448,7 +447,6 @@ export class AffiliateService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -514,8 +512,8 @@ export class AffiliateService {
       .createQueryBuilder("u")
       .where("u.parentId = :userId", { userId })
       .orderBy("u.createdAt", "DESC")
-      .skip(query.getSkip())
-      .take(query.getTake())
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
       .getManyAndCount();
 
     // 查询每个下线贡献的佣金
@@ -534,7 +532,6 @@ export class AffiliateService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -758,8 +755,8 @@ export class AffiliateService {
       where: whereCondition,
       relations: ["user"],
       order: { id: "DESC" },
-      skip: query.getSkip(),
-      take: query.getTake(),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
     // 提现状态映射
@@ -788,7 +785,6 @@ export class AffiliateService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 

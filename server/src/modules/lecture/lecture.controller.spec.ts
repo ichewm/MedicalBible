@@ -7,8 +7,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { LectureController } from "./lecture.controller";
 import { LectureService } from "./lecture.service";
 import { JwtAuthGuard, RolesGuard } from "@common/guards";
-import { plainToInstance } from "class-transformer";
-import { ReadingHistoryQueryDto } from "./dto/lecture.dto";
 
 describe("LectureController", () => {
   let controller: LectureController;
@@ -174,7 +172,7 @@ describe("LectureController", () => {
 
   describe("getReadingHistory - 获取阅读历史", () => {
     it("应该成功获取阅读历史", async () => {
-      const query = plainToInstance(ReadingHistoryQueryDto, { page: 1, pageSize: 20 });
+      const query = { page: 1, pageSize: 20 };
       const mockResult = {
         items: [
           {

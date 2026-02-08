@@ -18,12 +18,11 @@ import {
 } from "class-validator";
 import { PaperType } from "../../../entities/paper.entity";
 import { Type } from "class-transformer";
-import { PaginationDto } from "@common/dto";
 
 /**
  * 试卷查询 DTO
  */
-export class PaperQueryDto extends PaginationDto {
+export class PaperQueryDto {
   @ApiPropertyOptional({ description: "职业大类ID" })
   @IsOptional()
   @Type(() => Number)
@@ -47,6 +46,21 @@ export class PaperQueryDto extends PaginationDto {
   @Type(() => Number)
   @IsInt()
   type?: number;
+
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
 }
 
 /**

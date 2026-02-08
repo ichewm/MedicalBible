@@ -28,7 +28,6 @@ import {
   ApiQuery,
 } from "@nestjs/swagger";
 import { Response } from "express";
-import { plainToInstance } from "class-transformer";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
@@ -552,12 +551,11 @@ export class AdminController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     // 获取所有用户数据（不分页）
-    const exportQuery = plainToInstance(UserListQueryDto, {
+    const result = await this.adminService.getUserList({
       ...query,
       page: 1,
       pageSize: 100000,
     });
-    const result = await this.adminService.getUserList(exportQuery);
 
     const buffer = this.exportService.exportUsers(result.items);
 

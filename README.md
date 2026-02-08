@@ -281,7 +281,7 @@ MedicalBible/
 - [API 接口文档](http://localhost:3000/api-docs) - Swagger 文档（需启动服务）
 - [API 版本控制](./server/docs/api-versioning.md) - API 版本策略和迁移指南
 - [API 错误码文档](./doc/API_ERROR_CODES.md) - 错误码说明与处理
-- [API 响应格式文档](./server/docs/error-handling.md) - 成功响应、分页和错误响应格式
+- [错误处理文档](./server/docs/error-handling.md) - 标准化错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [事务模式文档](./docs/TRANSACTION_PATTERNS.md) - 数据库事务使用指南
 - [数据库设计](./doc/database-design.md) - ER图与表结构

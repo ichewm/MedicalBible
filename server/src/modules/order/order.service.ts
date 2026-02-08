@@ -217,8 +217,8 @@ export class OrderService {
       where: whereCondition,
       relations: ["level"],
       order: { id: "DESC" },
-      skip: query.getSkip(),
-      take: query.getTake(),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
     return {
@@ -236,7 +236,6 @@ export class OrderService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -524,8 +523,8 @@ export class OrderService {
       where: whereCondition,
       relations: ["level", "user"],
       order: { id: "DESC" },
-      skip: query.getSkip(),
-      take: query.getTake(),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
     // 计算筛选条件下的已支付订单总金额
@@ -566,7 +565,6 @@ export class OrderService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      hasNext: page < Math.ceil(total / pageSize),
       totalPaidAmount,
       todayRevenue,
     };

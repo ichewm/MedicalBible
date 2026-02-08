@@ -7,8 +7,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { QuestionController } from "./question.controller";
 import { QuestionService } from "./question.service";
 import { JwtAuthGuard, RolesGuard } from "@common/guards";
-import { plainToInstance } from "class-transformer";
-import { PaperQueryDto, WrongBookQueryDto } from "./dto";
 
 describe("QuestionController", () => {
   let controller: QuestionController;
@@ -76,7 +74,7 @@ describe("QuestionController", () => {
 
   describe("getPapers - 获取试卷列表", () => {
     it("应该成功获取试卷列表", async () => {
-      const query = plainToInstance(PaperQueryDto, { subjectId: 1, page: 1, pageSize: 10 });
+      const query = { subjectId: 1, page: 1, pageSize: 10 };
       const mockResult = {
         items: [
           {
@@ -354,7 +352,7 @@ describe("QuestionController", () => {
 
   describe("getWrongBooks - 获取错题本", () => {
     it("应该成功获取错题本列表", async () => {
-      const query = plainToInstance(WrongBookQueryDto, { page: 1, pageSize: 10 });
+      const query = { page: 1, pageSize: 10 };
       const mockResult = {
         items: [
           {

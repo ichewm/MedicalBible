@@ -24,7 +24,6 @@ import {
   WithdrawalStatus,
   AccountInfo,
 } from "../../../entities/withdrawal.entity";
-import { PaginationDto } from "@common/dto";
 
 // ==================== 邀请码 DTO ====================
 
@@ -54,7 +53,21 @@ export class BindResultDto {
 /**
  * 佣金查询 DTO
  */
-export class CommissionQueryDto extends PaginationDto {
+export class CommissionQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  @Max(100)
+  pageSize?: number = 20;
 
   @ApiPropertyOptional({ description: "佣金状态", enum: CommissionStatus })
   @IsOptional()
@@ -107,9 +120,6 @@ export class CommissionListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
-
-  @ApiProperty({ description: "是否有下一页" })
-  hasNext: boolean;
 }
 
 /**
@@ -178,7 +188,21 @@ export class CreateWithdrawalDto {
 /**
  * 提现查询 DTO
  */
-export class WithdrawalQueryDto extends PaginationDto {
+export class WithdrawalQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  @Max(100)
+  pageSize?: number = 20;
 
   @ApiPropertyOptional({ description: "提现状态", enum: WithdrawalStatus })
   @IsOptional()
@@ -231,9 +255,6 @@ export class WithdrawalListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
-
-  @ApiProperty({ description: "是否有下一页" })
-  hasNext: boolean;
 }
 
 // ==================== 下线 DTO ====================
@@ -241,7 +262,22 @@ export class WithdrawalListDto {
 /**
  * 下线查询 DTO
  */
-export class InviteeQueryDto extends PaginationDto {}
+export class InviteeQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  @Max(100)
+  pageSize?: number = 20;
+}
 
 /**
  * 下线列表项 DTO
@@ -281,9 +317,6 @@ export class InviteeListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
-
-  @ApiProperty({ description: "是否有下一页" })
-  hasNext: boolean;
 }
 
 // ==================== 管理 DTO ====================
@@ -291,7 +324,21 @@ export class InviteeListDto {
 /**
  * 管理员提现查询 DTO
  */
-export class AdminWithdrawalQueryDto extends PaginationDto {
+export class AdminWithdrawalQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  @Max(100)
+  pageSize?: number = 20;
 
   @ApiPropertyOptional({ description: "提现状态", enum: WithdrawalStatus })
   @IsOptional()

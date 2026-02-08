@@ -9,7 +9,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
-import { plainToInstance } from "class-transformer";
 
 import { AffiliateService } from "./affiliate.service";
 import { User } from "../../entities/user.entity";
@@ -17,11 +16,6 @@ import { Commission, CommissionStatus } from "../../entities/commission.entity";
 import { Withdrawal, WithdrawalStatus } from "../../entities/withdrawal.entity";
 import { Order, OrderStatus } from "../../entities/order.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
-import {
-  CommissionQueryDto,
-  WithdrawalQueryDto,
-  InviteeQueryDto,
-} from "./dto/affiliate.dto";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -258,8 +252,7 @@ describe("AffiliateService", () => {
       ]);
 
       // Act
-      const query = plainToInstance(CommissionQueryDto, { page: 1, pageSize: 20 });
-      const result = await service.getCommissions(1, query);
+      const result = await service.getCommissions(1, { page: 1, pageSize: 20 });
 
       // Assert
       expect(result.items).toHaveLength(1);
@@ -271,12 +264,11 @@ describe("AffiliateService", () => {
       mockCommissionRepository.findAndCount.mockResolvedValue([[], 0]);
 
       // Act
-      const query = plainToInstance(CommissionQueryDto, {
+      await service.getCommissions(1, {
         page: 1,
         pageSize: 20,
         status: CommissionStatus.AVAILABLE,
       });
-      await service.getCommissions(1, query);
 
       // Assert
       expect(mockCommissionRepository.findAndCount).toHaveBeenCalledWith(
@@ -395,8 +387,7 @@ describe("AffiliateService", () => {
       ]);
 
       // Act
-      const query = plainToInstance(WithdrawalQueryDto, { page: 1, pageSize: 20 });
-      const result = await service.getWithdrawals(1, query);
+      const result = await service.getWithdrawals(1, { page: 1, pageSize: 20 });
 
       // Assert
       expect(result.items).toHaveLength(1);
@@ -452,8 +443,7 @@ describe("AffiliateService", () => {
       );
 
       // Act
-      const query = plainToInstance(InviteeQueryDto, { page: 1, pageSize: 20 });
-      const result = await service.getInvitees(1, query);
+      const result = await service.getInvitees(1, { page: 1, pageSize: 20 });
 
       // Assert
       expect(result.items).toHaveLength(2);

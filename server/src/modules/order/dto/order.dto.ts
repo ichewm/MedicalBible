@@ -17,7 +17,6 @@ import {
 } from "class-validator";
 import { Type, Transform } from "class-transformer";
 import { OrderStatus, PayMethod } from "../../../entities/order.entity";
-import { PaginationDto } from "@common/dto";
 
 // ==================== 订单创建 DTO ====================
 
@@ -79,7 +78,21 @@ const transformStatus = (value: any): number | undefined => {
 /**
  * 订单查询 DTO
  */
-export class OrderQueryDto extends PaginationDto {
+export class OrderQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  @Max(100)
+  pageSize?: number = 20;
 
   @ApiPropertyOptional({
     description: "订单状态（0=待支付,1=已支付,2=已取消,或pending/paid/cancelled）",
@@ -156,9 +169,6 @@ export class OrderListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
-
-  @ApiProperty({ description: "是否有下一页" })
-  hasNext: boolean;
 
   @ApiPropertyOptional({ description: "筛选条件下已支付订单总金额" })
   totalPaidAmount?: number;

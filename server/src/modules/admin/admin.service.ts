@@ -181,8 +181,8 @@ export class AdminService {
     const [items, total] = await this.userRepository.findAndCount({
       where,
       order: { createdAt: "DESC" },
-      skip: query.getSkip(),
-      take: query.getTake(),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       select: [
         "id",
         "phone",
@@ -225,7 +225,6 @@ export class AdminService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 

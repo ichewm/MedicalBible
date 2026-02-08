@@ -18,14 +18,27 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 import { UserStatus } from "../../../entities/user.entity";
-import { PaginationDto } from "@common/dto";
 
 // ==================== 用户管理 DTO ====================
 
 /**
  * 用户列表查询 DTO
  */
-export class UserListQueryDto extends PaginationDto {
+export class UserListQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1)
+  @Max(100)
+  pageSize?: number = 20;
 
   @ApiPropertyOptional({ description: "手机号（模糊搜索）" })
   @IsOptional()
@@ -91,9 +104,6 @@ export class UserListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
-
-  @ApiProperty({ description: "是否有下一页" })
-  hasNext: boolean;
 }
 
 /**
