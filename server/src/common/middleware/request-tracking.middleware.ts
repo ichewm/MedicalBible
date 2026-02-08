@@ -10,18 +10,21 @@ import { Request, Response, NextFunction } from "express";
 import { randomUUID } from "crypto";
 
 /**
- * 扩展 Express Request 类型，添加请求 ID
+ * 扩展 Express Request 类型，添加请求 ID 和关联 ID
+ * @description 关联 ID（correlationId）用于跨服务追踪请求
  */
 declare module "express-serve-static-core" {
   interface Request {
     requestId?: string;
+    correlationId?: string;
     requestStartTime?: number;
   }
 }
 
 /**
  * 请求追踪中间件
- * @description 为每个请求生成唯一 ID，并记录请求开始时间
+ * @description 为每个请求生成唯一 ID 和关联 ID，并记录请求开始时间
+ * @description 关联 ID 用于跨服务追踪请求链路
  */
 @Injectable()
 export class RequestTrackingMiddleware implements NestMiddleware {
@@ -29,6 +32,12 @@ export class RequestTrackingMiddleware implements NestMiddleware {
    * 请求 ID Header 名称
    */
   static readonly REQUEST_ID_HEADER = "x-request-id";
+
+  /**
+   * 关联 ID Header 名称
+   * @description 用于跨服务追踪的关联 ID
+   */
+  static readonly CORRELATION_ID_HEADER = "x-correlation-id";
 
   /**
    * 中间件处理函数
@@ -42,12 +51,19 @@ export class RequestTrackingMiddleware implements NestMiddleware {
       (req.headers[RequestTrackingMiddleware.REQUEST_ID_HEADER] as string) ||
       this.generateRequestId();
 
+    // 关联 ID 用于跨服务追踪，优先使用客户端传入的，否则使用请求 ID
+    const correlationId =
+      (req.headers[RequestTrackingMiddleware.CORRELATION_ID_HEADER] as string) ||
+      requestId;
+
     // 设置请求属性
     req.requestId = requestId;
+    req.correlationId = correlationId;
     req.requestStartTime = Date.now();
 
-    // 设置响应头，返回请求 ID
+    // 设置响应头，返回请求 ID 和关联 ID
     res.setHeader(RequestTrackingMiddleware.REQUEST_ID_HEADER, requestId);
+    res.setHeader(RequestTrackingMiddleware.CORRELATION_ID_HEADER, correlationId);
 
     next();
   }
@@ -81,4 +97,15 @@ export function getRequestDuration(req: Request): number | undefined {
     return Date.now() - req.requestStartTime;
   }
   return undefined;
+}
+
+/**
+ * 获取关联 ID 的辅助函数
+ * @param req Express 请求对象
+ */
+export function getCorrelationId(req: Request): string | undefined {
+  return (
+    req.correlationId ||
+    (req.headers[RequestTrackingMiddleware.CORRELATION_ID_HEADER] as string)
+  );
 }

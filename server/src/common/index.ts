@@ -24,5 +24,7 @@ export * from "./filters";
 // Exceptions
 export * from "./exceptions";
 
+// Logger
+export * from "./logger";
 // Database Monitoring
 export * from "./database";
