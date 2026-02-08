@@ -246,7 +246,8 @@ MedicalBible/
 │   │   │   ├── lecture/   # 讲义模块
 │   │   │   ├── order/     # 订单模块
 │   │   │   ├── affiliate/ # 分销模块
-│   │   │   └── admin/     # 管理模块
+│   │   │   ├── admin/     # 管理模块
+│   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
 │   │   ├── config/        # 配置文件
 │   │   └── entities/      # 数据库实体
@@ -290,6 +291,9 @@ MedicalBible/
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
+- [FHIR标准研究](./docs/fhir-research.md) - FHIR R4标准与CMS互操作性要求
+- [FHIR服务器评估](./docs/fhir-server-evaluation.md) - FHIR服务器选项对比
+- [FHIR资源映射](./docs/fhir-resource-mappings.md) - 数据模型到FHIR资源的映射
 
 ## 🧪 测试
 
@@ -412,6 +416,14 @@ npm run dev
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.3.0 (2026-02-08)
+
+- ✅ 实现FHIR R4标准API端点（医疗数据互操作性）
+- ✅ 支持Patient、Observation、Condition、DocumentReference、Encounter、Coverage、Organization资源
+- ✅ 添加FHIR元数据端点（Capability Statement）
+- ✅ 实现FHIR资源搜索和读取操作
+- ✅ 添加FHIR集成测试
 
 ### v1.2.0 (2026-02-01)
 
