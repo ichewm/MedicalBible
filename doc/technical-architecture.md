@@ -221,3 +221,157 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 2. **缓存键验证**: 模式参数只允许字母、数字、冒号、下划线和星号
 3. **速率限制**: 批量删除接口启用速率限制防止 DoS 攻击
 4. **权限控制**: 所有缓存管理接口需要管理员权限
+
+---
+
+## 5. 断路器模式 (Circuit Breaker Pattern)
+
+### 断路器服务 (CircuitBreakerService)
+
+**位置**: `server/src/common/circuit-breaker/circuit-breaker.service.ts`
+
+断路器服务基于 [opossum](https://github.com/nodeshift/opossum) 库实现，用于保护外部服务调用免受级联故障影响。当外部服务出现故障时，断路器会自动熔断并执行降级策略，确保系统可用性。
+
+#### 核心功能
+
+- **自动熔断**: 根据错误率和超时阈值自动打开断路器
+- **降级策略**: 支持自定义 fallback 函数，在服务不可用时执行备用逻辑
+- **状态追踪**: 实时监控断路器状态（关闭、打开、半开）
+- **统计信息**: 记录请求总数、失败数、成功率、平均响应时间
+- **预设配置**: 为不同类型的外部服务提供推荐的断路器参数
+
+#### 断路器状态
+
+| 状态 | 说明 | 行为 |
+|------|------|------|
+| CLOSED (关闭) | 正常工作状态 | 请求正常通过，统计成功/失败率 |
+| OPEN (打开) | 熔断状态 | 拒绝所有请求，直接执行 fallback |
+| HALF_OPEN (半开) | 测试恢复状态 | 允许少量请求通过，检测服务是否恢复 |
+
+#### 外部服务类型
+
+```typescript
+enum ExternalService {
+  AWS_S3 = 'aws-s3',           // AWS S3 存储
+  ALIYUN_OSS = 'aliyun-oss',   // 阿里云 OSS 存储
+  TENCENT_COS = 'tencent-cos', // 腾讯云 COS 存储
+  MINIO = 'minio',             // MinIO 存储
+  EMAIL = 'email',             // 邮件服务
+  SMS = 'sms',                 // 短信服务
+  REDIS = 'redis',             // Redis 缓存
+  DATABASE = 'database',       // 数据库
+  PAYMENT = 'payment',         // 支付服务
+  WEBSOCKET = 'websocket',     // WebSocket 服务
+}
+```
+
+#### 预设配置
+
+| 服务类型 | 超时 | 错误阈值 | 重置时间 | 说明 |
+|---------|------|---------|---------|------|
+| 存储服务 (S3/OSS/COS/MinIO) | 60s | 40% | 2分钟 | 文件上传较慢，容错率中等 |
+| 邮件/短信服务 | 30s | 50% | 1分钟 | 通知服务，可降级到日志 |
+| Redis 缓存 | 5s | 60% | 30秒 | 快速失败，高容错 |
+| 数据库 | 15s | 30% | 1分钟 | 关键服务，低容错 |
+| 支付服务 | 45s | 20% | 3分钟 | 核心业务，极低容错 |
+| WebSocket | 10s | 50% | 1分钟 | 实时通信，中等容错 |
+
+#### 使用示例
+
+```typescript
+// 基本用法
+const result = await this.circuitBreakerService.execute(
+  ExternalService.AWS_S3,
+  async () => {
+    return await this.s3Client.upload(params);
+  },
+  {
+    fallback: async () => {
+      // 降级到本地存储
+      return await this.localStorage.upload(params);
+    },
+  }
+);
+
+// 使用预设配置
+const presetOptions = this.circuitBreakerService.getPresetOptions(ExternalService.EMAIL);
+await this.circuitBreakerService.execute(
+  ExternalService.EMAIL,
+  async () => await this.transporter.sendMail(mailOptions),
+  {
+    ...presetOptions,
+    fallback: async () => {
+      this.logger.warn('Email service unavailable, logging only');
+      return { success: true };
+    },
+  }
+);
+```
+
+#### 已集成的服务
+
+以下服务已集成断路器保护：
+
+- **EmailService** (`server/src/modules/notification/email.service.ts`)
+  - 邮件发送失败时降级到日志记录
+  - 避免阻塞用户业务流程
+
+- **StorageService** (`server/src/modules/storage/storage.service.ts`)
+  - 文件上传/删除失败时降级到本地存储
+  - 支持 AWS S3、阿里云 OSS、腾讯云 COS、MinIO
+
+- **RedisService** (`server/src/common/redis/redis.service.ts`)
+  - 缓存操作失败时返回 null 或跳过缓存
+  - 不影响主业务逻辑
+
+#### 配置选项
+
+```typescript
+interface CircuitBreakerOptions {
+  timeout?: number;                  // 超时时间（毫秒），默认 30000ms
+  errorThresholdPercentage?: number; // 错误阈值百分比，默认 50%
+  resetTimeout?: number;             // 重置超时（毫秒），默认 30000ms
+  rollingCountTimeout?: number;      // 滚动统计窗口（毫秒），默认 10000ms
+  rollingCountBuckets?: number;      // 统计桶数量，默认 10
+  volumeThreshold?: number;          // 最小请求数，默认 10
+  fallback?: (...args: any[]) => any; // 降级函数
+}
+```
+
+#### 监控与统计
+
+获取断路器状态和统计信息：
+
+```typescript
+// 获取单个服务的统计
+const stats = this.circuitBreakerService.getStats(ExternalService.AWS_S3);
+// { service: 'aws-s3', state: 'closed', totalRequests: 100, ... }
+
+// 获取所有断路器统计
+const allStats = this.circuitBreakerService.getAllStats();
+
+// 检查断路器是否打开
+const isOpen = this.circuitBreakerService.isOpen(ExternalService.EMAIL);
+
+// 手动重置断路器
+this.circuitBreakerService.reset(ExternalService.REDIS);
+```
+
+#### 事件日志
+
+断路器会记录以下事件到日志：
+- `open`: 断路器打开（熔断）
+- `halfOpen`: 断路器进入半开状态（测试恢复）
+- `close`: 断路器关闭（恢复正常）
+- `fallback`: 执行降级函数
+- `reject`: 请求被拒绝（断路器打开时）
+- `timeout`: 请求超时
+- `success`: 请求成功
+- `failure`: 请求失败
+
+#### 最佳实践
+
+1. **合理设置超时**: 根据服务特性设置超时时间，避免过长阻塞
+2. **优雅降级**: fallback 函数应返回可接受的默认值或执行备用逻辑
+3. **监控告警**: 定期检查断路器状态，及时发现服务异常
+4. **避免级联**: 下游服务故障不应影响上游核心业务
