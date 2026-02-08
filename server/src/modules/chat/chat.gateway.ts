@@ -227,6 +227,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 处理心跳消息
+   * @param client - 已认证的 Socket 连接
+   * @param data - 心跳数据，包含客户端时间戳
+   * @description 客户端定期调用此方法以保持连接活跃。
+   *              更新客户端的 isAlive 状态和最后心跳时间，并返回心跳确认。
    */
   @SubscribeMessage("heartbeat")
   handleHeartbeat(@ConnectedSocket() client: AuthenticatedSocket, @MessageBody() data: HeartbeatData): void {
@@ -242,6 +246,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 学员发送消息
+   * @param client - 已认证的 Socket 连接
+   * @param dto - 发送消息 DTO
+   * @returns 包含 success、message 或 error 的响应对象
+   * @description 学员向客服发送消息。消息保存到数据库后，通知所有管理员。
    */
   @SubscribeMessage("sendMessage")
   async handleSendMessage(
@@ -270,6 +278,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 管理员发送消息
+   * @param client - 已认证的 Socket 连接
+   * @param data - 包含 conversationId、content、contentType 的消息数据
+   * @returns 包含 success、message 或 error 的响应对象
+   * @description 管理员向指定会话发送消息。消息保存后通知目标用户（如在线），
+   *              否则加入离线队列。同时通知其他管理员。
    */
   @SubscribeMessage("adminSendMessage")
   async handleAdminSendMessage(
@@ -325,6 +338,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 学员标记已读
+   * @param client - 已认证的 Socket 连接
+   * @returns 包含 success 或 error 的响应对象
+   * @description 学员将所有未读消息标记为已读。
    */
   @SubscribeMessage("markRead")
   async handleMarkRead(@ConnectedSocket() client: AuthenticatedSocket) {
@@ -342,6 +358,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 管理员标记会话已读
+   * @param client - 已认证的 Socket 连接
+   * @param data - 包含 conversationId 的数据
+   * @returns 包含 success 或 error 的响应对象
+   * @description 管理员将指定会话的所有未读消息标记为已读。
    */
   @SubscribeMessage("adminMarkRead")
   async handleAdminMarkRead(
@@ -362,6 +382,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 请求重连状态
+   * @param client - 已认证的 Socket 连接
+   * @returns 包含 success、state 或 error 的响应对象
+   * @description 获取用户的重连状态，用于客户端在重连时恢复状态。
    */
   @SubscribeMessage("getReconnectState")
   async handleGetReconnectState(@ConnectedSocket() client: AuthenticatedSocket) {
@@ -381,7 +404,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 向指定用户发送消息
-   * @returns 用户是否在线
+   * @param userId - 用户 ID
+   * @param event - 事件名称
+   * @param data - 要发送的数据
+   * @returns 用户是否在线（true 表示在线，false 表示离线）
+   * @description 向用户的所有连接发送指定事件。如果用户在线且有活跃连接，
+   *              向所有连接广播消息并返回 true；否则返回 false。
    */
   sendToUser(userId: number, event: string, data: any): boolean {
     const socketSet = this.userSockets.get(userId);
@@ -397,6 +425,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 向所有管理员广播消息
+   * @param event - 事件名称
+   * @param data - 要发送的数据
+   * @param excludeSocketId - 可选，要排除的 socket ID（不向此连接发送）
+   * @description 向所有在线管理员的 WebSocket 连接广播指定事件。
+   *              可选择排除某个特定的 socket ID，用于避免发送给发送者本人。
    */
   broadcastToAdmins(event: string, data: any, excludeSocketId?: string): void {
     this.adminSockets.forEach((socketId) => {
@@ -408,6 +441,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 通知用户有新消息（供其他服务调用）
+   * @param userId - 用户 ID
+   * @param message - 消息对象，应包含 senderId、senderRole、content、contentType、createdAt 等字段
+   * @description 公共方法，供其他服务模块调用。如果用户在线，直接推送消息；
+   *              如果用户离线，将消息加入 Redis 离线队列，用户上线后自动发送。
    */
   notifyUserNewMessage(userId: number, message: any): void {
     const userIsOnline = this.sendToUser(userId, "newMessage", { message });
@@ -426,6 +463,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   /**
    * 通知管理员有新消息（供其他服务调用）
+   * @param userId - 发送消息的用户 ID
+   * @param message - 消息对象
+   * @description 公共方法，供其他服务模块调用。向所有在线管理员广播新消息通知。
    */
   notifyAdminsNewMessage(userId: number, message: any): void {
     this.broadcastToAdmins("newMessage", { userId, message });
