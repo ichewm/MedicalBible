@@ -428,13 +428,129 @@ export class DataExportService {
     data: UserExportData,
     exportService: any,
   ): Buffer {
-    // 创建多工作表的 Excel
-    // 这里简化处理，使用现有的导出服务模式
-    // 实际实现可能需要使用 XLSX 库直接创建多工作表
+    const XLSX = require("xlsx");
 
-    // 为简化，这里返回 JSON 格式的 Buffer
-    // 完整实现可以使用 XLSX.utils.book_new() 和 XLSX.utils.book_append_sheet()
-    return Buffer.from(JSON.stringify(data, null, 2), "utf-8");
+    // 创建工作簿
+    const workbook = XLSX.utils.book_new();
+
+    // 用户信息工作表
+    const profileData = [
+      ["字段", "值"],
+      ["用户ID", data.profile.id],
+      ["用户名", data.profile.username || ""],
+      ["邮箱", data.profile.email || ""],
+      ["手机号", data.profile.phone || ""],
+      ["角色", data.profile.role],
+      ["状态", data.profile.status],
+      ["余额", data.profile.balance],
+      ["邀请码", data.profile.inviteCode || ""],
+      ["注册时间", data.profile.createdAt.toLocaleString("zh-CN")],
+    ];
+    const profileSheet = XLSX.utils.aoa_to_sheet(profileData);
+    XLSX.utils.book_append_sheet(workbook, profileSheet, "用户信息");
+
+    // 订阅记录工作表
+    if (data.subscriptions.length > 0) {
+      const subscriptionData = [
+        ["ID", "等级", "订单ID", "开始时间", "过期时间"],
+        ...data.subscriptions.map((s) => [
+          s.id,
+          s.levelName,
+          s.orderId,
+          s.startAt.toLocaleString("zh-CN"),
+          s.expireAt.toLocaleString("zh-CN"),
+        ]),
+      ];
+      const subscriptionSheet = XLSX.utils.aoa_to_sheet(subscriptionData);
+      XLSX.utils.book_append_sheet(workbook, subscriptionSheet, "订阅记录");
+    }
+
+    // 订单记录工作表
+    if (data.orders.length > 0) {
+      const orderData = [
+        ["ID", "订单号", "等级", "金额", "支付方式", "状态", "创建时间", "支付时间"],
+        ...data.orders.map((o) => [
+          o.id,
+          o.orderNo,
+          o.levelName,
+          o.amount,
+          o.payMethod,
+          o.status,
+          o.createdAt.toLocaleString("zh-CN"),
+          o.paidAt ? o.paidAt.toLocaleString("zh-CN") : "",
+        ]),
+      ];
+      const orderSheet = XLSX.utils.aoa_to_sheet(orderData);
+      XLSX.utils.book_append_sheet(workbook, orderSheet, "订单记录");
+    }
+
+    // 答题记录工作表
+    if (data.answers.length > 0) {
+      const answerData = [
+        ["ID", "题目ID", "试卷ID", "试卷名称", "用户选项", "是否正确", "模式", "答题时间"],
+        ...data.answers.map((a) => [
+          a.id,
+          a.questionId,
+          a.paperId,
+          a.paperName,
+          a.userOption,
+          a.isCorrect ? "是" : "否",
+          a.mode,
+          a.createdAt.toLocaleString("zh-CN"),
+        ]),
+      ];
+      const answerSheet = XLSX.utils.aoa_to_sheet(answerData);
+      XLSX.utils.book_append_sheet(workbook, answerSheet, "答题记录");
+    }
+
+    // 佣金记录工作表
+    if (data.commissions.length > 0) {
+      const commissionData = [
+        ["ID", "来源用户ID", "来源用户名", "订单号", "金额", "比例", "状态", "解冻时间", "创建时间"],
+        ...data.commissions.map((c) => [
+          c.id,
+          c.sourceUserId,
+          c.sourceUsername,
+          c.orderNo,
+          c.amount,
+          c.rate,
+          c.status,
+          c.unlockAt ? c.unlockAt.toLocaleString("zh-CN") : "",
+          c.createdAt.toLocaleString("zh-CN"),
+        ]),
+      ];
+      const commissionSheet = XLSX.utils.aoa_to_sheet(commissionData);
+      XLSX.utils.book_append_sheet(workbook, commissionSheet, "佣金记录");
+    }
+
+    // 提现记录工作表
+    if (data.withdrawals.length > 0) {
+      const withdrawalData = [
+        ["ID", "金额", "账户信息", "状态", "创建时间", "更新时间"],
+        ...data.withdrawals.map((w) => [
+          w.id,
+          w.amount,
+          JSON.stringify(w.accountInfo),
+          w.status,
+          w.createdAt.toLocaleString("zh-CN"),
+          w.updatedAt.toLocaleString("zh-CN"),
+        ]),
+      ];
+      const withdrawalSheet = XLSX.utils.aoa_to_sheet(withdrawalData);
+      XLSX.utils.book_append_sheet(workbook, withdrawalSheet, "提现记录");
+    }
+
+    // 导出元数据工作表
+    const metaData = [
+      ["字段", "值"],
+      ["导出时间", data.exportMeta.exportedAt.toLocaleString("zh-CN")],
+      ["数据版本", data.exportMeta.dataVersion],
+    ];
+    const metaSheet = XLSX.utils.aoa_to_sheet(metaData);
+    XLSX.utils.book_append_sheet(workbook, metaSheet, "导出信息");
+
+    // 生成 Buffer
+    return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
   }
 
   /**
