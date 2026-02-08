@@ -14,10 +14,9 @@ import {
   Param,
   Query,
   UseGuards,
-  Request,
   Req,
+  UnauthorizedException,
 } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { NotificationService, SendNotificationOptions } from "./notification.service";
 import {
@@ -27,6 +26,7 @@ import {
 } from "../../entities/notification.entity";
 import { NotificationPreference } from "../../entities/notification-preference.entity";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { RateLimit, RateLimitPresets } from "../../common/guards/rate-limit.guard";
 
 /**
  * 获取通知列表 DTO
@@ -81,7 +81,6 @@ interface SendNotificationDto extends Omit<SendNotificationOptions, "userId"> {
 export class NotificationController {
   constructor(
     private readonly notificationService: NotificationService,
-    private readonly jwtService: JwtService,
   ) {}
 
   /**
@@ -89,6 +88,7 @@ export class NotificationController {
    */
   @Get("list")
   @ApiOperation({ summary: "获取通知列表" })
+  @RateLimit({ ...RateLimitPresets.standard, scope: "user" })
   async getNotifications(
     @Req() req: any,
     @Query() query: GetNotificationsDto,
@@ -140,6 +140,7 @@ export class NotificationController {
    */
   @Put("read-all")
   @ApiOperation({ summary: "标记所有通知为已读" })
+  @RateLimit({ ...RateLimitPresets.standard, scope: "user" })
   async markAllAsRead(@Req() req: any): Promise<{ count: number }> {
     const userId = this.getUserIdFromRequest(req);
     const count = await this.notificationService.markAllAsRead(userId);
@@ -161,6 +162,7 @@ export class NotificationController {
    */
   @Put("preferences")
   @ApiOperation({ summary: "更新通知偏好" })
+  @RateLimit({ ...RateLimitPresets.standard, scope: "user" })
   async updatePreferences(
     @Req() req: any,
     @Body() dto: UpdatePreferenceDto,
@@ -171,25 +173,17 @@ export class NotificationController {
 
   /**
    * 从请求中提取用户 ID
+   * JwtAuthGuard 已经验证了 token 并设置了 req.user
    */
   private getUserIdFromRequest(req: any): number {
-    const token =
-      req.headers?.authorization?.replace("Bearer ", "") ||
-      req.query?.token ||
-      req.body?.token;
+    // JwtAuthGuard sets req.user after successful JWT verification
+    // We only accept the user ID from the verified JWT payload
+    const userId = req.user?.sub || req.user?.userId;
 
-    if (!token) {
-      // 如果没有 token，从 req.user 获取（由 AuthGuard 设置）
-      return req.user?.userId || req.user?.sub || req.userId;
+    if (!userId) {
+      throw new UnauthorizedException("User ID not found in JWT payload");
     }
 
-    try {
-      const payload = this.jwtService.verify(token, {
-        secret: process.env.JWT_SECRET,
-      });
-      return payload.sub;
-    } catch {
-      return req.user?.userId || req.user?.sub || req.userId;
-    }
+    return userId;
   }
 }

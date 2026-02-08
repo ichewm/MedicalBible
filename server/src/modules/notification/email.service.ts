@@ -193,7 +193,8 @@ export class EmailService {
       this.logger.error(
         `Failed to send email to ${options.to}: ${error.message}`,
       );
-      return { success: false, error: error.message };
+      // Return generic error message to avoid exposing internal system details
+      return { success: false, error: "Failed to send email. Please try again later." };
     }
   }
 
@@ -232,7 +233,8 @@ export class EmailService {
       this.logger.error(
         `Failed to send verification code to ${to}: ${error.message}`,
       );
-      return { success: false, error: error.message };
+      // Return generic error message to avoid exposing internal system details
+      return { success: false, error: "Failed to send verification code. Please try again later." };
     }
   }
 
@@ -247,7 +249,9 @@ export class EmailService {
       }
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
+      this.logger.error(`Failed to test email config: ${error.message}`);
+      // Return generic error message to avoid exposing internal system details
+      return { success: false, error: "Email configuration test failed." };
     }
   }
 }

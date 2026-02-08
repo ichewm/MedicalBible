@@ -21,6 +21,18 @@ import { EmailService } from "./email.service";
 import { SmsService } from "./sms.service";
 
 /**
+ * 转义 HTML 特殊字符，防止 XSS 攻击
+ */
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
  * 发送通知选项
  */
 export interface SendNotificationOptions {
@@ -119,8 +131,9 @@ export class NotificationService {
         content = result.content;
       } else if (variables) {
         // 如果没有模板，使用变量中的 title 和 content
-        title = (variables.title as string) || "";
-        content = (variables.content as string) || "";
+        // 对用户提供的内容进行 HTML 转义以防止 XSS 攻击
+        title = escapeHtml((variables.title as string) || "");
+        content = escapeHtml((variables.content as string) || "");
       }
 
       // 确定收件人
@@ -500,7 +513,9 @@ export class NotificationService {
 
     // 替换变量 {{variableName}}
     for (const [key, value] of Object.entries(variables)) {
-      const pattern = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+      // Escape special regex characters in the key to prevent ReDoS
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = new RegExp(`\\{\\{${escapedKey}\\}\\}`, "g");
       title = title.replace(pattern, String(value));
       content = content.replace(pattern, String(value));
     }

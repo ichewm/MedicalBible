@@ -20,19 +20,36 @@ export class CryptoService {
 
   constructor(private configService: ConfigService) {
     const key = this.configService.get<string>("ENCRYPTION_KEY");
+    const isProduction = this.configService.get<string>("NODE_ENV") === "production";
+    // Use environment-specific salt derived from app name and environment
+    // This ensures different salt per environment while remaining stable
+    const environment = this.configService.get<string>("NODE_ENV", "development");
+    const salt = crypto
+      .createHash("sha256")
+      .update(`medical-bible-${environment}-key-derivation-salt`)
+      .digest();
+
     if (!key) {
+      if (isProduction) {
+        this.logger.error(
+          "ENCRYPTION_KEY must be set in production environment",
+        );
+        throw new InternalServerErrorException(
+          "ENCRYPTION_KEY environment variable is required in production",
+        );
+      }
+      // 开发环境默认密钥，生产环境必须配置
       this.logger.warn(
         "ENCRYPTION_KEY not set in environment, using default key (NOT SECURE FOR PRODUCTION!)",
       );
-      // 开发环境默认密钥，生产环境必须配置
       this.encryptionKey = crypto.scryptSync(
         "medical-bible-default-key-dev-only",
-        "salt",
+        salt,
         this.keyLength,
       );
     } else {
       // 使用环境变量中的密钥，通过scrypt派生确保长度正确
-      this.encryptionKey = crypto.scryptSync(key, "salt", this.keyLength);
+      this.encryptionKey = crypto.scryptSync(key, salt, this.keyLength);
     }
   }
 
