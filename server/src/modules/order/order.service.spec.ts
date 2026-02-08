@@ -9,6 +9,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { plainToInstance } from "class-transformer";
 
 import { OrderService } from "./order.service";
 import { Order, OrderStatus, PayMethod } from "../../entities/order.entity";
@@ -17,7 +18,11 @@ import { SkuPrice } from "../../entities/sku-price.entity";
 import { Level } from "../../entities/level.entity";
 import { User } from "../../entities/user.entity";
 import { AdminService } from "../admin/admin.service";
-import { PaymentService } from "../payment/payment.service";
+import { PaymentService, PaymentProvider } from "../payment/payment.service";
+import { AffiliateService } from "../affiliate/affiliate.service";
+import { TransactionService } from "../../common/database/transaction.service";
+import { OrderQueryDto } from "./dto/order.dto";
+import { QueryRunner } from "typeorm";
 
 describe("OrderService", () => {
   let service: OrderService;
@@ -115,6 +120,48 @@ describe("OrderService", () => {
     getPayUrl: jest.fn(),
     getEnabledProviders: jest.fn().mockResolvedValue(["alipay", "wechat"]),
     isTestMode: jest.fn().mockResolvedValue(false),
+    createOrder: jest.fn().mockResolvedValue({
+      success: true,
+      payUrl: "https://payment.example.com/pay",
+    }),
+    getPaymentInfo: jest.fn().mockResolvedValue({
+      testMode: false,
+      providers: [PaymentProvider.ALIPAY, PaymentProvider.WECHAT],
+    }),
+  };
+
+  const mockAffiliateService = {
+    createCommission: jest.fn().mockResolvedValue(null),
+  };
+
+  // Mock QueryRunner
+  const mockQueryRunner = {
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+    manager: {
+      getRepository: jest.fn().mockReturnValue({
+        findOne: jest.fn(),
+        find: jest.fn(),
+        create: jest.fn(),
+        save: jest.fn(),
+      }),
+    },
+  } as unknown as QueryRunner;
+
+  const mockTransactionService = {
+    runInTransaction: jest.fn().mockImplementation(async (callback) => {
+      return callback(mockQueryRunner);
+    }),
+    getRepository: jest.fn().mockImplementation((qr, target) => {
+      if (target === Order) return mockOrderRepository as any;
+      if (target === Subscription) return mockSubscriptionRepository as any;
+      if (target === SkuPrice) return mockSkuPriceRepository as any;
+      if (target === User) return mockUserRepository as any;
+      return mockOrderRepository as any;
+    }),
   };
 
   beforeEach(async () => {
@@ -134,6 +181,8 @@ describe("OrderService", () => {
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
         { provide: AdminService, useValue: mockAdminService },
         { provide: PaymentService, useValue: mockPaymentService },
+        { provide: AffiliateService, useValue: mockAffiliateService },
+        { provide: TransactionService, useValue: mockTransactionService },
       ],
     }).compile();
 
@@ -234,7 +283,10 @@ describe("OrderService", () => {
       ]);
 
       // Act
-      const result = await service.getUserOrders(1, { page: 1, pageSize: 20 });
+      const result = await service.getUserOrders(
+        1,
+        plainToInstance(OrderQueryDto, { page: 1, pageSize: 20 }),
+      );
 
       // Assert
       expect(result.items).toHaveLength(1);
@@ -246,11 +298,14 @@ describe("OrderService", () => {
       mockOrderRepository.findAndCount.mockResolvedValue([[], 0]);
 
       // Act
-      await service.getUserOrders(1, {
-        page: 1,
-        pageSize: 20,
-        status: OrderStatus.PAID,
-      });
+      await service.getUserOrders(
+        1,
+        plainToInstance(OrderQueryDto, {
+          page: 1,
+          pageSize: 20,
+          status: OrderStatus.PAID,
+        }),
+      );
 
       // Assert
       expect(mockOrderRepository.findAndCount).toHaveBeenCalledWith(

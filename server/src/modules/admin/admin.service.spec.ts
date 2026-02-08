@@ -9,6 +9,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { plainToInstance } from "class-transformer";
 
 import { AdminService } from "./admin.service";
 import { User, UserStatus } from "../../entities/user.entity";
@@ -22,6 +23,7 @@ import { Paper } from "../../entities/paper.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import { CryptoService } from "../../common/crypto/crypto.service";
+import { UserListQueryDto } from "./dto/admin.dto";
 
 describe("AdminService", () => {
   let service: AdminService;
@@ -208,7 +210,8 @@ describe("AdminService", () => {
       mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
 
       // Act
-      const result = await service.getUserList({ page: 1, pageSize: 20 });
+      const query = plainToInstance(UserListQueryDto, { page: 1, pageSize: 20 });
+      const result = await service.getUserList(query);
 
       // Assert
       expect(result.items).toHaveLength(1);
@@ -220,7 +223,8 @@ describe("AdminService", () => {
       mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
 
       // Act
-      await service.getUserList({ page: 1, pageSize: 20, phone: "139" });
+      const query = plainToInstance(UserListQueryDto, { page: 1, pageSize: 20, phone: "139" });
+      await service.getUserList(query);
 
       // Assert
       expect(mockUserRepository.findAndCount).toHaveBeenCalledWith(
@@ -237,11 +241,12 @@ describe("AdminService", () => {
       mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
 
       // Act
-      await service.getUserList({
+      const query = plainToInstance(UserListQueryDto, {
         page: 1,
         pageSize: 20,
         status: UserStatus.ACTIVE,
       });
+      await service.getUserList(query);
 
       // Assert
       expect(mockUserRepository.findAndCount).toHaveBeenCalledWith(

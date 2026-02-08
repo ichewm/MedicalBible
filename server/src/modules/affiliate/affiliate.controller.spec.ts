@@ -7,6 +7,13 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AffiliateController } from "./affiliate.controller";
 import { AffiliateService } from "./affiliate.service";
 import { JwtAuthGuard, RolesGuard } from "@common/guards";
+import { plainToInstance } from "class-transformer";
+import {
+  CommissionQueryDto,
+  WithdrawalQueryDto,
+  InviteeQueryDto,
+  AdminWithdrawalQueryDto,
+} from "./dto/affiliate.dto";
 
 describe("AffiliateController", () => {
   let controller: AffiliateController;
@@ -87,7 +94,7 @@ describe("AffiliateController", () => {
 
   describe("getCommissions - 获取佣金列表", () => {
     it("应该成功获取佣金列表", async () => {
-      const query = { page: 1, pageSize: 10 };
+      const query = plainToInstance(CommissionQueryDto, { page: 1, pageSize: 10 });
       const mockResult = {
         items: [
           {
@@ -112,7 +119,7 @@ describe("AffiliateController", () => {
     });
 
     it("应该支持按状态筛选佣金", async () => {
-      const query = { status: 1, page: 1, pageSize: 10 };
+      const query = plainToInstance(CommissionQueryDto, { status: 1, page: 1, pageSize: 10 });
 
       mockAffiliateService.getCommissions.mockResolvedValue({
         items: [],
@@ -173,7 +180,7 @@ describe("AffiliateController", () => {
 
   describe("getWithdrawals - 获取提现记录", () => {
     it("应该成功获取提现记录", async () => {
-      const query = { page: 1, pageSize: 10 };
+      const query = plainToInstance(WithdrawalQueryDto, { page: 1, pageSize: 10 });
       const mockResult = {
         items: [
           {
@@ -197,7 +204,7 @@ describe("AffiliateController", () => {
     });
 
     it("应该支持按状态筛选提现记录", async () => {
-      const query = { status: 1, page: 1, pageSize: 10 };
+      const query = plainToInstance(WithdrawalQueryDto, { status: 1, page: 1, pageSize: 10 });
 
       mockAffiliateService.getWithdrawals.mockResolvedValue({
         items: [],
@@ -227,7 +234,7 @@ describe("AffiliateController", () => {
 
   describe("getInvitees - 获取下线列表", () => {
     it("应该成功获取下线列表", async () => {
-      const query = { page: 1, pageSize: 10 };
+      const query = plainToInstance(InviteeQueryDto, { page: 1, pageSize: 10 });
       const mockResult = {
         items: [
           {
@@ -255,7 +262,7 @@ describe("AffiliateController", () => {
 
   describe("getWithdrawalList - 获取提现列表（管理员）", () => {
     it("应该成功获取所有提现记录", async () => {
-      const query = { page: 1, pageSize: 10 };
+      const query = plainToInstance(AdminWithdrawalQueryDto, { page: 1, pageSize: 10 });
       const mockResult = {
         items: [
           {

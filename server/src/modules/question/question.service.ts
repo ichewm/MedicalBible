@@ -119,8 +119,8 @@ export class QuestionService {
     // 排序和分页
     qb.orderBy("paper.year", "DESC")
       .addOrderBy("paper.id", "DESC")
-      .skip((page - 1) * pageSize)
-      .take(pageSize);
+      .skip(query.getSkip())
+      .take(query.getTake());
 
     const [items, total] = await qb.getManyAndCount();
 
@@ -141,6 +141,7 @@ export class QuestionService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -238,8 +239,8 @@ export class QuestionService {
 
     // 排序和分页
     qb.orderBy("paper.id", "DESC")
-      .skip((page - 1) * pageSize)
-      .take(pageSize);
+      .skip(query.getSkip())
+      .take(query.getTake());
 
     const [items, total] = await qb.getManyAndCount();
 
@@ -261,6 +262,7 @@ export class QuestionService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -1223,8 +1225,8 @@ export class QuestionService {
       where: whereCondition,
       relations: ["question", "subject"],
       order: { lastWrongAt: "DESC" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
 
     return {
@@ -1243,6 +1245,7 @@ export class QuestionService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 

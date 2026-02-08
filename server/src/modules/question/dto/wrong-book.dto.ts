@@ -8,25 +8,12 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsInt, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
+import { PaginationDto } from "@common/dto";
 
 /**
  * 错题本查询参数 DTO
  */
-export class WrongBookQueryDto {
-  @ApiPropertyOptional({ description: "页码", example: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: "页码必须是整数" })
-  @Min(1, { message: "页码最小为1" })
-  page?: number = 1;
-
-  @ApiPropertyOptional({ description: "每页数量", example: 20 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: "每页数量必须是整数" })
-  @Min(1, { message: "每页数量最小为1" })
-  @Max(100, { message: "每页数量最大为100" })
-  pageSize?: number = 20;
+export class WrongBookQueryDto extends PaginationDto {
 
   @ApiPropertyOptional({ description: "科目ID筛选" })
   @IsOptional()
@@ -85,6 +72,9 @@ export class WrongBookListDto {
 
   @ApiProperty({ description: "总页数" })
   totalPages: number;
+
+  @ApiProperty({ description: "是否有下一页" })
+  hasNext: boolean;
 }
 
 /**

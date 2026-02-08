@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { ApiResponseDto, PaginatedResponseDto } from "./api-response.dto";
+import { ApiResponseDto, PaginatedResponseDto, PaginationDto, CursorPaginationDto } from "./api-response.dto";
 
 describe("ApiResponseDto", () => {
   describe("基本属性", () => {
@@ -317,6 +317,277 @@ describe("PaginatedResponseDto", () => {
 
       expect(paginatedResponse.pageSize).toBe(100);
       expect(paginatedResponse.totalPages).toBe(5);
+    });
+  });
+});
+
+describe("PaginationDto", () => {
+  describe("默认值", () => {
+    it("应使用默认的分页参数", () => {
+      const pagination = new PaginationDto();
+
+      expect(pagination.page).toBe(1);
+      expect(pagination.pageSize).toBe(20);
+    });
+
+    it("应允许自定义分页参数", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 3;
+      pagination.pageSize = 50;
+
+      expect(pagination.page).toBe(3);
+      expect(pagination.pageSize).toBe(50);
+    });
+  });
+
+  describe("getSkip 方法", () => {
+    it("应正确计算第一页的 skip 值", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 1;
+      pagination.pageSize = 20;
+
+      expect(pagination.getSkip()).toBe(0);
+    });
+
+    it("应正确计算第二页的 skip 值", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 2;
+      pagination.pageSize = 20;
+
+      expect(pagination.getSkip()).toBe(20);
+    });
+
+    it("应正确计算第三页的 skip 值", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 3;
+      pagination.pageSize = 50;
+
+      expect(pagination.getSkip()).toBe(100);
+    });
+
+    it("应使用默认值处理未定义的页码", () => {
+      const pagination = new PaginationDto();
+      pagination.page = undefined as unknown as number;
+      pagination.pageSize = 20;
+
+      expect(pagination.getSkip()).toBe(0);
+    });
+
+    it("应使用默认值处理未定义的每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 2;
+      pagination.pageSize = undefined as unknown as number;
+
+      expect(pagination.getSkip()).toBe(20);
+    });
+  });
+
+  describe("getTake 方法", () => {
+    it("应返回正确的每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.pageSize = 50;
+
+      expect(pagination.getTake()).toBe(50);
+    });
+
+    it("应使用默认值处理未定义的每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.pageSize = undefined as unknown as number;
+
+      expect(pagination.getTake()).toBe(20);
+    });
+  });
+
+  describe("边界情况", () => {
+    it("应处理最小页码", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 1;
+      pagination.pageSize = 10;
+
+      expect(pagination.getSkip()).toBe(0);
+    });
+
+    it("应处理大页码", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 1000;
+      pagination.pageSize = 100;
+
+      expect(pagination.getSkip()).toBe(99900);
+    });
+
+    it("应处理最小每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.pageSize = 1;
+
+      expect(pagination.getTake()).toBe(1);
+    });
+
+    it("应处理最大每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.pageSize = 100;
+
+      expect(pagination.getTake()).toBe(100);
+    });
+  });
+
+  describe("继承使用", () => {
+    it("应支持继承扩展其他查询参数", () => {
+      class UserQueryDto extends PaginationDto {
+        role?: string;
+        search?: string;
+      }
+
+      const query = new UserQueryDto();
+      query.page = 2;
+      query.pageSize = 30;
+      query.role = "admin";
+      query.search = "test";
+
+      expect(query.getSkip()).toBe(30);
+      expect(query.getTake()).toBe(30);
+      expect(query.role).toBe("admin");
+      expect(query.search).toBe("test");
+    });
+  });
+});
+
+describe("CursorPaginationDto", () => {
+  describe("默认值", () => {
+    it("应使用默认的分页参数", () => {
+      const pagination = new CursorPaginationDto();
+
+      expect(pagination.pageSize).toBe(20);
+      expect(pagination.cursor).toBeUndefined();
+    });
+
+    it("应允许自定义分页参数", () => {
+      const pagination = new CursorPaginationDto();
+      pagination.pageSize = 50;
+      pagination.cursor = "test-cursor";
+
+      expect(pagination.pageSize).toBe(50);
+      expect(pagination.cursor).toBe("test-cursor");
+    });
+  });
+
+  describe("getTake 方法", () => {
+    it("应返回正确的每页数量", () => {
+      const pagination = new CursorPaginationDto();
+      pagination.pageSize = 50;
+
+      expect(pagination.getTake()).toBe(50);
+    });
+
+    it("应使用默认值处理未定义的每页数量", () => {
+      const pagination = new CursorPaginationDto();
+      pagination.pageSize = undefined as unknown as number;
+
+      expect(pagination.getTake()).toBe(20);
+    });
+  });
+
+  describe("decodeCursor 方法", () => {
+    it("应正确解码有效的 Base64 光标", () => {
+      const originalData = { id: 123, createdAt: "2024-01-15T10:30:00.000Z" };
+      const encodedCursor = Buffer.from(JSON.stringify(originalData)).toString("base64");
+
+      const pagination = new CursorPaginationDto();
+      pagination.cursor = encodedCursor;
+
+      const decoded = pagination.decodeCursor();
+      expect(decoded).toEqual(originalData);
+    });
+
+    it("应解码包含 ID 的简单光标", () => {
+      const originalData = { id: 123 };
+      const encodedCursor = Buffer.from(JSON.stringify(originalData)).toString("base64");
+
+      const pagination = new CursorPaginationDto();
+      pagination.cursor = encodedCursor;
+
+      const decoded = pagination.decodeCursor();
+      expect(decoded).toEqual({ id: 123 });
+    });
+
+    it("应在光标为空时返回 null", () => {
+      const pagination = new CursorPaginationDto();
+      pagination.cursor = undefined as unknown as string;
+
+      const decoded = pagination.decodeCursor();
+      expect(decoded).toBeNull();
+    });
+
+    it("应在解码无效的 Base64 时返回 null", () => {
+      const pagination = new CursorPaginationDto();
+      pagination.cursor = "not-valid-base64!!!";
+
+      const decoded = pagination.decodeCursor();
+      expect(decoded).toBeNull();
+    });
+
+    it("应在解码无效的 JSON 时返回 null", () => {
+      const invalidJson = Buffer.from("not-valid-json").toString("base64");
+
+      const pagination = new CursorPaginationDto();
+      pagination.cursor = invalidJson;
+
+      const decoded = pagination.decodeCursor();
+      expect(decoded).toBeNull();
+    });
+
+    it("应解码包含多个字段的光标", () => {
+      const originalData = { id: 123, userId: 456, createdAt: "2024-01-15" };
+      const encodedCursor = Buffer.from(JSON.stringify(originalData)).toString("base64");
+
+      const pagination = new CursorPaginationDto();
+      pagination.cursor = encodedCursor;
+
+      const decoded = pagination.decodeCursor();
+      expect(decoded).toEqual(originalData);
+    });
+  });
+
+  describe("边界情况", () => {
+    it("应处理最小每页数量", () => {
+      const pagination = new CursorPaginationDto();
+      pagination.pageSize = 1;
+
+      expect(pagination.getTake()).toBe(1);
+    });
+
+    it("应处理最大每页数量", () => {
+      const pagination = new CursorPaginationDto();
+      pagination.pageSize = 100;
+
+      expect(pagination.getTake()).toBe(100);
+    });
+
+    it("应处理空字符串光标", () => {
+      const pagination = new CursorPaginationDto();
+      pagination.cursor = "";
+
+      const decoded = pagination.decodeCursor();
+      expect(decoded).toBeNull();
+    });
+  });
+
+  describe("继承使用", () => {
+    it("应支持继承扩展其他查询参数", () => {
+      class UserQueryDto extends CursorPaginationDto {
+        role?: string;
+        search?: string;
+      }
+
+      const query = new UserQueryDto();
+      query.pageSize = 30;
+      query.cursor = "eyJpZCI6MTIzfQ";
+      query.role = "admin";
+      query.search = "test";
+
+      expect(query.getTake()).toBe(30);
+      expect(query.cursor).toBe("eyJpZCI6MTIzfQ");
+      expect(query.role).toBe("admin");
+      expect(query.search).toBe("test");
     });
   });
 });
