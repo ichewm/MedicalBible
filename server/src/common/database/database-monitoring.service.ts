@@ -468,8 +468,8 @@ export class DatabaseMonitoringService {
       SELECT
         TABLE_NAME AS table_name,
         CASE
-          WHEN DATA_LENGTH > 0 THEN
-            ROUND((DATA_LENGTH - DATA_FREE) / DATA_LENGTH * 100, 2)
+          WHEN (DATA_LENGTH + INDEX_LENGTH) > 0 THEN
+            ROUND(DATA_FREE / (DATA_LENGTH + INDEX_LENGTH) * 100, 2)
           ELSE 0
         END AS fragmentation_percent
       FROM information_schema.TABLES

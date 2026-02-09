@@ -373,25 +373,24 @@ ON user_answers (user_id, created_at);
 
 ---
 
-**commissions Table - Date Range Queries**
+**commissions Table - Admin Export Queries**
 **Table**: `commissions`
-**Query Pattern**: Commission stats with date filtering
+**Query Pattern**: Admin commission list by status with date ordering
 ```typescript
-// Location: affiliate.service.ts:286-306
-commissionRepository
-  .createQueryBuilder("c")
-  .select("SUM(c.amount)", "total")
-  .where("c.userId = :userId", { userId })
-  .andWhere("c.status = :status", { status })
+// Location: affiliate.service.ts (admin export)
+commissionRepository.findAndCount({
+  where: { status },
+  order: { createdAt: 'DESC', id: 'DESC' }
+})
 ```
 
 **Recommended Index**:
 ```sql
-CREATE INDEX idx_commissions_user_created
-ON commissions (user_id, created_at);
+CREATE INDEX idx_commissions_status_created
+ON commissions (status, created_at DESC, id DESC);
 ```
 
-**Expected Improvement**: 40-50% reduction in commission stats queries
+**Expected Improvement**: 50-60% reduction in admin commission export queries
 
 ---
 
@@ -440,10 +439,10 @@ ON messages (created_at);
 **Table**: `verification_codes`
 **Query Pattern**: Cleanup expired codes
 ```typescript
-// Verification code expiration queries
-verificationCodeRepository.findOne({
-  where: { phone, code, type, used: 0 },
-  order: { createdAt: 'DESC' }
+// Periodic cleanup of expired verification codes
+// Location: Auth service / Cron job (hypothetical)
+verificationCodeRepository.delete({
+  expiresAt: LessThan(new Date())
 })
 ```
 
@@ -453,7 +452,9 @@ CREATE INDEX idx_verification_codes_expires_cleanup
 ON verification_codes (expires_at);
 ```
 
-**Expected Improvement**: 50-60% reduction in verification code queries
+**Expected Improvement**: 80-90% reduction in cleanup query time
+
+**Note**: Verification code lookup queries (filtering by `phone/email + code + type + used`) are already well-served by the existing composite indexes `idx_verification_codes_phone_type` and `idx_verification_codes_email_type`. The `expires_at` index is specifically for cleanup operations that remove expired codes.
 
 ---
 
@@ -501,23 +502,21 @@ ON withdrawals (status, created_at DESC);
 
 ---
 
-**exam_sessions Table - Simplified User Query**
+**exam_sessions Table - Note on Existing Index Coverage**
 **Table**: `exam_sessions`
-**Query Pattern**: Get user exam sessions (simplified)
+**Query Pattern**: Get user exam sessions
 ```typescript
-// Location: question.service.ts:1499
+// Location: question.service.ts:1499-1501
 examSessionRepository.findAndCount({
-  where: { userId, isDeleted: 0 }
+  where: { userId, isDeleted: 0 },
+  order: { startAt: "DESC" }
 })
 ```
 
-**Recommended Index**:
-```sql
-CREATE INDEX idx_exam_sessions_user_deleted
-ON exam_sessions (user_id, is_deleted);
-```
+**Existing Index**: `idx_exam_sessions_user_deleted_time (userId, isDeleted, startAt)`
+**Status**: ✅ Already well-covered
 
-**Expected Improvement**: 40-50% reduction in exam history queries (simpler than the 3-column index)
+The existing composite index on `(userId, isDeleted, startAt DESC)` already efficiently handles the exam history query. The index supports both the WHERE clause filtering and the ORDER BY sorting, making an additional `(userId, isDeleted)` index redundant.
 
 ---
 
@@ -871,7 +870,7 @@ export class Question {
 // commissions.entity.ts
 @Index("idx_commissions_user_status", ["userId", "status"])
 @Index("idx_commissions_status_unlock", ["status", "unlockAt"])
-@Index("idx_commissions_user_created", ["userId", "createdAt"])
+@Index("idx_commissions_status_created", ["status", "createdAt", "id"])
 export class Commission {
   // ... columns
 }
@@ -990,7 +989,7 @@ The following entities have been updated with new composite indexes:
 |--------|-------------|--------|
 | ExamSession | `idx_exam_sessions_user_deleted` | ✅ Complete |
 | UserAnswer | `idx_user_answers_user_created` | ✅ Complete |
-| Commission | `idx_commissions_user_created` | ✅ Complete |
+| Commission | `idx_commissions_status_created` | ✅ Complete |
 | UserWrongBook | `idx_user_wrong_books_user_last_wrong` | ✅ Complete |
 | Message | `idx_messages_created_cleanup` | ✅ Complete |
 | VerificationCode | `idx_verification_codes_expires_cleanup` | ✅ Complete |
