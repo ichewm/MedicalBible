@@ -43,6 +43,7 @@ export enum UserStatus {
  * @description 存储用户基本信息、账户余额、邀请关系等
  */
 @Entity("users")
+@Index("idx_users_status_closed", ["status", "closedAt"])
 export class User {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键，自增" })
@@ -198,7 +199,7 @@ export class User {
   parent: User;
 
   /** 下线用户列表 */
-  @OneToMany(() => User, (user) => user.parent)
+  @OneToMany(() => User, (user) => user.parent, { eager: false })
   children: User[];
 
   /** 当前选中的等级 */
@@ -207,34 +208,34 @@ export class User {
   currentLevel: Level;
 
   /** 用户设备列表 */
-  @OneToMany(() => UserDevice, (device) => device.user)
+  @OneToMany(() => UserDevice, (device) => device.user, { eager: false })
   devices: UserDevice[];
 
   /** 订单列表 */
-  @OneToMany(() => Order, (order) => order.user)
+  @OneToMany(() => Order, (order) => order.user, { eager: false })
   orders: Order[];
 
   /** 订阅列表 */
-  @OneToMany(() => Subscription, (subscription) => subscription.user)
+  @OneToMany(() => Subscription, (subscription) => subscription.user, { eager: false })
   subscriptions: Subscription[];
 
   /** 答题记录 */
-  @OneToMany(() => UserAnswer, (answer) => answer.user)
+  @OneToMany(() => UserAnswer, (answer) => answer.user, { eager: false })
   answers: UserAnswer[];
 
   /** 错题本 */
-  @OneToMany(() => UserWrongBook, (wrongBook) => wrongBook.user)
+  @OneToMany(() => UserWrongBook, (wrongBook) => wrongBook.user, { eager: false })
   wrongBooks: UserWrongBook[];
 
   /** 阅读进度 */
-  @OneToMany(() => ReadingProgress, (progress) => progress.user)
+  @OneToMany(() => ReadingProgress, (progress) => progress.user, { eager: false })
   readingProgress: ReadingProgress[];
 
   /** 佣金记录 */
-  @OneToMany(() => Commission, (commission) => commission.user)
+  @OneToMany(() => Commission, (commission) => commission.user, { eager: false })
   commissions: Commission[];
 
   /** 提现记录 */
-  @OneToMany(() => Withdrawal, (withdrawal) => withdrawal.user)
+  @OneToMany(() => Withdrawal, (withdrawal) => withdrawal.user, { eager: false })
   withdrawals: Withdrawal[];
 }

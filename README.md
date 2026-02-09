@@ -191,6 +191,16 @@ chmod +x deploy.sh
 - 推广效果分析
 - 报表导出
 
+**数据库监控** (PERF-002)
+- 索引使用情况统计
+- 未使用索引检测
+- 慢查询日志管理
+- 表统计信息
+- 索引碎片化分析
+- 性能摘要报告
+- 查询执行计划分析 (EXPLAIN)
+- 自动化表维护 (ANALYZE/OPTIMIZE)
+
 </td>
 </tr>
 </table>
@@ -288,6 +298,7 @@ MedicalBible/
 - [API 响应格式文档](./server/docs/error-handling.md) - 成功响应、分页和错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [事务模式文档](./docs/TRANSACTION_PATTERNS.md) - 数据库事务使用指南
+- [数据加载策略](./docs/data-loading-strategies.md) - TypeORM 懒加载与优化指南
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
@@ -551,6 +562,16 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 - ✅ 支持可配置压缩阈值
 - ✅ 添加压缩指标收集（压缩率、节省字节数）
 - ✅ 智能过滤：仅压缩文本类型内容
+- 🗄️ **数据库索引优化** (PERF-002)
+  - 新增 16 个复合索引优化高频查询
+  - 新增数据库监控服务 (`DatabaseMonitoringService`)
+  - 新增管理后台数据库监控 API (`/admin/database/*`)
+  - 支持索引使用情况统计和未使用索引检测
+  - 支持慢查询日志管理和查询执行计划分析
+  - 支持表统计信息和索引碎片化分析
+  - 支持自动周度表维护 (ANALYZE TABLE)
+  - 新增数据库索引策略文档 (`docs/database-index-strategy.md`)
+
 ### v1.2.0 (2026-02-01)
 
 - ✅ 实现结构化日志系统（基于 Pino）

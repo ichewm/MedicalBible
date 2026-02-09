@@ -106,6 +106,6 @@ export class Conversation {
   user: User;
 
   /** 消息列表 */
-  @OneToMany(() => Message, (message) => message.conversation)
+  @OneToMany(() => Message, (message) => message.conversation, { eager: false })
   messages: Message[];
 }
