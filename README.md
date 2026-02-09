@@ -91,6 +91,7 @@ chmod +x deploy.sh
 - 错题本管理
 - 错题组卷
 - 答题记录
+- 🎤 **语音控制**: 语音答题、翻页（实验性功能）
 
 </td>
 </tr>
@@ -104,6 +105,7 @@ chmod +x deploy.sh
 - 阅读进度保存
 - 教师重点标注
 - 重点快速跳转
+- 🎤 **语音控制**: 语音翻页、缩放（实验性功能）
 
 </td>
 <td>
@@ -222,6 +224,7 @@ chmod +x deploy.sh
 - **路由**: React Router 6
 - **HTTP**: Axios
 - **PDF**: react-pdf + pdf.js
+- **语音识别**: Web Speech API (实验性功能)
 - **样式**: TailwindCSS
 
 ### 部署技术
@@ -259,6 +262,7 @@ MedicalBible/
 │   │   ├── layouts/       # 布局组件
 │   │   ├── api/           # API 接口
 │   │   ├── stores/        # 状态管理
+│   │   ├── voice/         # 语音识别模块
 │   │   └── utils/         # 工具函数
 │   ├── Dockerfile
 │   ├── nginx.conf
@@ -288,6 +292,7 @@ MedicalBible/
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
+- [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
 
@@ -315,12 +320,20 @@ npm run test:e2e
 ```bash
 cd web
 
+# 运行单元测试
+npm run test
+
+# 运行测试并生成覆盖率报告
+npm run test:coverage
+
 # Lint 检查
 npm run lint
 
 # 类型检查
 npm run type-check
 ```
+
+**测试结果**: ✅ 90/90 测试通过 (含语音功能测试)
 
 ## 🔧 开发
 
@@ -427,12 +440,20 @@ npm run dev
 
 ### v1.3.0 (2026-02-09)
 
+- 🎤 **语音控制原型**: 基于 Web Speech API 的语音命令系统
+  - 导航命令（首页、题库、讲义、错题本等）
+  - 答题命令（选择答案、上下翻题、标记、提交）
+  - 讲义命令（翻页、缩放控制）
+  - 通用控制命令（返回、刷新、搜索）
+  - 语音设置状态管理（Zustand persist）
+  - 语音控制浮动组件
+  - 可访问性评估与 WCAG 2.1 合规性分析
+  - 完整的单元测试覆盖（65个测试）
 - ✅ 实现 HTTP 响应压缩中间件（基于 compression）
 - ✅ 支持可配置压缩级别 (1-9)
 - ✅ 支持可配置压缩阈值
 - ✅ 添加压缩指标收集（压缩率、节省字节数）
 - ✅ 智能过滤：仅压缩文本类型内容
-
 ### v1.2.0 (2026-02-01)
 
 - ✅ 实现结构化日志系统（基于 Pino）
