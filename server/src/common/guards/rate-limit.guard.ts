@@ -141,13 +141,14 @@ export class RateLimitGuard implements CanActivate {
     let identifier: string;
 
     switch (scope) {
-      case "user":
+      case "user": {
         // 使用用户 ID 作为标识
         const user = (request as any).user;
         identifier = user?.id
           ? `user:${user.id}`
           : `ip:${this.getClientIp(request)}`;
         break;
+      }
       case "global":
         // 全局限流
         identifier = "global";
