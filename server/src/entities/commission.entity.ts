@@ -35,6 +35,7 @@ export enum CommissionStatus {
 @Entity("commissions")
 @Index("idx_commissions_user_status", ["userId", "status"])
 @Index("idx_commissions_status_unlock", ["status", "unlockAt"])
+@Index("idx_commissions_user_created", ["userId", "createdAt"])
 export class Commission {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键" })
