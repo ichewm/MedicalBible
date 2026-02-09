@@ -11,12 +11,12 @@ import {
   ExecutionContext,
   Logger,
   SetMetadata,
-  Inject,
   Optional,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { Request } from "express";
 import { RateLimitExceededException } from "../exceptions/business.exception";
+import { RedisService } from "../redis/redis.service";
 
 /**
  * 限流配置接口
@@ -48,15 +48,6 @@ export const RateLimit = (config: RateLimitConfig) =>
   SetMetadata(RATE_LIMIT_KEY, config);
 
 /**
- * Redis 服务接口（用于类型声明）
- */
-interface RedisServiceInterface {
-  get(key: string): Promise<string | null>;
-  incrWithExpire(key: string, ttl: number): Promise<number>;
-  ttl(key: string): Promise<number>;
-}
-
-/**
  * 限流守卫
  * @description 基于 Redis 的滑动窗口限流实现
  */
@@ -67,8 +58,7 @@ export class RateLimitGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     @Optional()
-    @Inject("RedisService")
-    private readonly redisService?: RedisServiceInterface,
+    private readonly redisService?: RedisService,
   ) {}
 
   /**
