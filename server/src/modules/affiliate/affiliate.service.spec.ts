@@ -18,7 +18,6 @@ import { Commission, CommissionStatus } from "../../entities/commission.entity";
 import { Withdrawal, WithdrawalStatus } from "../../entities/withdrawal.entity";
 import { Order, OrderStatus } from "../../entities/order.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
-import { TransactionService } from "../../common/database/transaction.service";
 import {
   CommissionQueryDto,
   WithdrawalQueryDto,
@@ -366,7 +365,7 @@ describe("AffiliateService", () => {
 
       // Assert
       expect(result.totalCommission).toBe(100);
-      expect(result.availableCommission).toBe(100); // availableCommission = user.balance
+      expect(result.availableCommission).toBe(80); // Available commissions from database query
       expect(result.frozenCommission).toBe(20);
       expect(result.balance).toBe(100);
       expect(result.minWithdrawal).toBe(10);
