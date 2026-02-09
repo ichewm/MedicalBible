@@ -11,6 +11,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ServeStaticModule } from "@nestjs/serve-static";
 import { APP_GUARD } from "@nestjs/core";
 import { join } from "path";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 
 // 配置文件导入
 import { databaseConfig } from "./config/database.config";
@@ -18,6 +19,7 @@ import { redisConfig } from "./config/redis.config";
 import { jwtConfig } from "./config/jwt.config";
 import { corsConfig } from "./config/cors.config";
 import { loggerConfig } from "./config/logger.config";
+import { apmConfig } from "./config/apm.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -40,6 +42,7 @@ import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
 import { DatabaseModule } from "./common/database/database.module";
 import { LoggerModule } from "./common/logger";
+import { ApmModule, ApmInterceptor } from "./common/apm";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
@@ -73,7 +76,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -112,6 +115,9 @@ class HealthController {
     // 结构化日志模块（全局）
     LoggerModule,
 
+    // APM 性能监控模块（全局）
+    ApmModule,
+
     // 静态文件服务（上传文件访问）
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, "..", "uploads"),
@@ -141,6 +147,11 @@ class HealthController {
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // 全局 APM 拦截器（自动追踪性能）
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ApmInterceptor,
     },
   ],
 })
