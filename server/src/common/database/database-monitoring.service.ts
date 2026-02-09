@@ -7,8 +7,61 @@
 
 import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
+import { ConfigService } from "@nestjs/config";
 import { DataSource } from "typeorm";
 import { Cron, CronExpression } from "@nestjs/schedule";
+
+/**
+ * 连接池状态信息
+ */
+export interface ConnectionPoolStatus {
+  /** 当前活动连接数 */
+  activeConnections: number;
+  /** 当前空闲连接数 */
+  idleConnections: number;
+  /** 连接池总连接数 */
+  totalConnections: number;
+  /** 连接池最大连接数 */
+  maxConnections: number;
+  /** 最小连接数 */
+  minConnections: number;
+  /** 正在等待获取连接的请求数 */
+  waitingRequests: number;
+  /** 连接池使用率 (0-100) */
+  utilizationPercentage: number;
+  /** 是否处于健康状态 */
+  isHealthy: boolean;
+  /** 健康检查消息 */
+  healthMessage: string;
+}
+
+/**
+ * 连接池告警级别
+ */
+export enum PoolAlertLevel {
+  /** 正常 - 无需操作 */
+  NORMAL = "normal",
+  /** 警告 - 需要关注 */
+  WARNING = "warning",
+  /** 严重 - 需要立即处理 */
+  CRITICAL = "critical",
+}
+
+/**
+ * 连接池告警信息
+ */
+export interface PoolAlert {
+  /** 告警级别 */
+  level: PoolAlertLevel;
+  /** 告警消息 */
+  message: string;
+  /** 当前值 */
+  currentValue: number;
+  /** 阈值 */
+  threshold: number;
+  /** 告警时间 */
+  timestamp: Date;
+}
 
 /**
  * 索引使用情况统计
@@ -58,7 +111,7 @@ export interface TableStats {
 
 /**
  * 数据库监控服务
- * @description 提供索引监控、慢查询分析、表统计等功能
+ * @description 提供索引监控、慢查询分析、表统计、连接池监控等功能
  */
 @Injectable()
 export class DatabaseMonitoringService {
@@ -76,9 +129,27 @@ export class DatabaseMonitoringService {
     'messages', 'lecture_highlights', 'system_configs'
   ];
 
+  /**
+   * 连接池告警阈值配置
+   */
+  private readonly POOL_ALERT_THRESHOLDS = {
+    /** 警告级别：连接池使用率超过此值触发警告 */
+    WARNING_UTILIZATION: 70,
+    /** 严重级别：连接池使用率超过此值触发严重告警 */
+    CRITICAL_UTILIZATION: 90,
+    /** 严重级别：等待请求数超过此值触发严重告警 */
+    CRITICAL_WAITING_REQUESTS: 10,
+  };
+
+  /**
+   * 连接池告警历史记录（保留最近100条）
+   */
+  private alertHistory: PoolAlert[] = [];
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -89,6 +160,223 @@ export class DatabaseMonitoringService {
   private validateTableName(tableName: string): void {
     if (!this.VALID_TABLES.includes(tableName)) {
       throw new BadRequestException(`Invalid table name: ${tableName}`);
+    }
+  }
+
+  // ==================== 连接池监控 ====================
+
+  /**
+   * 获取连接池状态信息
+   * @returns 连接池状态
+   */
+  async getConnectionPoolStatus(): Promise<ConnectionPoolStatus> {
+    try {
+      const poolConfig = this.configService.get<any>("database.pool");
+      const maxConnections = poolConfig?.max || 20;
+      const minConnections = poolConfig?.min || 5;
+
+      // 从 MySQL 获取当前线程连接信息
+      const query = `
+        SELECT
+          COUNT(*) as total_connections,
+          SUM(CASE WHEN command = 0 THEN 1 ELSE 0 END) as idle_connections
+        FROM information_schema.processlist
+        WHERE user = SUBSTRING_INDEX(USER(), '@', 1);
+      `;
+
+      const result = await this.dataSource.query(query);
+      const row = result[0] || { total_connections: 0, idle_connections: 0 };
+
+      const totalConnections = parseInt(row.total_connections || 0, 10);
+      const idleConnections = parseInt(row.idle_connections || 0, 10);
+      const activeConnections = totalConnections - idleConnections;
+
+      // 计算使用率
+      const utilizationPercentage = maxConnections > 0
+        ? Math.round((totalConnections / maxConnections) * 100)
+        : 0;
+
+      // 评估健康状态
+      const healthCheck = this.evaluatePoolHealth(
+        activeConnections,
+        totalConnections,
+        maxConnections,
+        0, // waiting requests - MySQL doesn't easily expose this
+      );
+
+      return {
+        activeConnections,
+        idleConnections,
+        totalConnections,
+        maxConnections,
+        minConnections,
+        waitingRequests: 0,
+        utilizationPercentage,
+        isHealthy: healthCheck.isHealthy,
+        healthMessage: healthCheck.message,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get connection pool status: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取连接池配置信息
+   * @returns 连接池配置
+   */
+  getConnectionPoolConfig(): {
+    max: number;
+    min: number;
+    acquireTimeout: number;
+    idleTimeout: number;
+    maxLifetime: number;
+  } {
+    const pool = this.configService.get<any>("database.pool");
+    return {
+      max: pool?.max || 20,
+      min: pool?.min || 5,
+      acquireTimeout: pool?.acquireTimeoutMillis || 30000,
+      idleTimeout: pool?.idleTimeoutMillis || 300000,
+      maxLifetime: pool?.maxLifetimeMillis || 1800000,
+    };
+  }
+
+  /**
+   * 检查连接池健康状态并生成告警
+   * @returns 当前告警（如果有）
+   */
+  async checkPoolHealth(): Promise<PoolAlert | null> {
+    const status = await this.getConnectionPoolStatus();
+    const alerts: PoolAlert[] = [];
+
+    // 检查使用率告警
+    if (status.utilizationPercentage >= this.POOL_ALERT_THRESHOLDS.CRITICAL_UTILIZATION) {
+      alerts.push({
+        level: PoolAlertLevel.CRITICAL,
+        message: `连接池使用率严重过高: ${status.utilizationPercentage}%`,
+        currentValue: status.utilizationPercentage,
+        threshold: this.POOL_ALERT_THRESHOLDS.CRITICAL_UTILIZATION,
+        timestamp: new Date(),
+      });
+    } else if (status.utilizationPercentage >= this.POOL_ALERT_THRESHOLDS.WARNING_UTILIZATION) {
+      alerts.push({
+        level: PoolAlertLevel.WARNING,
+        message: `连接池使用率较高: ${status.utilizationPercentage}%`,
+        currentValue: status.utilizationPercentage,
+        threshold: this.POOL_ALERT_THRESHOLDS.WARNING_UTILIZATION,
+        timestamp: new Date(),
+      });
+    }
+
+    // 检查等待请求数告警
+    if (status.waitingRequests >= this.POOL_ALERT_THRESHOLDS.CRITICAL_WAITING_REQUESTS) {
+      alerts.push({
+        level: PoolAlertLevel.CRITICAL,
+        message: `连接等待请求数过多: ${status.waitingRequests}`,
+        currentValue: status.waitingRequests,
+        threshold: this.POOL_ALERT_THRESHOLDS.CRITICAL_WAITING_REQUESTS,
+        timestamp: new Date(),
+      });
+    }
+
+    // 返回最高级别的告警
+    if (alerts.length > 0) {
+      // 按优先级排序：CRITICAL > WARNING > NORMAL
+      alerts.sort((a, b) => {
+        const levelPriority = { [PoolAlertLevel.CRITICAL]: 3, [PoolAlertLevel.WARNING]: 2, [PoolAlertLevel.NORMAL]: 1 };
+        return levelPriority[b.level] - levelPriority[a.level];
+      });
+
+      const topAlert = alerts[0];
+      this.addAlertToHistory(topAlert);
+      return topAlert;
+    }
+
+    return null;
+  }
+
+  /**
+   * 获取告警历史记录
+   * @param limit 返回的记录数，默认10条
+   * @returns 告警历史
+   */
+  getAlertHistory(limit: number = 10): PoolAlert[] {
+    return this.alertHistory.slice(-limit);
+  }
+
+  /**
+   * 清空告警历史
+   */
+  clearAlertHistory(): void {
+    this.alertHistory = [];
+  }
+
+  /**
+   * 评估连接池健康状态
+   * @private
+   */
+  private evaluatePoolHealth(
+    activeConnections: number,
+    totalConnections: number,
+    maxConnections: number,
+    waitingRequests: number,
+  ): { isHealthy: boolean; message: string } {
+    if (waitingRequests > 0) {
+      return {
+        isHealthy: false,
+        message: `有 ${waitingRequests} 个请求正在等待连接`,
+      };
+    }
+
+    const utilization = (totalConnections / maxConnections) * 100;
+
+    if (utilization >= 90) {
+      return {
+        isHealthy: false,
+        message: `连接池使用率过高 (${utilization.toFixed(1)}%)，可能存在连接泄漏或负载过高`,
+      };
+    }
+
+    if (utilization >= 70) {
+      return {
+        isHealthy: true,
+        message: `连接池使用率较高 (${utilization.toFixed(1)}%)，请关注`,
+      };
+    }
+
+    return {
+      isHealthy: true,
+      message: `连接池状态正常 (使用率: ${utilization.toFixed(1)}%)`,
+    };
+  }
+
+  /**
+   * 添加告警到历史记录
+   * @private
+   */
+  private addAlertToHistory(alert: PoolAlert): void {
+    this.alertHistory.push(alert);
+
+    // 只保留最近100条记录
+    if (this.alertHistory.length > 100) {
+      this.alertHistory.shift();
+    }
+
+    // 根据告警级别记录日志
+    switch (alert.level) {
+      case PoolAlertLevel.CRITICAL:
+        this.logger.error(
+          `连接池告警 [严重]: ${alert.message} (当前值: ${alert.currentValue}, 阈值: ${alert.threshold})`,
+        );
+        break;
+      case PoolAlertLevel.WARNING:
+        this.logger.warn(
+          `连接池告警 [警告]: ${alert.message} (当前值: ${alert.currentValue}, 阈值: ${alert.threshold})`,
+        );
+        break;
+      default:
+        this.logger.log(`连接池告警 [正常]: ${alert.message}`);
     }
   }
 
@@ -520,6 +808,23 @@ export class DatabaseMonitoringService {
     }
 
     this.logger.log("Weekly table maintenance completed");
+  }
+
+  /**
+   * 定时任务：每分钟检查连接池健康状态
+   * 每分钟执行一次，用于及时发现连接池问题
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async poolHealthCheck(): Promise<void> {
+    try {
+      const alert = await this.checkPoolHealth();
+      if (alert) {
+        // 告警已在 checkPoolHealth 方法中记录
+        // 这里可以添加额外的通知逻辑，如发送到监控系统
+      }
+    } catch (error) {
+      this.logger.error(`Pool health check failed: ${error.message}`);
+    }
   }
 
   // ==================== 性能报告 ====================
