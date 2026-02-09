@@ -345,21 +345,24 @@ describe("AffiliateService", () => {
         getRawOne: jest
           .fn()
           .mockResolvedValueOnce({ total: "100" }) // 总佣金
-          .mockResolvedValueOnce({ total: "80" }) // 可用佣金
-          .mockResolvedValueOnce({ total: "20" }), // 冻结佣金
+          .mockResolvedValueOnce({ total: "80" }) // 可用佣金（查询了但未使用，service使用user.balance）
+          .mockResolvedValueOnce({ total: "20" }) // 冻结佣金
+          .mockResolvedValueOnce({ total: "10" }), // 最低提现金额配置
       };
       mockCommissionRepository.createQueryBuilder.mockReturnValue(queryBuilder);
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockUserRepository.count.mockResolvedValue(5);
+      mockSystemConfigRepository.findOne.mockResolvedValue({ configValue: "10" });
 
       // Act
       const result = await service.getCommissionStats(1);
 
       // Assert
       expect(result.totalCommission).toBe(100);
-      expect(result.availableCommission).toBe(80);
+      expect(result.availableCommission).toBe(100); // availableCommission = user.balance
       expect(result.frozenCommission).toBe(20);
       expect(result.balance).toBe(100);
+      expect(result.minWithdrawal).toBe(10);
     });
   });
 
