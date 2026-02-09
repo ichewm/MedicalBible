@@ -278,7 +278,7 @@ describe("Database Index Conformance E2E Tests (PERF-002)", () => {
       };
 
       // Verify all Phase 1 entities exist
-      Object.keys(phase1Entities).forEach(entityName => {
+      (Object.keys(phase1Entities) as Array<keyof typeof phase1Entities>).forEach(entityName => {
         expect(phase1Entities[entityName]).toBeDefined();
       });
 

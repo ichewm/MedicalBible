@@ -23,6 +23,7 @@ import { Paper } from "../../entities/paper.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import { CryptoService } from "../../common/crypto/crypto.service";
+import { TransactionService } from "../../common/database/transaction.service";
 import { UserListQueryDto } from "./dto/admin.dto";
 
 describe("AdminService", () => {
@@ -127,6 +128,10 @@ describe("AdminService", () => {
     hashPassword: jest.fn(),
   };
 
+  const mockTransactionService = {
+    runInTransaction: jest.fn().mockImplementation((callback) => callback()),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -176,6 +181,10 @@ describe("AdminService", () => {
         {
           provide: CryptoService,
           useValue: mockCryptoService,
+        },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
         },
       ],
     }).compile();

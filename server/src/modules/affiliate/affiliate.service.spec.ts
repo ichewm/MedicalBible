@@ -22,6 +22,7 @@ import {
   WithdrawalQueryDto,
   InviteeQueryDto,
 } from "./dto/affiliate.dto";
+import { TransactionService } from "../../common/database/transaction.service";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -113,6 +114,10 @@ describe("AffiliateService", () => {
     findOne: jest.fn(),
   };
 
+  const mockTransactionService = {
+    runInTransaction: jest.fn().mockImplementation((callback) => callback()),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -130,6 +135,10 @@ describe("AffiliateService", () => {
         {
           provide: getRepositoryToken(SystemConfig),
           useValue: mockSystemConfigRepository,
+        },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
         },
       ],
     }).compile();

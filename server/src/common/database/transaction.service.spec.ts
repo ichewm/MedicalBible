@@ -45,8 +45,9 @@ describe("TransactionService", () => {
     service = module.get<TransactionService>(TransactionService);
     dataSource = module.get<DataSource>(DataSource);
 
-    // Reset mocks before each test
+    // Reset mocks and restore default implementations before each test
     jest.clearAllMocks();
+    jest.restoreAllMocks();
 
     // Setup default mock behavior
     mockDataSource.createQueryRunner.mockReturnValue(mockQueryRunner);
@@ -54,10 +55,11 @@ describe("TransactionService", () => {
       save: jest.fn(),
       findOne: jest.fn(),
     });
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
+    mockQueryRunner.connect.mockResolvedValue(undefined);
+    mockQueryRunner.startTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.commitTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.rollbackTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.release.mockResolvedValue(undefined);
   });
 
   describe("runInTransaction", () => {

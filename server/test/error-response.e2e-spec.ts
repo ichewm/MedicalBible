@@ -28,7 +28,7 @@ describe('Error Response Standardization (REL-001)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication(express());
+    app = moduleFixture.createNestApplication();
 
     // Configure the app the same way as main.ts
     app.setGlobalPrefix('api/v1');
