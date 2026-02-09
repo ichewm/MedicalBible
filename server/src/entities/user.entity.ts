@@ -25,6 +25,7 @@ import { ReadingProgress } from "./reading-progress.entity";
 import { Commission } from "./commission.entity";
 import { Withdrawal } from "./withdrawal.entity";
 import { Level } from "./level.entity";
+import { Role } from "./role.entity";
 
 /**
  * 用户状态枚举
@@ -201,6 +202,11 @@ export class User {
   /** 下线用户列表 */
   @OneToMany(() => User, (user) => user.parent, { eager: false })
   children: User[];
+
+  /** 用户角色 */
+  @ManyToOne(() => Role, { nullable: true })
+  @JoinColumn({ name: "role_name", referencedColumnName: "name" })
+  roleEntity: Role;
 
   /** 当前选中的等级 */
   @ManyToOne(() => Level, { nullable: true })
