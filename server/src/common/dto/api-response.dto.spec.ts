@@ -451,22 +451,125 @@ describe("PaginationDto", () => {
   });
 });
 
-describe("PaginationDto 继承扩展", () => {
-  it("应支持继承扩展其他查询参数", () => {
-    class UserQueryDto extends PaginationDto {
-      role?: string;
-      search?: string;
-    }
+describe("PaginationDto", () => {
+  describe("默认值", () => {
+    it("应使用默认的分页参数", () => {
+      const pagination = new PaginationDto();
 
-    const query = new UserQueryDto();
-    query.pageSize = 30;
-    query.page = 2;
-    query.role = "admin";
-    query.search = "test";
+      expect(pagination.page).toBe(1);
+      expect(pagination.pageSize).toBe(20);
+    });
 
-    expect(query.getTake()).toBe(30);
-    expect(query.page).toBe(2);
-    expect(query.role).toBe("admin");
-    expect(query.search).toBe("test");
+    it("应允许自定义分页参数", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 3;
+      pagination.pageSize = 50;
+
+      expect(pagination.page).toBe(3);
+      expect(pagination.pageSize).toBe(50);
+    });
+  });
+
+  describe("getTake 方法", () => {
+    it("应返回正确的每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.pageSize = 50;
+
+      expect(pagination.getTake()).toBe(50);
+    });
+
+    it("应使用默认值处理未定义的每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.pageSize = undefined as unknown as number;
+
+      expect(pagination.getTake()).toBe(20);
+    });
+  });
+
+  describe("getSkip 方法", () => {
+    it("应正确计算跳过的记录数（第一页）", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 1;
+      pagination.pageSize = 20;
+
+      expect(pagination.getSkip()).toBe(0);
+    });
+
+    it("应正确计算跳过的记录数（第二页）", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 2;
+      pagination.pageSize = 20;
+
+      expect(pagination.getSkip()).toBe(20);
+    });
+
+    it("应正确计算跳过的记录数（第三页，每页30条）", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 3;
+      pagination.pageSize = 30;
+
+      expect(pagination.getSkip()).toBe(60);
+    });
+
+    it("应使用默认值处理未定义的页码和每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.page = undefined as unknown as number;
+      pagination.pageSize = undefined as unknown as number;
+
+      expect(pagination.getSkip()).toBe(0);
+    });
+  });
+
+  describe("边界情况", () => {
+    it("应处理最小每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.pageSize = 1;
+
+      expect(pagination.getTake()).toBe(1);
+    });
+
+    it("应处理最大每页数量", () => {
+      const pagination = new PaginationDto();
+      pagination.pageSize = 100;
+
+      expect(pagination.getTake()).toBe(100);
+    });
+
+    it("应处理最小页码", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 1;
+      pagination.pageSize = 20;
+
+      expect(pagination.getSkip()).toBe(0);
+    });
+
+    it("应处理较大的页码", () => {
+      const pagination = new PaginationDto();
+      pagination.page = 10;
+      pagination.pageSize = 50;
+
+      expect(pagination.getSkip()).toBe(450);
+    });
+  });
+
+  describe("继承使用", () => {
+    it("应支持继承扩展其他查询参数", () => {
+      class UserQueryDto extends PaginationDto {
+        role?: string;
+        search?: string;
+      }
+
+      const query = new UserQueryDto();
+      query.pageSize = 30;
+      query.page = 2;
+      query.role = "admin";
+      query.search = "test";
+
+      expect(query.getTake()).toBe(30);
+      expect(query.getSkip()).toBe(30);
+      expect(query.page).toBe(2);
+      expect(query.role).toBe("admin");
+      expect(query.search).toBe("test");
+    });
   });
 });
