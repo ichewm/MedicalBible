@@ -440,6 +440,8 @@ import { CacheService } from '@/common/cache';
 constructor(private readonly cacheService: CacheService) {}
 
 async getUserProfile(userId: number) {
+  // 注意: findOne 返回 null 时不会被缓存（null 作为"缓存未命中"的哨兵值）
+  // 如需缓存 null 结果，可用包装值或改用 findOneOrFail 并处理异常
   return this.cacheService.getOrSet(
     { key: `user:${userId}:profile`, ttl: 300 },
     () => this.userRepository.findOne({ where: { id: userId } })
@@ -488,7 +490,7 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 
 ### 安全特性
 
-- **原型污染防护**: JSON 解析自动过滤 `__proto__` 和 `constructor`
+- **原型污染防护**: JSON 解析自动过滤 `__proto__`、`constructor` 和 `prototype`
 - **键名验证**: 缓存模式仅允许字母数字、冒号、星号、下划线
 - **日志脱敏**: 敏感信息在日志中自动截断
 - **访问控制**: 所有管理接口需要 JWT + 管理员角色
