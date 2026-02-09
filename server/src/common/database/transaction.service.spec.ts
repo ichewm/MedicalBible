@@ -48,16 +48,22 @@ describe("TransactionService", () => {
     // Reset mocks before each test
     jest.clearAllMocks();
 
-    // Setup default mock behavior
+    // Setup default mock behavior - always resolve successfully
+    mockQueryRunner.connect.mockResolvedValue(undefined);
+    mockQueryRunner.startTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.commitTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.rollbackTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.release.mockResolvedValue(undefined);
+
     mockDataSource.createQueryRunner.mockReturnValue(mockQueryRunner);
     mockQueryRunner.manager.getRepository.mockReturnValue({
-      save: jest.fn(),
-      findOne: jest.fn(),
+      save: jest.fn().mockResolvedValue(undefined),
+      findOne: jest.fn().mockResolvedValue(undefined),
     });
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   describe("runInTransaction", () => {

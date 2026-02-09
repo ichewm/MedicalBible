@@ -19,6 +19,7 @@ import { Profession } from "../../entities/profession.entity";
 import { VerificationCode } from "../../entities/verification-code.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import { UploadService } from "../upload/upload.service";
+import { SensitiveWordService } from "../../common/filter/sensitive-word.service";
 
 describe("UserService", () => {
   let service: UserService;
@@ -118,6 +119,13 @@ describe("UserService", () => {
     deleteFile: jest.fn(),
   };
 
+  const mockSensitiveWordService = {
+    containsSensitiveWord: jest.fn().mockReturnValue(false),
+    findSensitiveWords: jest.fn().mockReturnValue([]),
+    replaceSensitiveWords: jest.fn().mockImplementation((text: string) => text),
+    validateNickname: jest.fn().mockReturnValue({ valid: true }),
+  };
+
   const mockVerificationCodeRepository = {
     findOne: jest.fn(),
     update: jest.fn(),
@@ -158,6 +166,10 @@ describe("UserService", () => {
         {
           provide: UploadService,
           useValue: mockUploadService,
+        },
+        {
+          provide: SensitiveWordService,
+          useValue: mockSensitiveWordService,
         },
       ],
     }).compile();
