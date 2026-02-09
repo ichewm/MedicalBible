@@ -253,7 +253,76 @@
 
 ---
 
-## 7. ER 关系图 (Entity Relationship)
+## 7. 通知系统 (Notification)
+
+### `notifications` 通知记录表
+| 字段名 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| id | BIGINT | YES | 主键，自增 |
+| user_id | BIGINT | YES | 用户 ID（外键 -> users.id） |
+| type | ENUM | YES | 通知类型：account, order, subscription, commission, withdrawal, marketing, system |
+| channel | ENUM | YES | 通知渠道：email, sms, in_app |
+| title | VARCHAR(255) | YES | 通知标题 |
+| content | TEXT | YES | 通知内容 |
+| variables | JSON | NO | 模板变量，JSON 格式存储 |
+| recipient | VARCHAR(255) | NO | 收件人地址（邮箱或手机号） |
+| status | TINYINT | YES | 发送状态：0-待发送，1-发送中，2-成功，3-失败 |
+| error_message | TEXT | NO | 发送失败的错误信息 |
+| is_read | BOOLEAN | YES | 是否已读（仅应用内通知有效） |
+| read_at | DATETIME | NO | 已读时间 |
+| metadata | JSON | NO | 关联业务数据，如订单号、交易号等 |
+| scheduled_at | DATETIME | NO | 计划发送时间（用于定时发送） |
+| sent_at | DATETIME | NO | 实际发送时间 |
+| retry_count | INT | YES | 重试次数 |
+| created_at | DATETIME | YES | 创建时间 |
+
+### `notification_templates` 通知模板表
+| 字段名 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| id | BIGINT | YES | 主键，自增 |
+| code | VARCHAR(50) | YES | 模板代码（唯一） |
+| channel | ENUM | YES | 通知渠道：email, sms, in_app |
+| type | ENUM | YES | 通知类型：account, order, subscription, commission, withdrawal, marketing, system |
+| title_template | VARCHAR(255) | YES | 标题模板（支持 `{{变量名}}` 占位符） |
+| content_template | TEXT | YES | 内容模板（支持 `{{变量名}}` 占位符） |
+| description | VARCHAR(200) | NO | 模板说明 |
+| is_enabled | BOOLEAN | YES | 是否启用 |
+| created_at | DATETIME | YES | 创建时间 |
+| updated_at | DATETIME | YES | 更新时间 |
+
+### `notification_preferences` 通知偏好设置表
+| 字段名 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| id | BIGINT | YES | 主键，自增 |
+| user_id | BIGINT | YES | 用户 ID（唯一） |
+| email_enabled | BOOLEAN | YES | 是否启用邮件通知 |
+| sms_enabled | BOOLEAN | YES | 是否启用短信通知 |
+| in_app_enabled | BOOLEAN | YES | 是否启用应用内通知 |
+| account_email | BOOLEAN | YES | 账户相关-邮件 |
+| account_sms | BOOLEAN | YES | 账户相关-短信 |
+| account_in_app | BOOLEAN | YES | 账户相关-应用内 |
+| order_email | BOOLEAN | YES | 订单相关-邮件 |
+| order_sms | BOOLEAN | YES | 订单相关-短信 |
+| order_in_app | BOOLEAN | YES | 订单相关-应用内 |
+| subscription_email | BOOLEAN | YES | 订阅相关-邮件 |
+| subscription_sms | BOOLEAN | YES | 订阅相关-短信 |
+| subscription_in_app | BOOLEAN | YES | 订阅相关-应用内 |
+| commission_email | BOOLEAN | YES | 佣金相关-邮件 |
+| commission_sms | BOOLEAN | YES | 佣金相关-短信 |
+| commission_in_app | BOOLEAN | YES | 佣金相关-应用内 |
+| withdrawal_email | BOOLEAN | YES | 提现相关-邮件 |
+| withdrawal_sms | BOOLEAN | YES | 提现相关-短信 |
+| withdrawal_in_app | BOOLEAN | YES | 提现相关-应用内 |
+| marketing_email | BOOLEAN | YES | 营销相关-邮件 |
+| marketing_sms | BOOLEAN | YES | 营销相关-短信 |
+| marketing_in_app | BOOLEAN | YES | 营销相关-应用内 |
+| system_in_app | BOOLEAN | YES | 系统通知-应用内 |
+| created_at | DATETIME | YES | 创建时间 |
+| updated_at | DATETIME | YES | 更新时间 |
+
+---
+
+## 8. ER 关系图 (Entity Relationship)
 
 ```mermaid
 erDiagram
@@ -265,6 +334,8 @@ erDiagram
     users ||--o{ reading_progress : "阅读"
     users ||--o{ commissions : "获得佣金"
     users ||--o{ withdrawals : "提现"
+    users ||--o{ notifications : "接收通知"
+    users ||--o{ notification_preferences : "通知偏好"
     users }o--|| users : "推广关系(parent_id)"
     
     professions ||--o{ levels : "包含"
@@ -290,7 +361,7 @@ erDiagram
 
 ---
 
-## 8. 索引建议 (Index Recommendations)
+## 9. 索引建议 (Index Recommendations)
 
 | 表名 | 索引字段 | 类型 | 说明 |
 |------|----------|------|------|
@@ -318,8 +389,15 @@ erDiagram
 | reading_progress | user_id, lecture_id | UNIQUE | 用户讲义阅读进度 |
 | verification_codes | phone, type | INDEX | 手机验证码查询 |
 | verification_codes | email, type | INDEX | 邮箱验证码查询 |
+| notifications | user_id | INDEX | 用户通知查询 |
+| notifications | user_id, is_read | INDEX | 用户未读通知查询 |
+| notifications | user_id, channel, type | INDEX | 通知筛选查询 |
+| notifications | status, scheduled_at | INDEX | 计划发送通知查询 |
+| notifications | status, retry_count | INDEX | 失败重试查询 |
+| notification_templates | code, channel | UNIQUE | 模板代码唯一 |
+| notification_preferences | user_id | UNIQUE | 用户偏好唯一 |
 
-### 8.1 索引策略说明
+### 9.1 索引策略说明
 
 详见 [数据库索引策略文档](../docs/database-index-strategy.md)，包含：
 - 完整的索引分析与实施计划
