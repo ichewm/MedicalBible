@@ -214,3 +214,84 @@ export class PaginatedResponseDto<T> {
   })
   hasNext: boolean;
 }
+
+/**
+ * 游标分页请求 DTO
+ * @description 基于游标的分页查询参数基类，用于无限滚动等场景
+ * @example
+ * ```typescript
+ * class UserQueryDto extends CursorPaginationDto {
+ *   @IsOptional() role?: string;
+ * }
+ * ```
+ */
+export class CursorPaginationDto {
+  /**
+   * 每页数量
+   * @description 每页的记录数量，最大值为 100
+   * @example 20
+   */
+  @ApiPropertyOptional({
+    description: "每页数量",
+    example: 20,
+    default: 20,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: "每页数量必须是整数" })
+  @Min(1, { message: "每页数量最小为1" })
+  @Max(100, { message: "每页数量最大为100" })
+  pageSize?: number = 20;
+
+  /**
+   * 游标
+   * @description 用于获取下一页数据的游标，Base64 编码的 JSON 字符串
+   * @example "eyJpZCI6MTIzfQ"
+   */
+  @ApiPropertyOptional({
+    description: "游标",
+    example: "eyJpZCI6MTIzfQ",
+  })
+  @IsOptional()
+  cursor?: string;
+
+  /**
+   * 获取每页记录数
+   * @description 用于 TypeORM 查询的 take 参数
+   * @returns 每页记录数
+   * @example
+   * ```typescript
+   * const queryDto = new CursorPaginationDto();
+   * queryDto.pageSize = 50;
+   * queryDto.getTake(); // 返回 50
+   * ```
+   */
+  getTake(): number {
+    return this.pageSize ?? 20;
+  }
+
+  /**
+   * 解码游标
+   * @description 将 Base64 编码的游标解码为原始数据
+   * @returns 解码后的数据，如果游标无效则返回 null
+   * @example
+   * ```typescript
+   * const queryDto = new CursorPaginationDto();
+   * queryDto.cursor = "eyJpZCI6MTIzfQ";
+   * queryDto.decodeCursor(); // 返回 { id: 123 }
+   * ```
+   */
+  decodeCursor(): Record<string, unknown> | null {
+    if (!this.cursor || this.cursor === "") {
+      return null;
+    }
+
+    try {
+      const decoded = Buffer.from(this.cursor, "base64").toString("utf-8");
+      const parsed = JSON.parse(decoded);
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+}
