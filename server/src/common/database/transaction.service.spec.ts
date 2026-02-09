@@ -60,6 +60,11 @@ describe("TransactionService", () => {
       save: jest.fn().mockResolvedValue(undefined),
       findOne: jest.fn().mockResolvedValue(undefined),
     });
+    mockQueryRunner.connect.mockResolvedValue(undefined);
+    mockQueryRunner.startTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.commitTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.rollbackTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.release.mockResolvedValue(undefined);
   });
 
   afterEach(() => {

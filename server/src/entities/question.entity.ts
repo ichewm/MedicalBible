@@ -90,10 +90,10 @@ export class Question {
   paper: Paper;
 
   /** 用户答题记录 */
-  @OneToMany(() => UserAnswer, (answer) => answer.question)
+  @OneToMany(() => UserAnswer, (answer) => answer.question, { eager: false })
   userAnswers: UserAnswer[];
 
   /** 错题本记录 */
-  @OneToMany(() => UserWrongBook, (wrongBook) => wrongBook.question)
+  @OneToMany(() => UserWrongBook, (wrongBook) => wrongBook.question, { eager: false })
   wrongBooks: UserWrongBook[];
 }

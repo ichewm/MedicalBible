@@ -191,6 +191,16 @@ chmod +x deploy.sh
 - 推广效果分析
 - 报表导出
 
+**数据库监控** (PERF-002)
+- 索引使用情况统计
+- 未使用索引检测
+- 慢查询日志管理
+- 表统计信息
+- 索引碎片化分析
+- 性能摘要报告
+- 查询执行计划分析 (EXPLAIN)
+- 自动化表维护 (ANALYZE/OPTIMIZE)
+
 </td>
 </tr>
 </table>
@@ -288,10 +298,12 @@ MedicalBible/
 - [API 响应格式文档](./server/docs/error-handling.md) - 成功响应、分页和错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [事务模式文档](./docs/TRANSACTION_PATTERNS.md) - 数据库事务使用指南
+- [数据加载策略](./docs/data-loading-strategies.md) - TypeORM 懒加载与优化指南
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
+- [缓存管理 API](#-缓存管理-api) - 缓存监控与管理接口
 - [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
@@ -430,6 +442,102 @@ npm run dev
   - `RATE_LIMIT_VERIFICATION_WINDOW`: 验证码时间窗口秒 (默认: 86400)
 - 速率限制响应头：`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 
+## 🗄️ 缓存管理 API
+
+### 缓存服务特性
+
+Medical Bible 平台使用 Redis 作为缓存层，提供完整的缓存管理功能：
+
+- **Cache-Aside 模式**: 自动缓存未命中时的数据加载
+- **指标追踪**: 实时缓存命中率/未命中率统计
+- **批量操作**: 支持批量获取和设置缓存
+- **模式删除**: 基于通配符的批量缓存清除
+- **装饰器支持**: 方法级别的缓存声明式管理
+
+### 管理接口 (需要管理员权限)
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| GET | `/cache/metrics` | 获取缓存命中率统计 |
+| DELETE | `/cache/metrics` | 重置缓存指标计数器 |
+| GET | `/cache/keys?pattern=*` | 查询缓存键及 TTL 信息 |
+| GET | `/cache/keys/examples` | 获取缓存键构建示例 |
+| DELETE | `/cache/:key` | 删除指定缓存键 |
+| DELETE | `/cache/pattern/:pattern` | 按模式批量删除缓存 (限流) |
+
+### 使用示例
+
+#### 1. 使用 CacheService (服务层)
+
+```typescript
+import { CacheService } from '@/common/cache';
+
+constructor(private readonly cacheService: CacheService) {}
+
+async getUserProfile(userId: number) {
+  // 注意: findOne 返回 null 时不会被缓存（null 作为"缓存未命中"的哨兵值）
+  // 如需缓存 null 结果，可用包装值或改用 findOneOrFail 并处理异常
+  return this.cacheService.getOrSet(
+    { key: `user:${userId}:profile`, ttl: 300 },
+    () => this.userRepository.findOne({ where: { id: userId } })
+  );
+}
+```
+
+#### 2. 使用 @Cacheable 装饰器
+
+```typescript
+import { Cacheable, CacheClear } from '@/common/cache';
+
+@Cacheable({ ttl: 600, useArgs: true })
+async getPaperDetail(paperId: number) {
+  return this.paperRepository.findOne({ where: { id: paperId } });
+}
+
+@CacheClear('paper:*')
+async updatePaper(paperId: number, data: UpdatePaperDto) {
+  // 更新逻辑 - 执行后自动清除所有 paper 缓存
+}
+```
+
+### 缓存键命名规范
+
+使用 `CacheKeyBuilder` 生成标准化的缓存键：
+
+```typescript
+import { CacheKeyBuilder } from '@/common/cache';
+
+// 用户相关: user:123:profile
+CacheKeyBuilder.user(userId, 'profile')
+
+// SKU相关: sku:professions
+CacheKeyBuilder.sku('professions')
+
+// 试卷相关: paper:detail:1
+CacheKeyBuilder.paper('detail', paperId)
+
+// 讲义相关: lecture:subject:1
+CacheKeyBuilder.lecture('subject', subjectId)
+
+// 系统配置: system:config:REGISTER_ENABLED
+CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
+```
+
+### 安全特性
+
+- **原型污染防护**: JSON 解析自动过滤 `__proto__`、`constructor` 和 `prototype`
+- **键名验证**: 缓存模式仅允许字母数字、冒号、星号、下划线
+- **日志脱敏**: 敏感信息在日志中自动截断
+- **访问控制**: 所有管理接口需要 JWT + 管理员角色
+- **速率限制**: 批量删除操作限流 (10次/分钟)
+
+**TTL 推荐值**:
+- 系统配置: 5 分钟
+- 用户数据: 5 分钟
+- SKU 目录: 30 分钟
+- 试卷/讲义: 10 分钟
+- 题目数据: 1 小时
+
 ## 📈 性能
 
 - 后端响应时间: < 100ms
@@ -485,6 +593,16 @@ npm run dev
 - ✅ 支持可配置压缩阈值
 - ✅ 添加压缩指标收集（压缩率、节省字节数）
 - ✅ 智能过滤：仅压缩文本类型内容
+- 🗄️ **数据库索引优化** (PERF-002)
+  - 新增 16 个复合索引优化高频查询
+  - 新增数据库监控服务 (`DatabaseMonitoringService`)
+  - 新增管理后台数据库监控 API (`/admin/database/*`)
+  - 支持索引使用情况统计和未使用索引检测
+  - 支持慢查询日志管理和查询执行计划分析
+  - 支持表统计信息和索引碎片化分析
+  - 支持自动周度表维护 (ANALYZE TABLE)
+  - 新增数据库索引策略文档 (`docs/database-index-strategy.md`)
+
 ### v1.2.0 (2026-02-01)
 
 - ✅ 实现结构化日志系统（基于 Pino）

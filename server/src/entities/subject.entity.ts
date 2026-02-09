@@ -57,10 +57,10 @@ export class Subject {
   level: Level;
 
   /** 包含的试卷列表 */
-  @OneToMany(() => Paper, (paper) => paper.subject)
+  @OneToMany(() => Paper, (paper) => paper.subject, { eager: false })
   papers: Paper[];
 
   /** 包含的讲义列表 */
-  @OneToMany(() => Lecture, (lecture) => lecture.subject)
+  @OneToMany(() => Lecture, (lecture) => lecture.subject, { eager: false })
   lectures: Lecture[];
 }

@@ -252,6 +252,15 @@ describe("AdminService", () => {
     it("应该成功获取用户列表", async () => {
       // Arrange
       mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
+      const orderQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([{ userId: 2, totalSpent: "100" }]),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(orderQueryBuilder);
 
       // Act
       const query = plainToInstance(UserListQueryDto, { page: 1, pageSize: 20 });
@@ -265,6 +274,15 @@ describe("AdminService", () => {
     it("可以按手机号搜索用户", async () => {
       // Arrange
       mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
+      const orderQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([{ userId: 2, totalSpent: "100" }]),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(orderQueryBuilder);
 
       // Act
       const query = plainToInstance(UserListQueryDto, { page: 1, pageSize: 20, phone: "139" });
@@ -283,6 +301,15 @@ describe("AdminService", () => {
     it("可以按状态筛选用户", async () => {
       // Arrange
       mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
+      const orderQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([{ userId: 2, totalSpent: "100" }]),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(orderQueryBuilder);
 
       // Act
       const query = plainToInstance(UserListQueryDto, {
@@ -309,6 +336,14 @@ describe("AdminService", () => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockSubscriptionRepository.find.mockResolvedValue([]);
       mockOrderRepository.count.mockResolvedValue(5);
+      const orderQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ totalSpent: "500" }),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(orderQueryBuilder);
 
       // Act
       const result = await service.getUserDetail(2);
@@ -387,6 +422,44 @@ describe("AdminService", () => {
       mockWithdrawalRepository.count.mockResolvedValue(10);
       mockLectureRepository.count.mockResolvedValue(20);
       mockPaperRepository.count.mockResolvedValue(30);
+
+      // 活跃用户查询
+      const subscriptionQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ count: "500" }),
+      };
+      mockSubscriptionRepository.createQueryBuilder.mockReturnValue(
+        subscriptionQueryBuilder,
+      );
+
+      // 收入查询
+      const revenueQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ total: "50000" }),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(
+        revenueQueryBuilder,
+      );
+
+      // 佣金查询 - 需要两个不同的查询构建器
+      const commissionQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ total: "5000" }),
+      };
+      const pendingCommissionQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ total: "1000" }),
+      };
+      let callCount = 0;
+      mockCommissionRepository.createQueryBuilder.mockImplementation(() => {
+        callCount++;
+        return callCount === 1 ? commissionQueryBuilder : pendingCommissionQueryBuilder;
+      });
 
       // Act
       const result = await service.getDashboardStats();
