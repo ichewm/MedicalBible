@@ -22,15 +22,11 @@
  */
 
 import { Test, TestingModule } from "@nestjs/testing";
-import { INestApplication, ValidationPipe, UnauthorizedException, ForbiddenException, BadRequestException, ExecutionContext } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { Reflector } from "@nestjs/core";
-import { CanActivate } from "@nestjs/common";
+import { INestApplication, ValidationPipe, UnauthorizedException, BadRequestException, ExecutionContext } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const request = require("supertest");
 import { AppModule } from "../src/app.module";
 import { DatabaseMonitoringService } from "../src/common/database/database-monitoring.service";
-import { DatabaseMonitoringController } from "../src/common/database/database-monitoring.controller";
 import { JwtAuthGuard } from "../src/common/guards/jwt-auth.guard";
 import { RolesGuard } from "../src/common/guards/roles.guard";
 
@@ -71,7 +67,7 @@ const mockJwtService = {
  * Mock Reflector for role-based access control
  */
 const mockReflector = {
-  getAllAndOverride: jest.fn((key: string) => {
+  getAllAndOverride: jest.fn((key: string, _metadata?: any[]) => {
     if (key === "roles") {
       return ["admin"]; // Database monitoring requires admin role
     }
@@ -236,10 +232,10 @@ async function createTestApp(): Promise<INestApplication> {
     .useValue({
       canActivate: (context: ExecutionContext) => {
         const request = context.switchToHttp().getRequest();
-        const requiredRoles = mockReflector.getAllAndOverride<string[]>("roles", [
+        const requiredRoles = mockReflector.getAllAndOverride("roles", [
           context.getHandler(),
           context.getClass(),
-        ] as any[]);
+        ]) || [];
 
         if (!requiredRoles || requiredRoles.length === 0) {
           return true;
@@ -615,7 +611,7 @@ describe("Database Monitoring API E2E Tests", () => {
     });
 
     it("should limit results as per specification", async () => {
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .get(endpoint)
         .set("Authorization", "Bearer valid_admin_token");
 
