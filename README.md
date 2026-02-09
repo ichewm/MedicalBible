@@ -570,6 +570,16 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 
 ## 📝 更新日志
 
+### v1.4.0 (2026-02-09)
+
+- 🔐 **RBAC 权限系统**: 实现基于角色的访问控制
+  - 角色-权限数据模型（admin, teacher, student, user）
+  - `@RequirePermission` 和 `@RequireAllPermissions` 装饰器
+  - `PermissionsGuard` 守卫支持精细权限控制
+  - 预置 43 个权限覆盖 9 个资源模块
+  - 初始角色和权限自动种子数据
+  - 完整的单元测试覆盖（10 个测试文件）
+
 ### v1.3.0 (2026-02-09)
 
 - 🔒 **限流守卫 (SEC-001)**: 基于 Redis 的滑动窗口限流
