@@ -292,6 +292,7 @@ MedicalBible/
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
+- [缓存管理 API](#-缓存管理-api) - 缓存监控与管理接口
 - [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
@@ -405,6 +406,100 @@ npm run dev
 - 生产环境: 必须通过 `CORS_ORIGIN` 环境变量指定具体域名
 - 支持逗号分隔的多个域名: `https://example.com,https://app.example.com`
 - 生产环境使用通配符 (`*`) 将导致应用拒绝启动
+
+## 🗄️ 缓存管理 API
+
+### 缓存服务特性
+
+Medical Bible 平台使用 Redis 作为缓存层，提供完整的缓存管理功能：
+
+- **Cache-Aside 模式**: 自动缓存未命中时的数据加载
+- **指标追踪**: 实时缓存命中率/未命中率统计
+- **批量操作**: 支持批量获取和设置缓存
+- **模式删除**: 基于通配符的批量缓存清除
+- **装饰器支持**: 方法级别的缓存声明式管理
+
+### 管理接口 (需要管理员权限)
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| GET | `/cache/metrics` | 获取缓存命中率统计 |
+| DELETE | `/cache/metrics` | 重置缓存指标计数器 |
+| GET | `/cache/keys?pattern=*` | 查询缓存键及 TTL 信息 |
+| GET | `/cache/keys/examples` | 获取缓存键构建示例 |
+| DELETE | `/cache/:key` | 删除指定缓存键 |
+| DELETE | `/cache/pattern/:pattern` | 按模式批量删除缓存 (限流) |
+
+### 使用示例
+
+#### 1. 使用 CacheService (服务层)
+
+```typescript
+import { CacheService } from '@/common/cache';
+
+constructor(private readonly cacheService: CacheService) {}
+
+async getUserProfile(userId: number) {
+  return this.cacheService.getOrSet(
+    { key: `user:${userId}:profile`, ttl: 300 },
+    () => this.userRepository.findOne({ where: { id: userId } })
+  );
+}
+```
+
+#### 2. 使用 @Cacheable 装饰器
+
+```typescript
+import { Cacheable, CacheClear } from '@/common/cache';
+
+@Cacheable({ ttl: 600, useArgs: true })
+async getPaperDetail(paperId: number) {
+  return this.paperRepository.findOne({ where: { id: paperId } });
+}
+
+@CacheClear('paper:*')
+async updatePaper(paperId: number, data: UpdatePaperDto) {
+  // 更新逻辑 - 执行后自动清除所有 paper 缓存
+}
+```
+
+### 缓存键命名规范
+
+使用 `CacheKeyBuilder` 生成标准化的缓存键：
+
+```typescript
+import { CacheKeyBuilder } from '@/common/cache';
+
+// 用户相关: user:123:profile
+CacheKeyBuilder.user(userId, 'profile')
+
+// SKU相关: sku:professions
+CacheKeyBuilder.sku('professions')
+
+// 试卷相关: paper:detail:1
+CacheKeyBuilder.paper('detail', paperId)
+
+// 讲义相关: lecture:subject:1
+CacheKeyBuilder.lecture('subject', subjectId)
+
+// 系统配置: system:config:REGISTER_ENABLED
+CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
+```
+
+### 安全特性
+
+- **原型污染防护**: JSON 解析自动过滤 `__proto__` 和 `constructor`
+- **键名验证**: 缓存模式仅允许字母数字、冒号、星号、下划线
+- **日志脱敏**: 敏感信息在日志中自动截断
+- **访问控制**: 所有管理接口需要 JWT + 管理员角色
+- **速率限制**: 批量删除操作限流 (10次/分钟)
+
+**TTL 推荐值**:
+- 系统配置: 5 分钟
+- 用户数据: 5 分钟
+- SKU 目录: 30 分钟
+- 试卷/讲义: 10 分钟
+- 题目数据: 1 小时
 
 ## 📈 性能
 
