@@ -3,6 +3,7 @@
  * @description 导出所有配置
  */
 
+export * from "./compression.config";
 export * from "./cors.config";
 export * from "./database.config";
 export * from "./jwt.config";
