@@ -213,3 +213,43 @@ import DOMPurify from "dompurify";
 | 2025-01-31 | SEC-009 结构化日志实现 | 完成 - 移除所有 console.log，使用 NestJS Logger |
 | 2025-01-31 | CORS 安全配置 (SEC-002) | ✅ 完成环境级域名白名单 |
 | 2025-01-31 | Helmet 中间件集成 (SEC-002) | ✅ 完成安全头配置 |
+| 2025-02-09 | SEC-010 xlsx 库安全加固 | ✅ 完成文件大小限制（5MB）+ 魔数字节验证 |
+| 2025-02-09 | XSS 防护验证 | ✅ 已确认所有 dangerouslySetInnerHTML 使用 DOMPurify.sanitize |
+| 2025-02-09 | tmp 依赖修复 | ✅ 已更新到安全版本 |
+| 2025-02-09 | web 前端依赖检查 | ✅ 无漏洞 |
+
+## 安全修复详情 (2025-02-09)
+
+### SEC-010: xlsx 库安全加固
+
+**问题**: xlsx 库存在原型污染 + ReDoS 漏洞，无修复版本
+
+**缓解措施**:
+1. 文件大小限制: 5MB 最大限制
+2. 文件类型验证: 魔数字节检查（XLS: 0xD0CF11E0, XLSX: 0x504B0304）
+3. 仅允许管理员访问导入功能
+
+**代码变更**: `server/src/modules/question/question.controller.ts:294-347`
+
+### XSS 防护状态
+
+已验证以下文件正确使用 DOMPurify.sanitize:
+- `web/src/pages/agreement/Agreement.tsx:74`
+- `web/src/pages/teacher/TeacherQuestionList.tsx:322, 367`
+- `web/src/pages/admin/SystemSettings.tsx:1333`
+
+### 剩余待处理漏洞
+
+以下漏洞需要进一步评估：
+
+| 包名 | 严重程度 | 状态 | 建议 |
+|------|----------|------|------|
+| `xlsx` | High | 已缓解 | 考虑替换为 exceljs（中期待办） |
+| `cos-nodejs-sdk-v5` | Critical | 依赖链问题 | 考虑升级 SDK 版本 |
+| `form-data` | Critical | 开发依赖 | request 包的子依赖 |
+| `qs` | High | 开发依赖 | request 包的子依赖 |
+| `tough-cookie` | Moderate | 开发依赖 | request 包的子依赖 |
+| `tar` | High | bcrypt 子依赖 | 已有 bcrypt 6.0.0 但需兼容性测试 |
+| `fast-xml-parser` | High | minio 子依赖 | minio 已升级但可能需要测试 |
+| `glob` | High | 开发依赖 | @nestjs/cli 子依赖 |
+| `webpack` | High | 开发依赖 | @nestjs/cli 子依赖 |

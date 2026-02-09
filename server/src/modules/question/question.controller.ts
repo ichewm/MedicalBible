@@ -14,6 +14,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  PayloadTooLargeException,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import {
@@ -293,7 +294,7 @@ export class QuestionController {
   @Post("papers/:paperId/import")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("admin")
-  @UseInterceptors(FileInterceptor("file"))
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }))
   @ApiBearerAuth()
   @ApiOperation({ summary: "批量导入题目（Excel）" })
   @ApiConsumes("multipart/form-data")
@@ -305,7 +306,7 @@ export class QuestionController {
         file: {
           type: "string",
           format: "binary",
-          description: "Excel文件(.xlsx/.xls)",
+          description: "Excel文件(.xlsx/.xls)，最大5MB",
         },
       },
     },
@@ -314,6 +315,7 @@ export class QuestionController {
   @ApiResponse({ status: 400, description: "文件格式错误" })
   @ApiResponse({ status: 401, description: "未授权" })
   @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 413, description: "文件大小超过限制" })
   async importQuestions(
     @Param("paperId", ParseIntPipe) paperId: number,
     @UploadedFile() file: Express.Multer.File,
@@ -321,6 +323,26 @@ export class QuestionController {
     if (!file) {
       throw new BadRequestException("请上传Excel文件");
     }
+
+    // Validate file size (additional safety check)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      throw new PayloadTooLargeException("文件大小不能超过5MB");
+    }
+
+    // Validate file type by checking magic bytes
+    const excelSignatures = [
+      Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]), // XLS
+      Buffer.from([0x50, 0x4B, 0x03, 0x04]), // XLSX (ZIP)
+    ];
+    const isValidExcel = excelSignatures.some(sig =>
+      file.buffer.subarray(0, sig.length).equals(sig)
+    );
+
+    if (!isValidExcel) {
+      throw new BadRequestException("文件格式错误，请上传有效的Excel文件(.xlsx/.xls)");
+    }
+
     return this.questionService.importQuestionsFromExcel(paperId, file.buffer);
   }
 
