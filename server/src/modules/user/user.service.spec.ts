@@ -19,6 +19,7 @@ import { Profession } from "../../entities/profession.entity";
 import { VerificationCode } from "../../entities/verification-code.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import { UploadService } from "../upload/upload.service";
+import { SensitiveWordService } from "../../common/filter/sensitive-word.service";
 
 describe("UserService", () => {
   let service: UserService;
@@ -118,6 +119,13 @@ describe("UserService", () => {
     deleteFile: jest.fn(),
   };
 
+  const mockSensitiveWordService = {
+    containsSensitiveWord: jest.fn(),
+    findSensitiveWords: jest.fn(),
+    replaceSensitiveWords: jest.fn(),
+    validateNickname: jest.fn(),
+  };
+
   const mockVerificationCodeRepository = {
     findOne: jest.fn(),
     update: jest.fn(),
@@ -159,6 +167,10 @@ describe("UserService", () => {
           provide: UploadService,
           useValue: mockUploadService,
         },
+        {
+          provide: SensitiveWordService,
+          useValue: mockSensitiveWordService,
+        },
       ],
     }).compile();
 
@@ -178,6 +190,12 @@ describe("UserService", () => {
 
     // 清除所有 mock 的调用记录
     jest.clearAllMocks();
+
+    // 设置默认的 mock 返回值
+    mockSensitiveWordService.validateNickname.mockReturnValue({ valid: true });
+    mockSensitiveWordService.containsSensitiveWord.mockReturnValue(false);
+    mockSensitiveWordService.findSensitiveWords.mockReturnValue([]);
+    mockSensitiveWordService.replaceSensitiveWords.mockImplementation((text: string) => text);
   });
 
   describe("定义检查", () => {
