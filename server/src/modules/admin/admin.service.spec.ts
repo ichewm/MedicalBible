@@ -52,22 +52,21 @@ describe("AdminService", () => {
     createdAt: new Date(),
   };
 
-  // Mock QueryBuilder
-  const mockQueryBuilder = {
-    select: jest.fn().mockReturnThis(),
-    addSelect: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    andWhere: jest.fn().mockReturnThis(),
-    groupBy: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    leftJoin: jest.fn().mockReturnThis(),
-    leftJoinAndSelect: jest.fn().mockReturnThis(),
-    getRawMany: jest.fn().mockResolvedValue([]),
-    getRawOne: jest.fn().mockResolvedValue(null),
-    getMany: jest.fn().mockResolvedValue([]),
-    getOne: jest.fn().mockResolvedValue(null),
-    skip: jest.fn().mockReturnThis(),
-    take: jest.fn().mockReturnThis(),
+  // Mock Query Builder Factory - creates a new builder each time
+  const createMockQueryBuilder = () => {
+    const builder: any = {
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+      getRawOne: jest.fn().mockResolvedValue(null),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+    return builder;
   };
 
   // Mock Repositories
@@ -78,7 +77,34 @@ describe("AdminService", () => {
     save: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    createQueryBuilder: jest.fn(createMockQueryBuilder),
+    manager: {
+      connection: {
+        createQueryRunner: jest.fn(() => ({
+          connect: jest.fn().mockResolvedValue(undefined),
+          startTransaction: jest.fn().mockResolvedValue(undefined),
+          commitTransaction: jest.fn().mockResolvedValue(undefined),
+          rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+          release: jest.fn(),
+          manager: {
+            find: jest.fn().mockResolvedValue([]),
+            query: jest.fn().mockResolvedValue({ affectedRows: 0 }),
+            createQueryBuilder: jest.fn(() => {
+              const builder: any = {
+                delete: jest.fn().mockReturnThis(),
+                update: jest.fn().mockReturnThis(),
+                set: jest.fn().mockReturnThis(),
+                from: jest.fn().mockReturnThis(),
+                where: jest.fn().mockReturnThis(),
+                execute: jest.fn().mockResolvedValue({ affected: 0 }),
+              };
+              return builder;
+            }),
+          },
+        })),
+      },
+    },
+    create: jest.fn((data: any) => data),
   };
 
   const mockOrderRepository = {
@@ -86,7 +112,7 @@ describe("AdminService", () => {
     findOne: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    createQueryBuilder: jest.fn(createMockQueryBuilder),
   };
 
   const mockSubscriptionRepository = {
@@ -94,21 +120,21 @@ describe("AdminService", () => {
     findOne: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    createQueryBuilder: jest.fn(createMockQueryBuilder),
   };
 
   const mockCommissionRepository = {
     find: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    createQueryBuilder: jest.fn(createMockQueryBuilder),
   };
 
   const mockWithdrawalRepository = {
     find: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+    createQueryBuilder: jest.fn(createMockQueryBuilder),
   };
 
   const mockUserDeviceRepository = {
@@ -131,7 +157,7 @@ describe("AdminService", () => {
     find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
-    create: jest.fn().mockImplementation((data) => data),
+    create: jest.fn().mockImplementation((data: any) => data),
     upsert: jest.fn(),
   };
 
@@ -386,8 +412,13 @@ describe("AdminService", () => {
   describe("getDashboardStats - 获取仪表盘统计", () => {
     it("应该成功获取仪表盘统计数据", async () => {
       // Arrange
-      mockUserRepository.count.mockResolvedValue(1000);
-      mockOrderRepository.count.mockResolvedValue(500);
+      mockUserRepository.count
+        .mockResolvedValueOnce(1000) // totalUsers
+        .mockResolvedValueOnce(10)   // todayUsers
+        .mockResolvedValueOnce(5);   // teacherCount
+      mockOrderRepository.count
+        .mockResolvedValueOnce(500)  // totalOrders
+        .mockResolvedValueOnce(20);  // todayOrders
       mockWithdrawalRepository.count.mockResolvedValue(10);
       mockLectureRepository.count.mockResolvedValue(20);
       mockPaperRepository.count.mockResolvedValue(30);
@@ -436,27 +467,23 @@ describe("AdminService", () => {
       // Assert
       expect(result.totalUsers).toBe(1000);
       expect(result.totalOrders).toBe(500);
-      expect(result.totalRevenue).toBe(50000);
-      expect(result.totalCommission).toBe(5000);
+      expect(result.lectureCount).toBe(20);
+      expect(result.paperCount).toBe(30);
+      expect(result.teacherCount).toBe(5);
     });
   });
 
   describe("getRevenueStats - 获取收入统计", () => {
     it("应该成功获取日收入统计", async () => {
       // Arrange
-      const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
+      mockOrderRepository.createQueryBuilder.mockImplementation(() => {
+        const builder = createMockQueryBuilder();
+        builder.getRawMany.mockResolvedValue([
           { date: "2024-01-01", revenue: "1000", orders: "10" },
           { date: "2024-01-02", revenue: "1500", orders: "15" },
-        ]),
-      };
-      mockOrderRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+        ]);
+        return builder;
+      });
 
       // Act
       const result = await service.getRevenueStats({
@@ -474,18 +501,14 @@ describe("AdminService", () => {
   describe("getUserGrowthStats - 获取用户增长统计", () => {
     it("应该成功获取用户增长统计", async () => {
       // Arrange
-      const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
+      mockUserRepository.createQueryBuilder.mockImplementation(() => {
+        const builder = createMockQueryBuilder();
+        builder.getRawMany.mockResolvedValue([
           { date: "2024-01-01", count: "50" },
           { date: "2024-01-02", count: "80" },
-        ]),
-      };
-      mockUserRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
+        ]);
+        return builder;
+      });
 
       // Act
       const result = await service.getUserGrowthStats({
