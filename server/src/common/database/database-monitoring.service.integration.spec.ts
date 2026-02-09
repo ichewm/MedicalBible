@@ -26,7 +26,7 @@
 
 import { Test, TestingModule } from "@nestjs/testing";
 import { DatabaseMonitoringService } from "./database-monitoring.service";
-import { DataSource, QueryRunner } from "typeorm";
+import { DataSource } from "typeorm";
 import { BadRequestException } from "@nestjs/common";
 
 /**
@@ -228,12 +228,6 @@ describe("DatabaseMonitoringService Integration Tests", () => {
       const mockFragmentation = [
         { tableName: "user_answers", fragmentationPercent: 25.5, recommendation: "Consider OPTIMIZE" },
       ];
-
-      const mockSlowQueryStatus = {
-        enabled: true,
-        longQueryTime: 1,
-        logQueriesNotUsingIndexes: true,
-      };
 
       // Mock all queries
       mockDataSource.query.mockImplementation(async (sql: string) => {

@@ -26,7 +26,6 @@ export enum ExamSessionStatus {
 @Entity("exam_sessions")
 @Index("idx_exam_sessions_user_deleted_time", ["userId", "isDeleted", "startAt"])
 @Index("idx_exam_sessions_id_user", ["id", "userId"])
-@Index("idx_exam_sessions_user_deleted", ["userId", "isDeleted"])
 export class ExamSession {
   /** 会话 ID (UUID) */
   @PrimaryColumn({ type: "varchar", length: 36, comment: "会话 ID (UUID)" })
