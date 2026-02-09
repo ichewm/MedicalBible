@@ -48,6 +48,14 @@ describe("TransactionService", () => {
     // Reset mocks before each test
     jest.clearAllMocks();
 
+    // Reset all mock implementations to default (resolved values)
+    mockQueryRunner.connect.mockResolvedValue(undefined);
+    mockQueryRunner.startTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.commitTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.rollbackTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.release.mockResolvedValue(undefined);
+    mockQueryRunner.query.mockResolvedValue(undefined);
+
     // Setup default mock behavior
     mockDataSource.createQueryRunner.mockReturnValue(mockQueryRunner);
     mockQueryRunner.manager.getRepository.mockReturnValue({

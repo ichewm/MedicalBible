@@ -17,6 +17,7 @@ import { Commission, CommissionStatus } from "../../entities/commission.entity";
 import { Withdrawal, WithdrawalStatus } from "../../entities/withdrawal.entity";
 import { Order, OrderStatus } from "../../entities/order.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
+import { TransactionService } from "../../common/database/transaction.service";
 import {
   CommissionQueryDto,
   WithdrawalQueryDto,
@@ -113,6 +114,50 @@ describe("AffiliateService", () => {
     findOne: jest.fn(),
   };
 
+  const mockTransactionService = {
+    runInTransaction: jest.fn().mockImplementation(async (callback) => {
+      // Create a mock query runner with getRepository that returns appropriate mock repos
+      const mockQueryRunner = {
+        manager: {
+          getRepository: (entity: any) => {
+            // Match based on entity constructor name or metadata
+            const entityName = entity?.name || entity?.metadata?.name || '';
+            if (entityName === 'User' || entityName === 'users') return mockUserRepository;
+            if (entityName === 'Withdrawal' || entityName === 'withdrawals') return mockWithdrawalRepository;
+            if (entityName === 'Commission' || entityName === 'commissions') return mockCommissionRepository;
+            // Try constructor check
+            if (entity.prototype instanceof User) return mockUserRepository;
+            return {};
+          },
+        },
+      };
+      return callback(mockQueryRunner);
+    }),
+    runAtomic: jest.fn().mockImplementation(async (callback) => {
+      const mockQueryRunner = {
+        manager: {
+          getRepository: (entity: any) => {
+            const entityName = entity?.name || entity?.metadata?.name || '';
+            if (entityName === 'User' || entityName === 'users') return mockUserRepository;
+            if (entityName === 'Withdrawal' || entityName === 'withdrawals') return mockWithdrawalRepository;
+            if (entityName === 'Commission' || entityName === 'commissions') return mockCommissionRepository;
+            if (entity.prototype instanceof User) return mockUserRepository;
+            return {};
+          },
+        },
+      };
+      return callback(mockQueryRunner);
+    }),
+    getRepository: jest.fn().mockImplementation((qr, entity) => {
+      // This method is called directly on transactionService
+      const entityName = entity?.name || '';
+      if (entityName === 'User' || entityName === 'users') return mockUserRepository;
+      if (entityName === 'Withdrawal' || entityName === 'withdrawals') return mockWithdrawalRepository;
+      if (entityName === 'Commission' || entityName === 'commissions') return mockCommissionRepository;
+      return mockUserRepository; // Default fallback
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -131,6 +176,7 @@ describe("AffiliateService", () => {
           provide: getRepositoryToken(SystemConfig),
           useValue: mockSystemConfigRepository,
         },
+        { provide: TransactionService, useValue: mockTransactionService },
       ],
     }).compile();
 

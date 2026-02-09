@@ -19,6 +19,7 @@ import { Profession } from "../../entities/profession.entity";
 import { VerificationCode } from "../../entities/verification-code.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import { UploadService } from "../upload/upload.service";
+import { SensitiveWordService } from "../../common/filter/sensitive-word.service";
 
 describe("UserService", () => {
   let service: UserService;
@@ -123,6 +124,12 @@ describe("UserService", () => {
     update: jest.fn(),
   };
 
+  const mockSensitiveWordService = {
+    containsSensitiveWord: jest.fn(),
+    filterSensitiveWords: jest.fn(),
+    validateNickname: jest.fn().mockReturnValue({ valid: true }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -158,6 +165,10 @@ describe("UserService", () => {
         {
           provide: UploadService,
           useValue: mockUploadService,
+        },
+        {
+          provide: SensitiveWordService,
+          useValue: mockSensitiveWordService,
         },
       ],
     }).compile();
