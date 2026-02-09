@@ -67,7 +67,7 @@ const mockJwtService = {
  * Mock Reflector for role-based access control
  */
 const mockReflector = {
-  getAllAndOverride: jest.fn((key: string) => {
+  getAllAndOverride: jest.fn((key: string, _metadata?: any[]) => {
     if (key === "roles") {
       return ["admin"]; // Database monitoring requires admin role
     }
@@ -232,10 +232,10 @@ async function createTestApp(): Promise<INestApplication> {
     .useValue({
       canActivate: (context: ExecutionContext) => {
         const request = context.switchToHttp().getRequest();
-        const requiredRoles = mockReflector.getAllAndOverride<string[]>("roles", [
+        const requiredRoles = mockReflector.getAllAndOverride("roles", [
           context.getHandler(),
           context.getClass(),
-        ] as any[]);
+        ]) || [];
 
         if (!requiredRoles || requiredRoles.length === 0) {
           return true;
