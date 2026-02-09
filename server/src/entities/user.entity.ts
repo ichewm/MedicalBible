@@ -17,6 +17,7 @@ import {
   Index,
 } from "typeorm";
 import { UserDevice } from "./user-device.entity";
+import { TokenFamily } from "./token-family.entity";
 import { Order } from "./order.entity";
 import { Subscription } from "./subscription.entity";
 import { UserAnswer } from "./user-answer.entity";
@@ -209,6 +210,10 @@ export class User {
   /** 用户设备列表 */
   @OneToMany(() => UserDevice, (device) => device.user)
   devices: UserDevice[];
+
+  /** 令牌族列表 */
+  @OneToMany(() => TokenFamily, (tokenFamily) => tokenFamily.user)
+  tokenFamilies: TokenFamily[];
 
   /** 订单列表 */
   @OneToMany(() => Order, (order) => order.user)

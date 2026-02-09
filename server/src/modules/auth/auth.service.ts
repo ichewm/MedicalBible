@@ -31,6 +31,7 @@ import {
 import { RedisService } from "../../common/redis/redis.service";
 import { EmailService } from "../notification/email.service";
 import { SmsService } from "../notification/sms.service";
+import { RefreshTokenService } from "./services/refresh-token.service";
 import {
   SendVerificationCodeDto,
   SendVerificationCodeResponseDto,
@@ -76,6 +77,7 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
     private readonly smsService: SmsService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
 
   /**
@@ -469,16 +471,38 @@ export class AuthService {
    * 退出登录
    * @param userId - 用户 ID
    * @param deviceId - 设备 ID
-   * @param token - 当前 Token
+   * @param token - 当前访问令牌
+   * @param refreshToken - 刷新令牌（可选，用于撤销令牌族）
    * @returns 退出结果
    */
   async logout(
     userId: number,
     deviceId: string,
     token: string,
+    refreshToken?: string,
   ): Promise<{ success: boolean; message: string }> {
-    // 将 Token 加入黑名单
+    // 将访问令牌加入黑名单
     await this.redisService.sadd(`token:blacklist:${userId}`, token);
+
+    // 如果提供了刷新令牌，撤销对应的令牌族
+    if (refreshToken) {
+      try {
+        const payload = await this.jwtService.verifyAsync(refreshToken, {
+          secret: this.configService.get<string>("jwt.refreshTokenSecret"),
+          ignoreExpiration: true,
+        });
+
+        if (payload.familyId) {
+          await this.refreshTokenService.revokeTokenFamily(
+            payload.familyId,
+            "user_logout",
+          );
+        }
+      } catch (error) {
+        // 忽略刷新令牌验证错误，继续执行登出
+        this.logger.debug(`Failed to revoke token family on logout: ${error.message}`);
+      }
+    }
 
     // 删除设备记录
     await this.userDeviceRepository.delete({ userId, deviceId });
@@ -505,27 +529,23 @@ export class AuthService {
 
   /**
    * 刷新 Token
-   * @param token - 当前的访问令牌
+   * @param refreshToken - 当前的刷新令牌
    * @returns 新的 Token
-   * @throws UnauthorizedException 当 Token 无效或在黑名单中时
+   * @throws UnauthorizedException 当 Token 无效或检测到重放攻击时
    */
-  async refreshToken(token: string): Promise<RefreshTokenResponseDto> {
+  async refreshToken(refreshToken: string): Promise<RefreshTokenResponseDto> {
     try {
-      // 验证旧 Token
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>("jwt.secret"),
+      // 使用 RefreshTokenService 进行令牌轮换
+      const result = await this.refreshTokenService.rotateRefreshToken(
+        refreshToken,
+      );
+
+      // 验证用户状态
+      const payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: this.configService.get<string>("jwt.refreshTokenSecret"),
+        ignoreExpiration: true,
       });
 
-      // 检查 Token 是否在黑名单
-      const isBlacklisted = await this.redisService.sismember(
-        `token:blacklist:${payload.sub}`,
-        token,
-      );
-      if (isBlacklisted) {
-        throw new UnauthorizedException("Token 已失效");
-      }
-
-      // 获取用户信息
       const user = await this.userRepository.findOne({
         where: { id: payload.sub },
       });
@@ -541,14 +561,8 @@ export class AuthService {
         throw new UnauthorizedException("设备已失效，请重新登录");
       }
 
-      // 将旧 Token 加入黑名单
-      await this.redisService.sadd(`token:blacklist:${payload.sub}`, token);
-
-      // 生成新 Token
-      const tokens = await this.generateTokens(user, payload.deviceId);
-
       // 更新设备 Token 签名
-      const tokenSignature = this.getTokenSignature(tokens.accessToken);
+      const tokenSignature = this.getTokenSignature(result.accessToken);
       await this.userDeviceRepository.save({
         ...device,
         tokenSignature,
@@ -556,10 +570,11 @@ export class AuthService {
       });
 
       return {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        tokenType: "Bearer",
-        expiresIn: tokens.expiresIn,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        tokenType: result.tokenType,
+        expiresIn: result.expiresIn,
+        rotated: result.rotated,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
@@ -775,17 +790,17 @@ export class AuthService {
       deviceId,
     };
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>("jwt.secret"),
-        expiresIn: this.configService.get<string>("jwt.expiresIn") || "7d",
-      }),
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>("jwt.secret"),
-        expiresIn:
-          this.configService.get<string>("jwt.refreshExpiresIn") || "30d",
-      }),
-    ]);
+    // 生成访问令牌（15分钟过期）
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>("jwt.secret"),
+      expiresIn: this.configService.get<string>("jwt.accessTokenExpires") || "15m",
+    });
+
+    // 使用 RefreshTokenService 生成刷新令牌（支持令牌族和轮换）
+    const { token: refreshToken } = await this.refreshTokenService.generateRefreshToken(
+      user.id,
+      deviceId,
+    );
 
     // 更新设备的 Token 签名
     const tokenSignature = this.getTokenSignature(accessToken);
@@ -798,7 +813,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       tokenType: "Bearer",
-      expiresIn: 7 * 24 * 60 * 60, // 7天（秒）
+      expiresIn: 15 * 60, // 15分钟（秒）
     };
   }
 
