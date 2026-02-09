@@ -270,6 +270,27 @@ docker compose -f docker-compose.prod.yml restart frontend
 - 腾讯云云监控
 - Prometheus + Grafana (自建)
 
+### 数据库连接池监控
+
+生产环境建议监控以下数据库连接池指标（详见 `server/docs/DATABASE_CONNECTION_POOL.md`）：
+
+**监控端点**（需管理员权限）：
+- `/admin/database/pool/status` - 连接池实时状态
+- `/admin/database/pool/config` - 连接池配置
+- `/admin/database/pool/health-check` - 健康检查
+- `/admin/database/pool/alerts` - 告警历史
+
+**告警阈值**：
+- WARNING: 连接池利用率 > 70%
+- CRITICAL: 连接池利用率 > 90%
+
+**配置建议**（中等流量生产环境）：
+```bash
+DB_POOL_MAX=30
+DB_POOL_MIN=5
+DB_POOL_ACQUIRE_TIMEOUT=30000
+```
+
 ---
 
 ## 快速检查清单
