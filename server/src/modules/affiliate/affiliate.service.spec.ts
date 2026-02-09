@@ -18,7 +18,6 @@ import { Commission, CommissionStatus } from "../../entities/commission.entity";
 import { Withdrawal, WithdrawalStatus } from "../../entities/withdrawal.entity";
 import { Order, OrderStatus } from "../../entities/order.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
-import { TransactionService } from "../../common/database/transaction.service";
 import {
   CommissionQueryDto,
   WithdrawalQueryDto,
@@ -350,14 +349,14 @@ describe("AffiliateService", () => {
           getRawOne: jest.fn(async () => {
             callCount++;
             if (callCount === 1) return { total: "100" }; // 总佣金
-            if (callCount === 2) return { total: "80" }; // 可用佣金
+            if (callCount === 2) return { total: "80" }; // 可用佣金 (注意：实际实现中使用的是用户余额)
             if (callCount === 3) return { total: "20" }; // 冻结佣金
             return { total: "0" };
           }),
         };
         return queryBuilder;
       });
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockUserRepository.findOne.mockResolvedValue(mockUser); // balance = 100
       mockUserRepository.count.mockResolvedValue(5);
       mockSystemConfigRepository.findOne.mockResolvedValue({ configValue: "10" });
 
@@ -366,6 +365,7 @@ describe("AffiliateService", () => {
 
       // Assert
       expect(result.totalCommission).toBe(100);
+      // 注意：availableCommission 实际上是用户余额，不是可用佣金总和
       expect(result.availableCommission).toBe(100); // availableCommission = user.balance
       expect(result.frozenCommission).toBe(20);
       expect(result.balance).toBe(100);
