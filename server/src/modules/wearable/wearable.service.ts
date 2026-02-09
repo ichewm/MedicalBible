@@ -458,7 +458,7 @@ export class WearableService {
       dataSource: connection.dataSource,
       status: connection.status,
       deviceInfo: connection.deviceInfo as Record<string, unknown> | undefined,
-      authorizedDataTypes: connection.authorizedDataTypes,
+      authorizedDataTypes: connection.authorizedDataTypes ?? undefined,
       lastSyncAt: connection.lastSyncAt ?? undefined,
       errorMessage: connection.errorMessage ?? undefined,
       errorCount: connection.errorCount,

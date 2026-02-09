@@ -18,6 +18,9 @@ import {
 import { User } from "./user.entity";
 import { HealthDataSource } from "./wearable-connection.entity";
 
+// Re-export HealthDataSource for convenience (allows importing from this file)
+export { HealthDataSource };
+
 /**
  * 健康数据类型枚举
  * 对应 HealthKit 和 Health Connect 的数据类型
