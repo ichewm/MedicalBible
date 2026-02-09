@@ -396,7 +396,11 @@ npm run dev
 - SQL 注入防护
 - XSS 防护
 - CSRF 防护
-- Rate Limiting
+- **Rate Limiting (SEC-001)**: 基于 Redis 的滑动窗口限流
+  - 认证端点限流（登录：10次/小时，注册：5次/分钟）
+  - 验证码限流（10次/天）
+  - 密码重置限流（5次/分钟）
+  - 速率限制响应头（X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset）
 - HTTPS 支持
 - **结构化日志**: 使用 Pino 结构化日志 + 关联 ID 追踪（无 console.log，防止敏感信息泄露）
 
@@ -405,6 +409,26 @@ npm run dev
 - 生产环境: 必须通过 `CORS_ORIGIN` 环境变量指定具体域名
 - 支持逗号分隔的多个域名: `https://example.com,https://app.example.com`
 - 生产环境使用通配符 (`*`) 将导致应用拒绝启动
+
+**限流配置说明**:
+- 基于 Redis 的滑动窗口限流实现
+- 支持多种限流策略：按IP、按用户、全局限流
+- 预设限流配置：
+  - `strict`: 5次/分钟（注册、重置密码等）
+  - `standard`: 30次/分钟（常规端点）
+  - `relaxed`: 100次/分钟（宽松端点）
+  - `login`: 10次/小时（登录端点）
+  - `verificationCode`: 10次/天（验证码端点）
+- 可通过环境变量配置：
+  - `RATE_LIMIT_ENABLED`: 启用/禁用限流 (默认: true)
+  - `RATE_LIMIT_AUTH_MAX`: 认证端点限流次数 (默认: 10)
+  - `RATE_LIMIT_AUTH_WINDOW`: 认证端点时间窗口秒 (默认: 3600)
+  - `RATE_LIMIT_STANDARD_MAX`: 标准端点限流次数 (默认: 30)
+  - `RATE_LIMIT_STANDARD_WINDOW`: 标准端点时间窗口秒 (默认: 60)
+  - `RATE_LIMIT_STRICT_MAX`: 严格端点限流次数 (默认: 5)
+  - `RATE_LIMIT_VERIFICATION_MAX`: 验证码限流次数 (默认: 10)
+  - `RATE_LIMIT_VERIFICATION_WINDOW`: 验证码时间窗口秒 (默认: 86400)
+- 速率限制响应头：`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 
 ## 📈 性能
 
@@ -440,6 +464,13 @@ npm run dev
 
 ### v1.3.0 (2026-02-09)
 
+- 🔒 **限流守卫 (SEC-001)**: 基于 Redis 的滑动窗口限流
+  - 认证端点限流（登录：10次/小时，注册：5次/分钟）
+  - 验证码限流（10次/天）
+  - 密码重置限流（5次/分钟）
+  - 速率限制响应头（X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset）
+  - 支持按IP、按用户、全局限流策略
+  - 可通过环境变量配置
 - 🎤 **语音控制原型**: 基于 Web Speech API 的语音命令系统
   - 导航命令（首页、题库、讲义、错题本等）
   - 答题命令（选择答案、上下翻题、标记、提交）
