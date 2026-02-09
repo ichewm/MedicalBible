@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/auth'
 import Logo from '@/components/Logo'
+import VoiceControl from '@/components/VoiceControl'
 import request from '@/utils/request'
 import type { MenuProps } from 'antd'
 import { logger } from '@/utils'
@@ -341,6 +342,9 @@ const MainLayout = () => {
           <Outlet />
         </Content>
       </Layout>
+
+      {/* 语音控制浮动按钮 */}
+      <VoiceControl />
     </Layout>
   )
 }
