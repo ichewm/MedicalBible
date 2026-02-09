@@ -12,6 +12,7 @@ import { NotFoundException, BadRequestException } from "@nestjs/common";
 import { plainToInstance } from "class-transformer";
 
 import { AffiliateService } from "./affiliate.service";
+import { TransactionService } from "../../common/database/transaction.service";
 import { User } from "../../entities/user.entity";
 import { Commission, CommissionStatus } from "../../entities/commission.entity";
 import { Withdrawal, WithdrawalStatus } from "../../entities/withdrawal.entity";
@@ -157,7 +158,6 @@ describe("AffiliateService", () => {
       return mockUserRepository; // Default fallback
     }),
   };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -176,7 +176,10 @@ describe("AffiliateService", () => {
           provide: getRepositoryToken(SystemConfig),
           useValue: mockSystemConfigRepository,
         },
-        { provide: TransactionService, useValue: mockTransactionService },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
+        },
       ],
     }).compile();
 
@@ -338,18 +341,22 @@ describe("AffiliateService", () => {
   describe("getCommissionStats - 获取佣金统计", () => {
     it("应该成功获取佣金统计", async () => {
       // Arrange
-      const queryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getRawOne: jest
-          .fn()
-          .mockResolvedValueOnce({ total: "100" }) // 总佣金
-          .mockResolvedValueOnce({ total: "80" }) // 可用佣金（查询了但未使用，service使用user.balance）
-          .mockResolvedValueOnce({ total: "20" }) // 冻结佣金
-          .mockResolvedValueOnce({ total: "10" }), // 最低提现金额配置
-      };
-      mockCommissionRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      let callCount = 0;
+      mockCommissionRepository.createQueryBuilder.mockImplementation(() => {
+        const queryBuilder = {
+          select: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          getRawOne: jest.fn(async () => {
+            callCount++;
+            if (callCount === 1) return { total: "100" }; // 总佣金
+            if (callCount === 2) return { total: "80" }; // 可用佣金
+            if (callCount === 3) return { total: "20" }; // 冻结佣金
+            return { total: "0" };
+          }),
+        };
+        return queryBuilder;
+      });
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockUserRepository.count.mockResolvedValue(5);
       mockSystemConfigRepository.findOne.mockResolvedValue({ configValue: "10" });
