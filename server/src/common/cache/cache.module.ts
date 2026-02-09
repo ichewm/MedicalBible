@@ -6,8 +6,6 @@
  */
 
 import { Global, Module } from "@nestjs/common";
-import { JwtModule } from "@nestjs/jwt";
-import { ConfigModule } from "@nestjs/config";
 import { CacheService } from "./cache.service";
 import { CacheController } from "./cache.controller";
 
@@ -17,13 +15,6 @@ import { CacheController } from "./cache.controller";
  */
 @Global()
 @Module({
-  imports: [
-    ConfigModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'fallback-secret',
-      signOptions: { expiresIn: '15m' },
-    }),
-  ],
   providers: [CacheService],
   controllers: [CacheController],
   exports: [CacheService],
