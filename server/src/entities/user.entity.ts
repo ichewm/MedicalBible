@@ -43,6 +43,7 @@ export enum UserStatus {
  * @description 存储用户基本信息、账户余额、邀请关系等
  */
 @Entity("users")
+@Index("idx_users_status_closed", ["status", "closedAt"])
 export class User {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键，自增" })

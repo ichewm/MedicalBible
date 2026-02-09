@@ -23,6 +23,7 @@ import { Subject } from "./subject.entity";
  */
 @Entity("user_wrong_books")
 @Index("idx_user_wrong_books_filter", ["userId", "subjectId", "isDeleted"])
+@Index("idx_user_wrong_books_user_last_wrong", ["userId", "lastWrongAt"])
 export class UserWrongBook {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键" })
