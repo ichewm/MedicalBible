@@ -23,16 +23,16 @@ export const jwtConfig = registerAs("jwt", () => ({
       throw new Error('JWT_SECRET environment variable is required');
     })(),
 
-  /** Refresh Token 签名密钥 - 与 Access Token 使用不同密钥提高安全性 */
+  /** Refresh Token 签名密钥（独立于 Access Token 密钥，提高安全性） */
   refreshTokenSecret:
     process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || (() => {
       throw new Error('JWT_REFRESH_SECRET environment variable is required (or fallback to JWT_SECRET)');
     })(),
 
-  /** Access Token 过期时间 - 短期有效，15分钟安全最佳实践 */
+  /** Access Token 过期时间（15分钟，安全最佳实践） */
   accessTokenExpires: process.env.JWT_ACCESS_EXPIRES || "15m",
 
-  /** Refresh Token 过期时间 - 7天平衡安全性与用户体验 */
+  /** Refresh Token 过期时间（7天，平衡安全性和用户体验） */
   refreshTokenExpires: process.env.JWT_REFRESH_EXPIRES || "7d",
 
   /** Token 签发者 */

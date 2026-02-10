@@ -52,6 +52,7 @@
 | `AUTH_TOKEN_EXPIRED` | 401 | Token 已过期 |
 | `AUTH_TOKEN_INVALID` | 401 | Token 无效或格式错误 |
 | `AUTH_REFRESH_TOKEN_EXPIRED` | 401 | Refresh Token 已过期 |
+| `AUTH_REPLAY_ATTACK_DETECTED` | 401 | 检测到重放攻击，令牌族已被撤销 |
 | `AUTH_ACCOUNT_DISABLED` | 403 | 账号已被禁用 |
 | `AUTH_PERMISSION_DENIED` | 403 | 权限不足 |
 
@@ -152,19 +153,32 @@ axios.interceptors.response.use(
     if (error.response?.status === 401) {
       const refreshToken = localStorage.getItem("refreshToken");
       if (refreshToken) {
-        // 尝试刷新 Token
-        const { data } = await axios.post("/api/v1/auth/refresh", { refreshToken });
-        localStorage.setItem("accessToken", data.accessToken);
-        // 重试原请求
-        return axios(error.config);
+        try {
+          // 尝试刷新 Token
+          const { data } = await axios.post("/api/v1/auth/refresh-token", { refreshToken });
+          localStorage.setItem("accessToken", data.accessToken);
+          localStorage.setItem("refreshToken", data.refreshToken);
+          // 重试原请求
+          return axios(error.config);
+        } catch (refreshError) {
+          // 刷新失败（可能是重放攻击或令牌过期），跳转登录
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          window.location.href = "/login";
+        }
       }
-      // 跳转登录
+      // 无刷新令牌，跳转登录
       window.location.href = "/login";
     }
     return Promise.reject(error);
   }
 );
 ```
+
+**Refresh Token 轮换机制**:
+- 每次使用 Refresh Token 刷新时，会返回新的 Refresh Token
+- 旧的 Refresh Token 立即失效
+- 如果检测到重放攻击（使用旧令牌），整个令牌族将被撤销，用户需重新登录
 
 ### 3.2 403 Forbidden
 

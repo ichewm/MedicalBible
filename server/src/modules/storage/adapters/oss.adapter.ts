@@ -8,6 +8,7 @@ import * as path from "path";
 import { v4 as uuidv4 } from "uuid";
 import {
   IStorageAdapter,
+  ICacheInvalidationAdapter,
   UploadOptions,
   UploadResult,
   StorageProvider,
@@ -22,7 +23,7 @@ export interface OSSStorageConfig {
   cdnDomain?: string;
 }
 
-export class OSSStorageAdapter implements IStorageAdapter {
+export class OSSStorageAdapter implements IStorageAdapter, ICacheInvalidationAdapter {
   private client: OSS;
   private bucket: string;
   private cdnDomain?: string;
@@ -120,5 +121,24 @@ export class OSSStorageAdapter implements IStorageAdapter {
       ".svg": "image/svg+xml",
     };
     return mimeTypes[ext.toLowerCase()] || "application/octet-stream";
+  }
+
+  /**
+   * 使单个文件缓存失效
+   * @description 阿里云 OSS 缓存刷新需要通过阿里云 CDN API 实现
+   */
+  async invalidateCache(_key: string): Promise<boolean> {
+    // 阿里云 OSS 缓存刷新需要单独实现，需要调用阿里云 CDN RefreshObjectCaches 接口
+    // 如果需要实现，可以引入 @alicloud/pop-core 包
+    return false;
+  }
+
+  /**
+   * 使目录下所有文件缓存失效
+   * @description 阿里云 OSS 目录缓存刷新需要通过阿里云 CDN API 实现
+   */
+  async invalidateDirectory(_directory: string): Promise<boolean> {
+    // 阿里云 OSS 缓存刷新需要单独实现，需要调用阿里云 CDN PushObjectCache 接口
+    return false;
   }
 }

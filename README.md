@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -224,8 +224,9 @@ chmod +x deploy.sh
 - **缓存**: Redis 6.2 + CacheService (Cache-Aside 模式)
 - **断路器**: opossum (Circuit Breaker 模式保护外部服务调用)
 - **ORM**: TypeORM
+- **WebSocket**: Socket.io (实时客服消息，支持连接限制、离线消息队列、心跳检测)
 - **文档**: Swagger/OpenAPI
-- **测试**: Jest (299个测试 + 集成测试)
+- **测试**: Jest（单元测试 + 集成测试）
 
 ### 前端技术
 
@@ -265,6 +266,7 @@ MedicalBible/
 │   │   │   ├── admin/     # 管理模块
 │   │   │   ├── data-export/ # 数据导出模块
 │   │   │   ├── rbac/      # RBAC角色权限模块
+│   │   │   ├── storage/   # 文件存储与CDN模块 (FEAT-004)
 │   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
 │   │   ├── config/        # 配置文件
@@ -334,7 +336,7 @@ npm run test:cov
 npm run test:e2e
 ```
 
-**测试结果**: ✅ 312/312 测试通过 (含 E2E 测试)
+**测试结果**: ✅ 359/359 测试通过 (含 E2E 测试 + CDN 存储测试)
 
 ### 前端测试
 
@@ -417,6 +419,12 @@ npm run dev
 - SQL 注入防护
 - XSS 防护
 - CSRF 防护
+- **WebSocket 安全 (API-003)**:
+  - JWT Token 认证（连接时验证）
+  - 每用户最大连接数限制（默认3个连接）
+  - 心跳检测和超时断开（25秒心跳，60秒超时）
+  - 消息队列支持离线用户（7天TTL）
+  - 自动重连策略（1秒-30秒指数退避，最多10次尝试）
 - **Rate Limiting (SEC-001)**: 基于 Redis 的滑动窗口限流
   - 认证端点限流（登录：10次/小时，注册：5次/分钟）
   - 验证码限流（10次/天）
@@ -450,6 +458,21 @@ npm run dev
   - `RATE_LIMIT_VERIFICATION_MAX`: 验证码限流次数 (默认: 10)
   - `RATE_LIMIT_VERIFICATION_WINDOW`: 验证码时间窗口秒 (默认: 86400)
 - 速率限制响应头：`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+
+**WebSocket 配置说明 (API-003)**:
+- 基于 Socket.io 的实时客服消息系统
+- 支持每用户多连接管理（默认最多3个同时连接）
+- 心跳检测机制防止僵尸连接（25秒间隔，60秒超时）
+- 离线消息队列存储（Redis，默认7天TTL）
+- 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
+- 可通过环境变量配置：
+  - `WS_MAX_CONNECTIONS_PER_USER`: 每用户最大连接数 (默认: 3)
+  - `WS_HEARTBEAT_INTERVAL`: 心跳间隔毫秒 (默认: 25000)
+  - `WS_CONNECTION_TIMEOUT`: 连接超时毫秒 (默认: 60000)
+  - `WS_MESSAGE_QUEUE_TTL`: 消息队列TTL秒 (默认: 604800)
+  - `WS_RECONNECT_DELAY_MIN`: 重连最小延迟毫秒 (默认: 1000)
+  - `WS_RECONNECT_DELAY_MAX`: 重连最大延迟毫秒 (默认: 30000)
+  - `WS_MAX_RECONNECT_ATTEMPTS`: 最大重连尝试次数 (默认: 10)
 
 ## 🗄️ 缓存管理 API
 
@@ -546,6 +569,91 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 - SKU 目录: 30 分钟
 - 试卷/讲义: 10 分钟
 - 题目数据: 1 小时
+
+## 🌐 文件存储与 CDN (FEAT-004)
+
+Medical Bible 平台提供统一的文件存储服务，支持多种存储后端和 CDN 加速：
+
+### 支持的存储提供商
+
+- **本地存储** (local): 文件系统存储，适用于开发环境
+- **AWS S3** (aws-s3): Amazon S3 对象存储
+- **阿里云 OSS** (aliyun-oss): 阿里云对象存储服务
+- **腾讯云 COS** (tencent-cos): 腾讯云对象存储服务
+- **MinIO** (minio): S3 兼容的自托管对象存储
+
+### CDN 缓存失效支持
+
+- **AWS CloudFront**: 支持单文件和目录级缓存失效
+- **Cloudflare**: 支持单文件和目录前缀清除
+
+### 核心特性
+
+- **统一接口**: `IStorageAdapter` 提供一致的存储操作 API
+- **断路器保护**: 外部存储服务故障时自动降级到本地存储
+- **配置热切换**: 可在运行时动态切换存储提供商
+- **敏感数据加密**: 存储密钥和 CDN Token 使用 AES-256-CBC 加密
+- **CDN URL 自动生成**: 上传后自动返回 CDN 加速 URL
+
+### 配置示例
+
+系统配置通过数据库 `system_configs` 表管理：
+
+| 配置键 | 说明 | 加密 |
+|--------|------|------|
+| `storage_provider` | 存储服务商 | 否 |
+| `storage_cdn_domain` | CDN 加速域名 | 否 |
+| `storage_s3_region` | AWS S3 区域 | 否 |
+| `storage_s3_access_key_id` | S3 访问密钥 ID | 否 |
+| `storage_s3_secret_access_key` | S3 访问密钥 | ✅ 是 |
+| `storage_s3_bucket` | S3 存储桶名称 | 否 |
+| `storage_cache_invalidation_enabled` | 启用 CDN 缓存失效 | 否 |
+| `storage_cache_invalidation_provider` | CDN 服务商 (cloudfront/cloudflare) | 否 |
+| `storage_cf_distribution_id` | CloudFront 分发 ID | 否 |
+| `storage_cf_zone_id` | Cloudflare 区域 ID | 否 |
+| `storage_cf_api_token` | Cloudflare API Token | ✅ 是 |
+
+### 使用示例
+
+```typescript
+import { StorageService } from '@/modules/storage';
+
+constructor(private readonly storageService: StorageService) {}
+
+async uploadLecture(file: Buffer, filename: string) {
+  const result = await this.storageService.upload(
+    file,
+    filename,
+    {
+      directory: 'lectures',
+      contentType: 'application/pdf',
+      isPublic: true,
+    }
+  );
+
+  // result.url: "https://cdn.example.com/lectures/123-abc.pdf"
+  // result.key: "lectures/123-abc.pdf"
+  return result.url;
+}
+
+async deleteLecture(key: string) {
+  await this.storageService.delete(key);
+  // CDN 缓存失效会自动尝试（如果已配置）
+}
+```
+
+### 安全特性
+
+- **配置加密**: 所有敏感配置使用 AES-256-CBC 加密存储
+- **加密密钥**: 必须通过 `CONFIG_ENCRYPTION_KEY` 环境变量提供
+- **断路器降级**: 外部服务不可用时自动使用本地存储
+- **日志脱敏**: 敏感信息在日志中自动截断
+
+### 环境变量
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `CONFIG_ENCRYPTION_KEY` | ✅ | 配置加密密钥（至少32字符） |
 
 ## 🔌 前端 API 客户端
 
@@ -678,7 +786,6 @@ interface ErrorResponse {
 - `ERR_1400-1499`: 会员错误
 - `ERR_1500-1599`: 内容错误
 - `ERR_1900-1999`: 系统错误
-
 ## 📈 性能
 
 - 后端响应时间: < 100ms
@@ -722,6 +829,21 @@ interface ErrorResponse {
   - 完整的 TypeScript 类型支持和错误码枚举
   - 单元测试覆盖（新增 4 个测试文件）
 
+- ✅ **CDN 集成** (FEAT-004): 静态资源 CDN 加速与缓存管理
+  - 支持多种存储后端（AWS S3、阿里云 OSS、腾讯云 COS、MinIO）
+  - 支持 CloudFront 和 Cloudflare CDN 缓存失效
+  - 断路器模式保护外部存储调用
+  - 自动降级到本地存储
+  - 敏感配置加密存储
+  - 统一存储接口，支持热切换存储提供商
+  - 47 个单元测试覆盖
+
+- 🔌 **WebSocket 连接限制和优化 (API-003)**: 实时客服消息系统增强
+  - 每用户最大连接数限制（默认3个，支持环境变量配置）
+  - 离线消息队列支持（Redis，默认7天TTL）
+  - 连接心跳检测和超时断开（25秒心跳间隔，60秒超时）
+  - 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
+  - 完整的 WebSocket 配置单元测试覆盖
 ### v1.7.0 (2026-02-09)
 
 - ✅ 实现用户活动追踪和分析系统

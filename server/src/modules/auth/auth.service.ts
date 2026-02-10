@@ -471,32 +471,36 @@ export class AuthService {
    * 退出登录
    * @param userId - 用户 ID
    * @param deviceId - 设备 ID
-   * @param token - 当前 Access Token
+   * @param token - 当前访问令牌
+   * @param refreshToken - 刷新令牌（可选，用于撤销令牌族）
    * @returns 退出结果
    */
   async logout(
     userId: number,
     deviceId: string,
     token: string,
+    refreshToken?: string,
   ): Promise<{ success: boolean; message: string }> {
-    // 将 Access Token 加入黑名单
+    // 将访问令牌加入黑名单
     await this.redisService.sadd(`token:blacklist:${userId}`, token);
 
-    // 获取设备的 refresh token family 并撤销
-    const device = await this.userDeviceRepository.findOne({
-      where: { userId, deviceId },
-    });
+    // 如果提供了刷新令牌，撤销对应的令牌族
+    if (refreshToken) {
+      try {
+        const payload = await this.jwtService.verifyAsync(refreshToken, {
+          secret: this.configService.get<string>("jwt.refreshTokenSecret"),
+          ignoreExpiration: true,
+        });
 
-    if (device) {
-      // 从 Redis 查找该设备关联的 refresh token family
-      const userFamiliesKey = `refresh:user:${userId}:families`;
-      const redis = this.redisService.getClient();
-      const familyIds = await redis.smembers(userFamiliesKey);
-
-      // 撤销所有该用户的 token families（更安全的做法）
-      // 也可以选择只撤销特定设备的 family，需要在 device 记录中存储 familyId
-      for (const familyId of familyIds) {
-        await this.refreshTokenService.revokeTokenFamily(familyId);
+        if (payload.familyId) {
+          await this.refreshTokenService.revokeTokenFamily(
+            payload.familyId,
+            "user_logout",
+          );
+        }
+      } catch (error) {
+        // 忽略刷新令牌验证错误，继续执行登出
+        this.logger.debug(`Failed to revoke token family on logout: ${error.message}`);
       }
     }
 
@@ -531,12 +535,15 @@ export class AuthService {
    */
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponseDto> {
     try {
-      // 使用 RefreshTokenService 进行轮换
-      const rotateResult = await this.refreshTokenService.rotateRefreshToken(refreshToken);
+      // 使用 RefreshTokenService 进行令牌轮换
+      const result = await this.refreshTokenService.rotateRefreshToken(
+        refreshToken,
+      );
 
-      // 从 refresh token 中获取用户信息
+      // 验证用户状态
       const payload = await this.jwtService.verifyAsync(refreshToken, {
         secret: this.configService.get<string>("jwt.refreshTokenSecret"),
+        ignoreExpiration: true,
       });
 
       // 获取用户信息
@@ -555,11 +562,8 @@ export class AuthService {
         throw new UnauthorizedException("设备已失效，请重新登录");
       }
 
-      // 生成新的 Access Token
-      const accessToken = await this.generateAccessToken(user, payload.deviceId);
-
       // 更新设备 Token 签名
-      const tokenSignature = this.getTokenSignature(accessToken);
+      const tokenSignature = this.getTokenSignature(result.accessToken);
       await this.userDeviceRepository.save({
         ...device,
         tokenSignature,
@@ -567,10 +571,11 @@ export class AuthService {
       });
 
       return {
-        accessToken,
-        refreshToken: rotateResult.refreshToken,
-        tokenType: "Bearer",
-        expiresIn: rotateResult.expiresIn,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        tokenType: result.tokenType,
+        expiresIn: result.expiresIn,
+        rotated: result.rotated,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
