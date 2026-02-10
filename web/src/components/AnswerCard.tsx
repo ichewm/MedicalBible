@@ -8,7 +8,6 @@ import { Drawer, Button, Tag, Progress, Space, Divider } from 'antd'
 import {
   CheckCircleFilled,
   CloseCircleFilled,
-  QuestionCircleOutlined,
   FlagFilled,
 } from '@ant-design/icons'
 import './AnswerCard.css'
@@ -24,7 +23,7 @@ export interface AnswerStatus {
 interface AnswerCardProps {
   open: boolean
   onClose: () => void
-  questions: { id: number; type?: string }[]
+  questions: { id: number; type?: number | string }[]
   answerStatus: Record<number, AnswerStatus>
   currentIndex: number
   onJump: (index: number) => void

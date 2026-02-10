@@ -285,7 +285,7 @@ const QuestionBank = () => {
               <Card 
                 className="paper-card"
                 title={item.name} 
-                extra={<Tag color="blue">{item.type === 1 || item.type === 'real' ? '真题' : '模拟'}</Tag>}
+                extra={<Tag color="blue">{String(item.type) === '1' || item.type === 'real' ? '真题' : '模拟'}</Tag>}
               >
                 <p>题目数量: {item.questionCount}</p>
                 <p>年份: {item.year || '-'}</p>

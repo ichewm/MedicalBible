@@ -8,6 +8,10 @@
 import { Injectable, OnModuleDestroy, OnModuleInit, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Redis from "ioredis";
+import {
+  CircuitBreakerService,
+  ExternalService,
+} from "../circuit-breaker";
 
 /**
  * Redis 服务类
@@ -32,7 +36,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   /** 键名前缀 */
   private readonly keyPrefix: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly circuitBreakerService: CircuitBreakerService,
+  ) {
     this.keyPrefix = this.configService.get<string>("redis.keyPrefix") || "";
   }
 
@@ -75,35 +82,69 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * 设置缓存值
+   * 设置缓存值（带断路器保护）
    * @param key - 缓存键名
    * @param value - 缓存值（会自动 JSON 序列化）
    * @param ttl - 过期时间（秒），不传则永不过期
    * @returns 操作是否成功
    */
   async set(key: string, value: any, ttl?: number): Promise<boolean> {
-    const serialized = JSON.stringify(value);
-    if (ttl) {
-      const result = await this.client.setex(key, ttl, serialized);
-      return result === "OK";
-    }
-    const result = await this.client.set(key, serialized);
-    return result === "OK";
+    const presetOptions = this.circuitBreakerService.getPresetOptions(ExternalService.REDIS);
+
+    return this.circuitBreakerService.execute(
+      ExternalService.REDIS,
+      async () => {
+        const serialized = JSON.stringify(value);
+        if (ttl) {
+          const result = await this.client.setex(key, ttl, serialized);
+          return result === "OK";
+        }
+        const result = await this.client.set(key, serialized);
+        return result === "OK";
+      },
+      {
+        ...presetOptions,
+        fallback: async () => {
+          // Redis 不可用时记录日志并返回成功（缓存失败不应阻塞业务）
+          this.logger.warn(
+            `Redis circuit breaker triggered, skipping cache set for key: ${key}`,
+          );
+          return true; // 返回成功避免阻塞业务流程
+        },
+      },
+    );
   }
 
   /**
-   * 获取缓存值
+   * 获取缓存值（带断路器保护）
    * @param key - 缓存键名
    * @returns 缓存值（自动 JSON 反序列化），不存在返回 null
    */
   async get<T = any>(key: string): Promise<T | null> {
-    const value = await this.client.get(key);
-    if (!value) return null;
-    try {
-      return JSON.parse(value) as T;
-    } catch {
-      return value as unknown as T;
-    }
+    const presetOptions = this.circuitBreakerService.getPresetOptions(ExternalService.REDIS);
+
+    return this.circuitBreakerService.execute(
+      ExternalService.REDIS,
+      async () => {
+        const value = await this.client.get(key);
+        if (!value) return null;
+        try {
+          return JSON.parse(value) as T;
+        } catch {
+          return value as unknown as T;
+        }
+      },
+      {
+        ...presetOptions,
+        fallback: async () => {
+          // Redis 不可用时返回 null（缓存未命中）
+          this.logger.debug(
+            `Redis circuit breaker triggered, returning null for key: ${key}`,
+          );
+          return null;
+        },
+      },
+    );
   }
 
   /**

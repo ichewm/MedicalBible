@@ -2,7 +2,7 @@
  * @file 登录页面
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Card, Form, Input, Button, message, Tabs, Alert, Space, Segmented, Modal, Checkbox } from 'antd'
 import { MobileOutlined, SafetyCertificateOutlined, LockOutlined, UserOutlined, MailOutlined } from '@ant-design/icons'
@@ -16,7 +16,7 @@ const Login = () => {
   const [form] = Form.useForm()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { setAuth, isAuthenticated } = useAuthStore()
+  const { setAuth } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -70,8 +70,8 @@ const Login = () => {
   useEffect(() => {
     const checkRegistration = async () => {
       try {
-        const config = await getSystemConfig()
-        setRegistrationEnabled(config.registrationEnabled !== false)
+        const response: any = await getSystemConfig()
+        setRegistrationEnabled(response?.registrationEnabled !== false)
       } catch {
         // 默认开放注册
         setRegistrationEnabled(true)
@@ -456,7 +456,7 @@ const Login = () => {
           <p style={{ marginBottom: 16, color: 'var(--text-secondary)', textAlign: 'center' }}>
             请完成滑块验证以继续
           </p>
-          <SliderCaptcha onSuccess={handleCaptchaSuccess} />
+          <SliderCaptcha visible={showCaptcha} onClose={() => setShowCaptcha(false)} onSuccess={handleCaptchaSuccess} />
         </div>
       </Modal>
     </Card>

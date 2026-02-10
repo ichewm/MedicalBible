@@ -44,6 +44,6 @@ export class Profession {
   // ==================== 关联关系 ====================
 
   /** 包含的等级列表 */
-  @OneToMany(() => Level, (level) => level.profession)
+  @OneToMany(() => Level, (level) => level.profession, { eager: false })
   levels: Level[];
 }

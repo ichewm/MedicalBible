@@ -10,17 +10,29 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { DatabaseMonitoringService } from "./database-monitoring.service";
 import { DatabaseMonitoringController } from "./database-monitoring.controller";
 import { TransactionService } from "./transaction.service";
+import { DatabaseConnectionService } from "./database-connection.service";
+import { QueryOptimizerService } from "./query-optimizer.service";
 
 /**
  * Global database module
- * @description Provides transaction management and database monitoring utilities
+ * @description Provides transaction management, database monitoring, and connection retry utilities
  * @global 全局模块，可在整个应用中使用
  */
 @Global()
 @Module({
   imports: [TypeOrmModule],
   controllers: [DatabaseMonitoringController],
-  providers: [DatabaseMonitoringService, TransactionService],
-  exports: [DatabaseMonitoringService, TransactionService],
+  providers: [
+    DatabaseMonitoringService,
+    TransactionService,
+    DatabaseConnectionService,
+    QueryOptimizerService,
+  ],
+  exports: [
+    DatabaseMonitoringService,
+    TransactionService,
+    DatabaseConnectionService,
+    QueryOptimizerService,
+  ],
 })
 export class DatabaseModule {}

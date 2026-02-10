@@ -8,7 +8,8 @@ import { persist } from 'zustand/middleware'
 
 interface User {
   id: number
-  phone: string
+  phone?: string
+  email?: string
   username?: string
   avatarUrl?: string
   avatar?: string

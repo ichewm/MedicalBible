@@ -22,6 +22,7 @@ import { BadRequestException, UnauthorizedException } from "@nestjs/common";
 import { SystemConfig } from "../../entities/system-config.entity";
 import { EmailService } from "../notification/email.service";
 import { SmsService } from "../notification/sms.service";
+import { RefreshTokenService } from "./services/refresh-token.service";
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -104,14 +105,21 @@ describe("AuthService", () => {
     sismember: jest.fn(),
     srem: jest.fn(),
     incrWithExpire: jest.fn(),
+    ttl: jest.fn().mockResolvedValue(60),
+    getClient: jest.fn().mockReturnValue({
+      smembers: jest.fn().mockResolvedValue([]),
+    }),
   };
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
       const config: Record<string, any> = {
         "jwt.secret": "test-secret",
+        "jwt.refreshTokenSecret": "test-refresh-secret",
         "jwt.expiresIn": "7d",
         "jwt.refreshExpiresIn": "30d",
+        "jwt.accessTokenExpires": "15m",
+        "jwt.refreshTokenExpires": "30d",
       };
       return config[key];
     }),
@@ -128,6 +136,26 @@ describe("AuthService", () => {
 
   const mockSmsService = {
     sendVerificationCode: jest.fn().mockResolvedValue({ success: true }),
+  };
+
+  const mockRefreshTokenService = {
+    generateRefreshToken: jest.fn().mockResolvedValue({
+      token: "mock-refresh-token",
+      familyId: "mock-family-id",
+      tokenId: "mock-token-id",
+      expiresIn: 604800,
+    }),
+    rotateRefreshToken: jest.fn().mockResolvedValue({
+      accessToken: "new-access-token",
+      refreshToken: "new-refresh-token",
+      tokenType: "Bearer",
+      expiresIn: 900,
+      rotated: true,
+    }),
+    validateRefreshToken: jest.fn(),
+    revokeTokenFamily: jest.fn().mockResolvedValue(undefined),
+    revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
+    cleanupExpiredTokens: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -169,6 +197,10 @@ describe("AuthService", () => {
         {
           provide: SmsService,
           useValue: mockSmsService,
+        },
+        {
+          provide: RefreshTokenService,
+          useValue: mockRefreshTokenService,
         },
       ],
     }).compile();
@@ -393,13 +425,10 @@ describe("AuthService", () => {
     it("Token 在黑名单中时应该抛出异常", async () => {
       // Arrange
       const oldToken = "blacklisted-token";
-      const payload = {
-        sub: 1,
-        phone: "13800138000",
-        deviceId: "test-device-001",
-      };
-      mockJwtService.verifyAsync.mockResolvedValue(payload);
-      mockRedisService.sismember.mockResolvedValue(true); // 在黑名单中
+      // Mock rotateRefreshToken to throw UnauthorizedException for invalid/blacklisted tokens
+      mockRefreshTokenService.rotateRefreshToken.mockRejectedValue(
+        new UnauthorizedException("Refresh token 已被撤销"),
+      );
 
       // Act & Assert
       await expect(service.refreshToken(oldToken)).rejects.toThrow(

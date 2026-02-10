@@ -94,13 +94,24 @@ class Logger {
   }
 
   /**
+   * 输出 log 日志（通用日志方法，等同于 info）
+   */
+  log(message: string, ...args: unknown[]): void {
+    if (this.shouldLog(LogLevel.INFO)) {
+      const formatted = this.formatMessage(LogLevel.INFO, message)
+      // eslint-disable-next-line no-console
+      console.log(formatted, ...args)
+    }
+  }
+
+  /**
    * 输出 debug 日志
    */
   debug(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.DEBUG)) {
       const formatted = this.formatMessage(LogLevel.DEBUG, message)
       // eslint-disable-next-line no-console
-      console.debug(formatted, ...args)
+      console.log(formatted, ...args)
     }
   }
 
@@ -111,7 +122,7 @@ class Logger {
     if (this.shouldLog(LogLevel.INFO)) {
       const formatted = this.formatMessage(LogLevel.INFO, message)
       // eslint-disable-next-line no-console
-      console.info(formatted, ...args)
+      console.log(formatted, ...args)
     }
   }
 
@@ -122,18 +133,18 @@ class Logger {
     if (this.shouldLog(LogLevel.WARN)) {
       const formatted = this.formatMessage(LogLevel.WARN, message)
       // eslint-disable-next-line no-console
-      console.warn(formatted, ...args)
+      console.log(formatted, ...args)
     }
   }
 
   /**
    * 输出 error 日志
    */
-  error(message: string, error?: unknown): void {
+  error(message: string, ...args: unknown[]): void {
     if (this.shouldLog(LogLevel.ERROR)) {
       const formatted = this.formatMessage(LogLevel.ERROR, message)
       // eslint-disable-next-line no-console
-      console.error(formatted, error)
+      console.log(formatted, ...args)
     }
   }
 }

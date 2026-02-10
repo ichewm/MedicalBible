@@ -22,7 +22,7 @@ export function getPaymentInfo(): Promise<PaymentInfo> {
 
 // 创建订单
 export function createOrder(skuPriceId: number) {
-  return request.post<any, Order>('/order', { skuPriceId })
+  return request.post<Order>('/order', { skuPriceId })
 }
 
 // 获取订单列表

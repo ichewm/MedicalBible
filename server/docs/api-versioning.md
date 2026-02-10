@@ -73,6 +73,7 @@ export class AuthController {
 | Admin | `/api/v1/admin/*` | Admin dashboard |
 | Upload | `/api/v1/upload/*` | File upload |
 | Chat | `/api/v1/chat/*` | Customer service |
+| Analytics | `/api/v1/analytics/*` | User activity tracking and analytics |
 
 ## Version Lifecycle
 

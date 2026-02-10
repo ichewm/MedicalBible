@@ -9,19 +9,42 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
-import helmet from "helmet";
+import helmet, { HelmetOptions } from "helmet";
+import { Request, Response, NextFunction } from "express";
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
+import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
+import { CompressionMiddleware } from "./common/middleware/compression.middleware";
+import { validateAllConfigs, ConfigValidationError } from "./config/config.validator";
+import { SanitizationMiddleware } from "./common/middleware/sanitization.middleware";
 
 /**
  * 应用程序启动函数
  * @description 初始化 NestJS 应用，配置全局管道、Swagger 文档和 CORS
  */
 async function bootstrap(): Promise<void> {
+  // Initialize logger for bootstrap process
+  const logger = new Logger("Bootstrap");
+
+  // Validate configuration before creating NestJS app
+  // This ensures all required environment variables are present and valid
+  // before any module initialization occurs
+  try {
+    validateAllConfigs();
+    logger.log("Configuration validation passed");
+  } catch (error) {
+    if (error instanceof ConfigValidationError) {
+      logger.error("Configuration validation failed:");
+      logger.error(error.message);
+      process.exit(1);
+    }
+    throw error;
+  }
+
   // 创建 NestJS 应用实例
   const app = await NestFactory.create(AppModule, {
     logger: ["error", "warn", "log", "debug", "verbose"],
@@ -29,7 +52,6 @@ async function bootstrap(): Promise<void> {
 
   // 获取配置服务
   const configService = app.get(ConfigService);
-  const logger = new Logger("Bootstrap");
 
   // 启用 API 版本控制
   // 使用 URI 版本策略: /api/v1/..., /api/v2/...
@@ -42,32 +64,141 @@ async function bootstrap(): Promise<void> {
   // 设置全局 API 前缀
   app.setGlobalPrefix("api");
 
-  // 启用安全头中间件（Helmet）
-  // 设置各种 HTTP 头以提高安全性，防止常见 Web 漏洞
-  // 注意：需要配置 contentSecurityPolicy 以允许 Swagger 和静态资源
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
-          imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'"],
-          fontSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          mediaSrc: ["'self'"],
-          frameSrc: ["'none'"],
-        },
+  // 配置安全头中间件（Helmet）
+  // 从配置服务获取安全设置，实现可配置的 HTTP 安全头
+  const securityConfig = configService.get("security");
+  if (!securityConfig) {
+    logger.error(
+      "Security configuration not found. Please ensure securityConfig is properly registered in AppModule.",
+    );
+    throw new Error("Security configuration is missing");
+  }
+
+  // 仅在启用时应用 Helmet 安全头
+  if (securityConfig.enabled) {
+    // 构建 CSP 指令对象
+    const cspDirectives: any = {};
+    if (securityConfig.contentSecurityPolicy.enabled) {
+      const directives = securityConfig.contentSecurityPolicy.directives;
+      cspDirectives.defaultSrc = directives.defaultSrc;
+      cspDirectives.scriptSrc = directives.scriptSrc;
+      cspDirectives.styleSrc = directives.styleSrc;
+      cspDirectives.imgSrc = directives.imgSrc;
+      cspDirectives.connectSrc = directives.connectSrc;
+      cspDirectives.fontSrc = directives.fontSrc;
+      cspDirectives.objectSrc = directives.objectSrc;
+      cspDirectives.mediaSrc = directives.mediaSrc;
+      cspDirectives.frameSrc = directives.frameSrc;
+      cspDirectives.workerSrc = directives.workerSrc;
+      cspDirectives.baseUri = directives.baseUri;
+      cspDirectives.formAction = directives.formAction;
+      cspDirectives.frameAncestors = directives.frameAncestors;
+
+      // 升级不安全请求（HTTP -> HTTPS）
+      if (directives.upgradeInsecureRequests) {
+        cspDirectives.upgradeInsecureRequests = [];
+      }
+    }
+
+    // 构建 Helmet 配置选项
+    const helmetOptions: HelmetOptions = {
+      // CSP 配置
+      contentSecurityPolicy: securityConfig.contentSecurityPolicy.enabled
+        ? {
+            directives: cspDirectives,
+          }
+        : false,
+
+      // HSTS 配置
+      hsts: securityConfig.hsts.enabled
+        ? {
+            maxAge: securityConfig.hsts.maxAge,
+            includeSubDomains: securityConfig.hsts.includeSubDomains,
+            preload: securityConfig.hsts.preload,
+          }
+        : false,
+
+      // X-Frame-Options（通过 frameguard 控制）
+      // Note: ALLOW-FROM is deprecated in modern browsers, use CSP frame-ancestors instead
+      frameguard: {
+        action: securityConfig.xFrameOptions === "SAMEORIGIN"
+          ? "sameorigin"
+          : "deny",
       },
-      crossOriginEmbedderPolicy: false, // 禁用以兼容某些第三方资源
-    }),
-  );
-  logger.log("Helmet security headers enabled");
+
+      // 禁用跨域嵌入策略以兼容某些第三方资源
+      crossOriginEmbedderPolicy: securityConfig.crossOriginEmbedderPolicy
+        ? { policy: "require-corp" }
+        : false,
+
+      // 跨域资源策略
+      crossOriginResourcePolicy: securityConfig.crossOriginResourcePolicy
+        ? { policy: "cross-origin" }
+        : false,
+
+      // Referrer-Policy
+      referrerPolicy: { policy: securityConfig.referrerPolicy },
+
+      // 其他安全头
+      noSniff: true, // X-Content-Type-Options: nosniff
+      xssFilter: true, // X-XSS-Protection (已过时但保留)
+    };
+
+    app.use(helmet(helmetOptions));
+
+    // Permissions-Policy (原 Feature-Policy)
+    // Helmet 8.x 不再内置 Permissions-Policy，需要手动设置
+    const permissionsPolicyValue = Object.entries(securityConfig.permissionsPolicy)
+      .map(([feature, origins]) => `${feature}=(${Array.isArray(origins) ? origins.join(" ") : origins})`)
+      .join(", ");
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      res.setHeader("Permissions-Policy", permissionsPolicyValue);
+      next();
+    });
+    logger.log("Helmet security headers enabled with custom configuration");
+
+    // 记录 HSTS 状态
+    if (securityConfig.hsts.enabled) {
+      logger.log(
+        `HSTS enabled: maxAge=${securityConfig.hsts.maxAge}s, ` +
+          `includeSubDomains=${securityConfig.hsts.includeSubDomains}, ` +
+          `preload=${securityConfig.hsts.preload}`,
+      );
+    } else {
+      logger.warn("HSTS is disabled. In production, HSTS should be enabled.");
+    }
+
+    // 记录 CSP 状态
+    if (securityConfig.contentSecurityPolicy.enabled) {
+      logger.log("Content Security Policy enabled");
+    } else {
+      logger.warn("Content Security Policy is disabled. Consider enabling for better security.");
+    }
+  } else {
+    logger.warn("Security headers middleware is disabled. Enable by setting SECURITY_ENABLED=true");
+  }
+
+  // 配置压缩中间件
+  // 使用 ConfigService 获取压缩配置
+  const compressionMiddleware = new CompressionMiddleware(configService);
+  app.use(compressionMiddleware.use.bind(compressionMiddleware));
 
   // 配置请求追踪中间件
+  // 必须在其他中间件之前注册，以便所有后续中间件的日志都能包含 requestId/correlationId
   app.use(
     new RequestTrackingMiddleware().use.bind(new RequestTrackingMiddleware()),
+  );
+
+  // 配置输入清洗中间件
+  // 使用 ConfigService 获取清洗配置
+  // 在请求处理前清洗所有输入数据，防止 XSS 和注入攻击
+  // 必须在请求追踪之后注册，以便清洗日志包含请求追踪 ID
+  const sanitizationMiddleware = new SanitizationMiddleware(configService);
+  app.use(sanitizationMiddleware.use.bind(sanitizationMiddleware));
+
+  // 配置活动追踪中间件
+  app.use(
+    new ActivityTrackingMiddleware().use.bind(new ActivityTrackingMiddleware()),
   );
 
   // 配置全局验证管道

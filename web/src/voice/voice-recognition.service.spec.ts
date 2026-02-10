@@ -2,7 +2,7 @@
  * @file 语音识别服务单元测试
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { VoiceRecognitionService } from './voice-recognition.service'
 
 // Mock SpeechRecognition API
@@ -65,9 +65,6 @@ class MockSpeechRecognition {
     this.onerror?.(mockEvent)
   }
 }
-
-// Mock factory function
-const createMockSpeechRecognition = () => new MockSpeechRecognition()
 
 describe('VoiceRecognitionService', () => {
   let service: VoiceRecognitionService
