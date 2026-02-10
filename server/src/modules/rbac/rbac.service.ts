@@ -37,7 +37,9 @@ export class RbacService implements OnModuleInit {
     try {
       await this.seedInitialData();
     } catch (error) {
-      this.logger.error(`Failed to seed initial RBAC data: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.stack ?? error.message : String(error);
+      this.logger.error(`Failed to seed initial RBAC data: ${errorMessage}`);
       // 不抛出异常，避免模块启动失败
     }
   }
@@ -52,21 +54,6 @@ export class RbacService implements OnModuleInit {
 
     // 使用事务确保原子性
     await this.dataSource.transaction(async (manager) => {
-      // 检查是否已经初始化过（通过检查系统权限数量是否完整）
-      const existingPermissionCount = await manager.count(Permission, {
-        where: { isSystem: 1 },
-      });
-
-      // 如果已经有完整的系统权限（43个），跳过种子
-      if (existingPermissionCount >= 43) {
-        this.logger.log("RBAC initial data already exists, skipping seed");
-        return;
-      }
-
-      this.logger.log(
-        `Found ${existingPermissionCount} system permissions, proceeding with seed`,
-      );
-
       // 1. 创建或获取权限（幂等）
       const permissions = await this.createPermissions(manager);
 
@@ -296,28 +283,42 @@ export class RbacService implements OnModuleInit {
         continue;
       }
 
+      // 一次性查询该角色已有的权限关联，避免对每个 (role, permission) 单独查询
+      const existingRolePermissions = await manager.find(RolePermission, {
+        where: {
+          roleId: role.id,
+        },
+      });
+      const existingPermissionIds = new Set(
+        existingRolePermissions.map((rp) => rp.permissionId),
+      );
+
+      const newRolePermissions: RolePermission[] = [];
+
       for (const permissionName of permissionNames) {
         const permission = permissions.get(permissionName);
         if (!permission) {
           continue;
         }
 
-        // 检查是否已经存在该角色-权限关联
-        const existing = await manager.findOne(RolePermission, {
-          where: {
-            roleId: role.id,
-            permissionId: permission.id,
-          },
-        });
-
-        if (!existing) {
-          // 不存在则创建
-          const rolePermission = manager.create(RolePermission, {
-            roleId: role.id,
-            permissionId: permission.id,
-          });
-          await manager.save(rolePermission);
+        // 如果已存在该角色-权限关联，则跳过
+        if (existingPermissionIds.has(permission.id)) {
+          continue;
         }
+
+        // 记录即将在本次批量插入的权限，避免同一次循环中重复
+        existingPermissionIds.add(permission.id);
+
+        // 不存在则准备创建
+        const rolePermission = manager.create(RolePermission, {
+          roleId: role.id,
+          permissionId: permission.id,
+        });
+        newRolePermissions.push(rolePermission);
+      }
+
+      if (newRolePermissions.length > 0) {
+        await manager.save(RolePermission, newRolePermissions);
       }
 
       this.logger.log(`Ensured ${permissionNames.length} permissions for role ${roleName}`);

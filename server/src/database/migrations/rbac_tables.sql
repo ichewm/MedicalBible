@@ -71,7 +71,7 @@ SET @preparedStatement = (SELECT IF(
     AND COLUMN_NAME = @column_name
   ) > 0,
   'SELECT 1',
-  CONCAT('ALTER TABLE `', @table_name, '` ADD COLUMN `', @column_name, '` VARCHAR(20) DEFAULT ''user'' NULL COMMENT ''用户角色名称，对应 roles 表中的 name 字段。系统预置角色名称（admin, teacher, student, user）不可变更，自定义角色添加后名称也应保持稳定以确保数据一致性'' AFTER `current_level_id`;')
+  CONCAT('ALTER TABLE `', @table_name, '` ADD COLUMN `', @column_name, '` VARCHAR(20) NOT NULL DEFAULT ''user'' COMMENT ''用户角色名称，对应 roles 表中的 name 字段。系统预置角色名称（admin, teacher, student, user）不可变更，自定义角色添加后名称也应保持稳定以确保数据一致性'' AFTER `current_level_id`;')
 ));
 PREPARE alterIfNotExists FROM @preparedStatement;
 EXECUTE alterIfNotExists;
@@ -86,7 +86,7 @@ SET @preparedStatement = (SELECT IF(
     AND INDEX_NAME = 'idx_users_role'
   ) > 0,
   'SELECT 1',
-  CONCAT('CREATE INDEX `idx_users_role` ON `', @table_name, '` (``, @column_name, ``);')
+  CONCAT('CREATE INDEX `idx_users_role` ON `', @table_name, '` (`', @column_name, '`);')
 ));
 PREPARE createIndexIfNotExists FROM @preparedStatement;
 EXECUTE createIndexIfNotExists;
