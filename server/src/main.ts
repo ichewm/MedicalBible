@@ -18,6 +18,7 @@ import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
 import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
 import { CompressionMiddleware } from "./common/middleware/compression.middleware";
+import { validateAllConfigs, ConfigValidationError } from "./config/config.validator";
 
 /**
  * 应用程序启动函数
@@ -32,6 +33,21 @@ async function bootstrap(): Promise<void> {
   // 获取配置服务
   const configService = app.get(ConfigService);
   const logger = new Logger("Bootstrap");
+
+  // Validate configuration before continuing
+  // This ensures all required environment variables are present and valid
+  // before the application starts serving requests
+  try {
+    validateAllConfigs();
+    logger.log("Configuration validation passed");
+  } catch (error) {
+    if (error instanceof ConfigValidationError) {
+      logger.error("Configuration validation failed:");
+      logger.error(error.message);
+      process.exit(1);
+    }
+    throw error;
+  }
 
   // 启用 API 版本控制
   // 使用 URI 版本策略: /api/v1/..., /api/v2/...

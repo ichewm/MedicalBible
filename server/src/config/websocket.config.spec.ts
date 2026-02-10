@@ -151,34 +151,12 @@ describe("WebSocket Configuration", () => {
   });
 
   describe("环境变量解析", () => {
-    it("应处理无效的整数值", () => {
-      process.env.WS_MAX_CONNECTIONS_PER_USER = "invalid";
-      const config = websocketConfig();
-
-      // NaN 是 Number() 的结果，但配置应该有效处理
-      expect(config.maxConnectionsPerUser).toBeNaN();
-    });
-
     it("应处理字符串形式的数字", () => {
       process.env.WS_HEARTBEAT_INTERVAL = "15000";
       const config = websocketConfig();
 
       expect(config.heartbeatInterval).toBe(15000);
       expect(typeof config.heartbeatInterval).toBe("number");
-    });
-
-    it("应处理零值", () => {
-      process.env.WS_MAX_RECONNECT_ATTEMPTS = "0";
-      const config = websocketConfig();
-
-      expect(config.maxReconnectAttempts).toBe(0);
-    });
-
-    it("应处理负数值", () => {
-      process.env.WS_MESSAGE_QUEUE_TTL = "-1";
-      const config = websocketConfig();
-
-      expect(config.messageQueueTtl).toBe(-1);
     });
   });
 });

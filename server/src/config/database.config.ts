@@ -6,24 +6,25 @@
  */
 
 import { registerAs } from "@nestjs/config";
+import { databaseConfigSchema } from "./config.schema";
 
 /**
  * 数据库配置对象
  * @description 使用 registerAs 注册命名配置，可通过 configService.get('database.xxx') 访问
  */
-export const databaseConfig = registerAs("database", () => ({
-  /** 数据库主机地址 */
-  host: process.env.DB_HOST || "localhost",
+export const databaseConfig = registerAs("database", () => {
+  const rawConfig = {
+    /** 数据库主机地址 */
+    host: process.env.DB_HOST,
+    /** 数据库端口 */
+    port: process.env.DB_PORT,
+    /** 数据库用户名 */
+    username: process.env.DB_USERNAME,
+    /** 数据库密码 */
+    password: process.env.DB_PASSWORD,
+    /** 数据库名称 */
+    database: process.env.DB_DATABASE,
+  };
 
-  /** 数据库端口 */
-  port: parseInt(process.env.DB_PORT || "3306", 10),
-
-  /** 数据库用户名 */
-  username: process.env.DB_USERNAME || "root",
-
-  /** 数据库密码 */
-  password: process.env.DB_PASSWORD || "",
-
-  /** 数据库名称 */
-  database: process.env.DB_DATABASE || "medical_bible",
-}));
+  return databaseConfigSchema.parse(rawConfig);
+});
