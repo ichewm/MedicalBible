@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.10.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -239,6 +239,11 @@ chmod +x deploy.sh
 - **PDF**: react-pdf + pdf.js
 - **语音识别**: Web Speech API (实验性功能)
 - **AI症状分析**: 多提供商支持（Infermedica、Azure Health Bot、Mock）
+- **性能优化 (PERF-007)**:
+  - **代码分割**: React.lazy() 路由级代码分割，减少初始 bundle 大小
+  - **虚拟化列表**: react-window 优化大列表渲染性能
+  - **组件优化**: React.memo 避免不必要的重渲染
+  - **加载骨架**: Suspense fallback 提供流畅的加载体验
 - **样式**: TailwindCSS
 
 ### 部署技术
@@ -359,7 +364,7 @@ npm run lint
 npm run type-check
 ```
 
-**测试结果**: ✅ 90/90 测试通过 (含语音功能测试)
+**测试结果**: ✅ 330/330 测试通过 (含语音功能测试、性能优化组件测试)
 
 ## 🔧 开发
 
@@ -926,6 +931,16 @@ interface ErrorResponse {
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.10.0 (2026-02-11)
+
+- ⚡ **前端性能优化 (PERF-007)**: 代码分割和列表虚拟化
+  - React.lazy() 路由级代码分割，减少初始 bundle 大小 (~2MB+ → 按需加载)
+  - Suspense fallback 集成 LoadingSkeleton 组件
+  - react-window 虚拟化优化 LectureList、QuestionBank、UserTable 大列表渲染
+  - React.memo 优化 AnswerCard、MobileLectureReader 组件性能
+  - 24 个新增单元测试覆盖（LoadingSkeleton、AnswerCard）
+  - 330 个前端测试全部通过
 
 ### v1.9.0 (2026-02-10)
 
