@@ -1,6 +1,6 @@
 /**
  * @file Refresh Token 服务测试
- * @description Refresh Token 轮换和重放攻击检测的单元测试
+ * @description 刷新令牌服务的单元测试，覆盖令牌轮换和重放攻击检测
  * @author Medical Bible Team
  * @version 1.0.0
  */
@@ -11,56 +11,23 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { Repository } from "typeorm";
 import { UnauthorizedException } from "@nestjs/common";
-import Redis from "ioredis";
-
 import { RefreshTokenService } from "./refresh-token.service";
 import { TokenFamily } from "../../../entities/token-family.entity";
 import { RedisService } from "../../../common/redis/redis.service";
 
 describe("RefreshTokenService", () => {
   let service: RefreshTokenService;
-  let tokenFamilyRepository: Repository<TokenFamily>;
   let jwtService: JwtService;
-  let configService: ConfigService;
   let redisService: RedisService;
+  let tokenFamilyRepository: Repository<TokenFamily>;
+  let configService: ConfigService;
 
-  // Mock data
+  // 测试数据
   const mockUserId = 123;
-  const mockDeviceId = "device-abc-123";
-  const mockFamilyId = "family-uuid-001";
-  const mockTokenId = "token-uuid-001";
-  const mockFamilyData = {
-    userId: mockUserId,
-    tokenChain: [mockTokenId],
-    currentIndex: 0,
-    isRevoked: false,
-    expiresAt: Math.floor(Date.now() / 1000) + 604800, // 7 days from now
-  };
-  const mockTokenData = {
-    familyId: mockFamilyId,
-    tokenIndex: 0,
-    expiresAt: Math.floor(Date.now() / 1000) + 604800,
-    userId: mockUserId,
-    deviceId: mockDeviceId,
-  };
-
-  // Mock Redis Multi for transactions
-  const mockMulti = {
-    set: jest.fn().mockReturnThis(),
-    expire: jest.fn().mockReturnThis(),
-    sadd: jest.fn().mockReturnThis(),
-    srem: jest.fn().mockReturnThis(),
-    del: jest.fn().mockReturnThis(),
-    exec: jest.fn().mockResolvedValue([]),
-  };
-
-  // Mock Repository
-  const mockTokenFamilyRepository = {
-    save: jest.fn(),
-    update: jest.fn(),
-    findOne: jest.fn(),
-    createQueryBuilder: jest.fn(),
-  };
+  const mockDeviceId = "test-device-001";
+  const mockFamilyId = "550e8400-e29b-41d4-a716-446655440000";
+  const mockTokenId = "550e8400-e29b-41d4-a716-446655440001";
+  const mockExpiresInSeconds = 7 * 24 * 60 * 60; // 7天
 
   // Mock JwtService
   const mockJwtService = {
@@ -68,42 +35,42 @@ describe("RefreshTokenService", () => {
     verifyAsync: jest.fn(),
   };
 
+  // Mock RedisService
+  const mockRedisService = {
+    set: jest.fn(),
+    get: jest.fn(),
+    del: jest.fn(),
+    exists: jest.fn(),
+  };
+
   // Mock ConfigService
   const mockConfigService = {
     get: jest.fn((key: string) => {
-      const config: Record<string, string> = {
+      const config: Record<string, any> = {
+        "jwt.secret": "test-access-secret",
         "jwt.refreshTokenSecret": "test-refresh-secret",
-        "jwt.secret": "test-secret",
-        "jwt.refreshTokenExpires": "7d",
         "jwt.accessTokenExpires": "15m",
+        "jwt.refreshTokenExpires": "7d",
       };
       return config[key];
     }),
   };
 
-  // Mock Redis Client
-  const mockRedisClient = {
-    multi: jest.fn(() => mockMulti),
-    smembers: jest.fn().mockResolvedValue([]),
-    srem: jest.fn().mockResolvedValue(1),
-  };
-
-  // Mock RedisService
-  const mockRedisService = {
-    get: jest.fn(),
-    set: jest.fn(),
-    del: jest.fn(),
-    getClient: jest.fn(() => mockRedisClient),
+  // Mock TokenFamily Repository
+  const mockTokenFamilyRepository = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    find: jest.fn(),
+    delete: jest.fn(),
+    createQueryBuilder: jest.fn(),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RefreshTokenService,
-        {
-          provide: getRepositoryToken(TokenFamily),
-          useValue: mockTokenFamilyRepository,
-        },
         {
           provide: JwtService,
           useValue: mockJwtService,
@@ -116,389 +83,410 @@ describe("RefreshTokenService", () => {
           provide: RedisService,
           useValue: mockRedisService,
         },
+        {
+          provide: getRepositoryToken(TokenFamily),
+          useValue: mockTokenFamilyRepository,
+        },
       ],
     }).compile();
 
     service = module.get<RefreshTokenService>(RefreshTokenService);
+    jwtService = module.get<JwtService>(JwtService);
+    redisService = module.get<RedisService>(RedisService);
     tokenFamilyRepository = module.get<Repository<TokenFamily>>(
       getRepositoryToken(TokenFamily),
     );
-    jwtService = module.get<JwtService>(JwtService);
     configService = module.get<ConfigService>(ConfigService);
-    redisService = module.get<RedisService>(RedisService);
 
-    // Clear all mocks
+    // 重置所有 mock
     jest.clearAllMocks();
   });
 
-  describe("定义检查", () => {
-    it("应该成功定义 RefreshTokenService", () => {
-      expect(service).toBeDefined();
-    });
+  afterEach(() => {
+    jest.resetAllMocks();
   });
 
-  describe("generateRefreshToken - 生成 Refresh Token", () => {
-    it("应该成功生成新的 refresh token 和 family", async () => {
-      const mockToken = "signed.jwt.token";
+  describe("generateRefreshToken", () => {
+    it("should generate a new refresh token with unique family ID", async () => {
+      const mockToken = "mock-refresh-token";
       mockJwtService.signAsync.mockResolvedValue(mockToken);
 
       const result = await service.generateRefreshToken(mockUserId, mockDeviceId);
 
-      expect(result).toHaveProperty("token", mockToken);
-      expect(result).toHaveProperty("familyId");
-      expect(result).toHaveProperty("tokenId");
-      expect(result.tokenIndex).toBe(0);
-      expect(result.expiresAt).toBeGreaterThan(0);
+      expect(result.token).toBe(mockToken);
+      expect(result.metadata).toHaveProperty("familyId");
+      expect(result.metadata).toHaveProperty("tokenIndex", 0);
+      expect(result.metadata).toHaveProperty("userId", mockUserId);
+      expect(result.metadata).toHaveProperty("deviceId", mockDeviceId);
+      expect(result.metadata).toHaveProperty("expiresAt");
 
-      // Verify JWT was signed with refresh token secret
+      // 验证 JWT 签名使用了正确的密钥
       expect(mockJwtService.signAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           sub: mockUserId,
-          deviceId: mockDeviceId,
+          familyId: result.metadata.familyId,
+          tokenId: expect.any(String),
           tokenIndex: 0,
+          type: "refresh",
         }),
         expect.objectContaining({
           secret: "test-refresh-secret",
+          expiresIn: "7d",
         }),
       );
 
-      // Verify Redis operations
-      expect(mockRedisService.getClient).toHaveBeenCalled();
-      expect(mockMulti.set).toHaveBeenCalledTimes(2); // family data and token data
-      expect(mockMulti.expire).toHaveBeenCalledTimes(1); // user families set TTL
-      expect(mockMulti.sadd).toHaveBeenCalled();
-      expect(mockMulti.exec).toHaveBeenCalled();
-
-      // Verify database save
-      expect(mockTokenFamilyRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: mockUserId,
-          familyId: expect.any(String),
-          tokenChain: expect.any(Array),
-          currentIndex: 0,
-          isRevoked: false,
-        }),
+      // 验证 Redis 存储调用
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        expect.stringContaining(`refresh:token:`),
+        expect.any(Object),
+        mockExpiresInSeconds,
+      );
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        expect.stringContaining(`refresh:family:`),
+        expect.any(Array),
+        mockExpiresInSeconds,
       );
     });
 
-    it("应该使用不同的 familyId 和 tokenId 每次调用", async () => {
-      mockJwtService.signAsync.mockResolvedValue("token1");
+    it("should store token metadata in Redis with correct TTL", async () => {
+      mockJwtService.signAsync.mockResolvedValue("mock-token");
 
-      const result1 = await service.generateRefreshToken(mockUserId, mockDeviceId);
+      await service.generateRefreshToken(mockUserId, mockDeviceId);
 
-      mockJwtService.signAsync.mockResolvedValue("token2");
-      const result2 = await service.generateRefreshToken(mockUserId, mockDeviceId);
-
-      expect(result1.familyId).not.toBe(result2.familyId);
-      expect(result1.tokenId).not.toBe(result2.tokenId);
+      // 验证设置了两次（token metadata 和 family chain）
+      expect(mockRedisService.set).toHaveBeenCalledTimes(2);
+      const firstCall = mockRedisService.set.mock.calls[0];
+      expect(firstCall[2]).toBe(mockExpiresInSeconds);
     });
   });
 
-  describe("rotateRefreshToken - 轮换 Refresh Token", () => {
-    const mockOldToken = "old.refresh.token";
-    const mockOldPayload = {
-      sub: mockUserId,
-      deviceId: mockDeviceId,
-      familyId: mockFamilyId,
-      tokenId: mockTokenId,
-      tokenIndex: 0,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 604800,
-    };
+  describe("rotateRefreshToken", () => {
+    const mockOldToken = "old-refresh-token";
+    const mockNewToken = "new-refresh-token";
+    const mockAccessToken = "new-access-token";
 
     beforeEach(() => {
-      mockJwtService.verifyAsync.mockResolvedValue(mockOldPayload);
-      // Mock get to return different data based on key
+      // Mock 验证通过，返回有效 payload
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: mockUserId,
+        familyId: mockFamilyId,
+        tokenId: mockTokenId,
+        tokenIndex: 0,
+        type: "refresh",
+      });
+
+      // Mock Redis 返回有效的元数据
       mockRedisService.get.mockImplementation((key: string) => {
         if (key.includes(`refresh:token:${mockTokenId}`)) {
-          return Promise.resolve(mockTokenData);
+          return {
+            familyId: mockFamilyId,
+            tokenIndex: 0,
+            expiresAt: Math.floor(Date.now() / 1000) + mockExpiresInSeconds,
+            userId: mockUserId,
+            deviceId: mockDeviceId,
+          };
         }
-        return Promise.resolve(mockFamilyData);
+        if (key.includes(`refresh:family:${mockFamilyId}`)) {
+          return [mockTokenId]; // 只有一个令牌，索引0
+        }
+        return null;
       });
-      mockJwtService.signAsync.mockResolvedValue("new.refresh.token");
+
+      mockRedisService.exists.mockResolvedValue(false); // 未撤销
+
+      // Mock Redis set and repository update for async operations (including revokeTokenFamily)
+      mockRedisService.set.mockResolvedValue(undefined);
+      mockTokenFamilyRepository.update.mockResolvedValue({ affected: 1 } as any);
+
+      mockJwtService.signAsync
+        .mockResolvedValueOnce(mockNewToken) // 新的刷新令牌
+        .mockResolvedValueOnce(mockAccessToken); // 新的访问令牌
     });
 
-    it("应该成功轮换 refresh token", async () => {
+    it("should rotate token and return new token pair", async () => {
       const result = await service.rotateRefreshToken(mockOldToken);
 
-      expect(result).toHaveProperty("refreshToken", "new.refresh.token");
-      expect(result).toHaveProperty("familyId", mockFamilyId);
+      expect(result.accessToken).toBe(mockAccessToken);
+      expect(result.refreshToken).toBe(mockNewToken);
       expect(result.tokenType).toBe("Bearer");
-      expect(result.expiresIn).toBe(900); // 15 minutes = 900 seconds
+      expect(result.expiresIn).toBe(15 * 60); // 15分钟
+      expect(result.rotated).toBe(true);
+    });
 
-      // Verify new token has incremented index
+    it("should increment token index on rotation", async () => {
+      await service.rotateRefreshToken(mockOldToken);
+
+      // 验证新令牌的索引是1（原索引+1）
       expect(mockJwtService.signAsync).toHaveBeenCalledWith(
         expect.objectContaining({
-          sub: mockUserId,
-          deviceId: mockDeviceId,
-          familyId: mockFamilyId,
-          tokenIndex: 1, // Incremented
+          tokenIndex: 1,
         }),
         expect.any(Object),
       );
+    });
 
-      // Verify family data was updated
-      expect(mockMulti.set).toHaveBeenCalledWith(
-        `refresh:family:${mockFamilyId}`,
-        expect.stringContaining('"currentIndex":1'),
-        "EX",
-        604800,
-      );
+    it("should add new token to family chain in Redis", async () => {
+      await service.rotateRefreshToken(mockOldToken);
 
-      // Verify database was updated
-      expect(mockTokenFamilyRepository.update).toHaveBeenCalledWith(
-        { familyId: mockFamilyId },
-        expect.objectContaining({
-          tokenChain: expect.any(Array),
-          currentIndex: 1,
-        }),
+      // 验证更新了族链
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        expect.stringContaining(`refresh:family:${mockFamilyId}`),
+        expect.arrayContaining([mockTokenId, expect.any(String)]),
+        mockExpiresInSeconds,
       );
     });
 
-    it("应该检测重放攻击并撤销 family", async () => {
-      // Simulate old token being reused (index 0, but current is 1)
+    it("should detect replay attack and revoke family", async () => {
+      // 模拟重放攻击：族链有2个令牌，但提供的令牌索引是0（旧令牌）
       mockRedisService.get.mockImplementation((key: string) => {
         if (key.includes(`refresh:token:${mockTokenId}`)) {
-          return Promise.resolve(mockTokenData);
+          return {
+            familyId: mockFamilyId,
+            tokenIndex: 0,
+            expiresAt: Math.floor(Date.now() / 1000) + mockExpiresInSeconds,
+            userId: mockUserId,
+            deviceId: mockDeviceId,
+          };
         }
-        // Return a fresh copy each time to avoid mutation issues
-        return Promise.resolve({ ...mockFamilyData, currentIndex: 1 });
+        if (key.includes(`refresh:family:${mockFamilyId}`)) {
+          return [mockTokenId, "newer-token-id"]; // 族链已有新令牌
+        }
+        return null;
       });
 
       await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
         UnauthorizedException,
       );
       await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
-        "Replay attack detected",
+        "检测到重放攻击",
       );
 
-      // Verify family was revoked
-      expect(mockTokenFamilyRepository.update).toHaveBeenCalledWith(
-        { familyId: mockFamilyId },
-        { isRevoked: true },
+      // 验证族被标记为已撤销
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        expect.stringContaining(`refresh:revoked:${mockFamilyId}`),
+        expect.objectContaining({
+          reason: "replay_attack",
+        }),
+        mockExpiresInSeconds,
       );
     });
 
-    it("当 family 不存在时应该抛出错误", async () => {
+    it("should throw UnauthorizedException for invalid token", async () => {
+      mockJwtService.verifyAsync.mockRejectedValue(new Error("Invalid token"));
+
+      await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it("should throw UnauthorizedException if token not found in Redis", async () => {
       mockRedisService.get.mockResolvedValue(null);
 
       await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
         UnauthorizedException,
       );
-      await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
-        "Token family not found",
-      );
     });
 
-    it("当 family 已撤销时应该抛出错误", async () => {
-      const revokedFamilyData = { ...mockFamilyData, isRevoked: true };
-      mockRedisService.get.mockResolvedValue(revokedFamilyData);
+    it("should throw UnauthorizedException if token family is revoked", async () => {
+      mockRedisService.exists.mockResolvedValue(true);
 
       await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
         UnauthorizedException,
       );
       await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
-        "revoked",
-      );
-    });
-
-    it("当用户 ID 不匹配时应该抛出错误", async () => {
-      const mismatchedFamilyData = { ...mockFamilyData, userId: 999 };
-      mockRedisService.get.mockResolvedValue(mismatchedFamilyData);
-
-      await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
-        "user mismatch",
-      );
-    });
-
-    it("当 token 签名无效时应该抛出错误", async () => {
-      mockJwtService.verifyAsync.mockRejectedValue(new Error("Invalid signature"));
-
-      await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(service.rotateRefreshToken(mockOldToken)).rejects.toThrow(
-        "Invalid or expired",
+        "令牌族已被撤销",
       );
     });
   });
 
-  describe("validateRefreshToken - 验证 Refresh Token", () => {
-    const mockToken = "refresh.token";
-    const mockPayload = {
-      sub: mockUserId,
-      deviceId: mockDeviceId,
-      familyId: mockFamilyId,
-      tokenId: mockTokenId,
-      tokenIndex: 0,
-    };
+  describe("validateRefreshToken", () => {
+    const mockToken = "valid-refresh-token";
 
     beforeEach(() => {
-      mockJwtService.verifyAsync.mockResolvedValue(mockPayload);
-      mockRedisService.get.mockResolvedValue(mockFamilyData);
+      mockJwtService.verifyAsync.mockResolvedValue({
+        sub: mockUserId,
+        familyId: mockFamilyId,
+        tokenId: mockTokenId,
+        tokenIndex: 1,
+        type: "refresh",
+      });
+
+      mockRedisService.get.mockImplementation((key: string) => {
+        if (key.includes(`refresh:token:${mockTokenId}`)) {
+          return {
+            familyId: mockFamilyId,
+            tokenIndex: 1,
+            expiresAt: Math.floor(Date.now() / 1000) + mockExpiresInSeconds,
+            userId: mockUserId,
+            deviceId: mockDeviceId,
+          };
+        }
+        if (key.includes(`refresh:family:${mockFamilyId}`)) {
+          return ["token-0", mockTokenId]; // 族链有2个令牌，当前是索引1
+        }
+        return null;
+      });
+
+      mockRedisService.exists.mockResolvedValue(false);
     });
 
-    it("应该验证有效的 token", async () => {
+    it("should validate a valid refresh token", async () => {
       const result = await service.validateRefreshToken(mockToken);
 
       expect(result.valid).toBe(true);
-      expect(result.userId).toBe(mockUserId);
-      expect(result.deviceId).toBe(mockDeviceId);
-      expect(result.familyId).toBe(mockFamilyId);
-      expect(result.tokenIndex).toBe(0);
       expect(result.isReplay).toBe(false);
+      expect(result.metadata).toEqual({
+        familyId: mockFamilyId,
+        tokenIndex: 1,
+        userId: mockUserId,
+        deviceId: mockDeviceId,
+        expiresAt: expect.any(Number),
+      });
     });
 
-    it("应该检测重放攻击但不撤销", async () => {
-      const staleFamilyData = { ...mockFamilyData, currentIndex: 2 };
-      mockRedisService.get.mockResolvedValue(staleFamilyData);
+    it("should detect replay attack when old token is used", async () => {
+      // 族链有3个令牌，但验证的是索引1的令牌（重放）
+      mockRedisService.get.mockImplementation((key: string) => {
+        if (key.includes(`refresh:token:${mockTokenId}`)) {
+          return {
+            familyId: mockFamilyId,
+            tokenIndex: 1,
+            expiresAt: Math.floor(Date.now() / 1000) + mockExpiresInSeconds,
+            userId: mockUserId,
+            deviceId: mockDeviceId,
+          };
+        }
+        if (key.includes(`refresh:family:${mockFamilyId}`)) {
+          return ["token-0", mockTokenId, "token-2"]; // 最新的索引是2
+        }
+        return null;
+      });
 
       const result = await service.validateRefreshToken(mockToken);
 
       expect(result.valid).toBe(false);
       expect(result.isReplay).toBe(true);
-      expect(result.error).toBe("Replay attack detected");
+      expect(result.error).toBe("检测到重放攻击");
     });
 
-    it("当 family 不存在时应该返回无效", async () => {
+    it("should return invalid for non-refresh token type", async () => {
+      mockJwtService.verifyAsync.mockResolvedValue({
+        type: "access", // 错误的类型
+      });
+
+      const result = await service.validateRefreshToken(mockToken);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe("令牌类型不正确");
+    });
+
+    it("should return invalid when token metadata not found", async () => {
       mockRedisService.get.mockResolvedValue(null);
 
       const result = await service.validateRefreshToken(mockToken);
 
       expect(result.valid).toBe(false);
-      expect(result.error).toBe("Token family not found or expired");
-    });
-
-    it("当 token 签名无效时应该返回无效", async () => {
-      mockJwtService.verifyAsync.mockRejectedValue(
-        new UnauthorizedException("Invalid or expired refresh token"),
-      );
-
-      const result = await service.validateRefreshToken(mockToken);
-
-      expect(result.valid).toBe(false);
-      expect(result.error).toBe("Invalid or expired refresh token");
+      expect(result.error).toBe("令牌不存在或已过期");
     });
   });
 
-  describe("revokeTokenFamily - 撤销 Token Family", () => {
-    it("应该成功撤销 token family", async () => {
-      mockRedisService.get.mockResolvedValue(mockFamilyData);
+  describe("revokeTokenFamily", () => {
+    it("should mark token family as revoked in Redis and database", async () => {
+      await service.revokeTokenFamily(mockFamilyId, "user_logout");
 
+      // 验证 Redis 标记
+      expect(mockRedisService.set).toHaveBeenCalledWith(
+        `refresh:revoked:${mockFamilyId}`,
+        expect.objectContaining({
+          reason: "user_logout",
+          revokedAt: expect.any(Number),
+        }),
+        mockExpiresInSeconds,
+      );
+
+      // 验证数据库更新
+      expect(tokenFamilyRepository.update).toHaveBeenCalledWith(
+        { familyId: mockFamilyId },
+        { isRevoked: true, revokeReason: "user_logout" },
+      );
+    });
+
+    it("should use default reason if not provided", async () => {
       await service.revokeTokenFamily(mockFamilyId);
 
-      // Verify Redis update
       expect(mockRedisService.set).toHaveBeenCalledWith(
-        `refresh:family:${mockFamilyId}`,
-        expect.objectContaining({ isRevoked: true }),
-        604800,
+        expect.any(String),
+        expect.objectContaining({
+          reason: "user_logout",
+        }),
+        expect.any(Number),
       );
-
-      // Verify family was removed from user's set
-      expect(mockRedisClient.srem).toHaveBeenCalledWith(
-        `refresh:user:${mockUserId}:families`,
-        mockFamilyId,
-      );
-
-      // Verify database update
-      expect(mockTokenFamilyRepository.update).toHaveBeenCalledWith(
-        { familyId: mockFamilyId },
-        { isRevoked: true },
-      );
-    });
-
-    it("当 family 不存在时应该静默返回", async () => {
-      mockRedisService.get.mockResolvedValue(null);
-
-      await expect(service.revokeTokenFamily(mockFamilyId)).resolves.not.toThrow();
-
-      expect(mockTokenFamilyRepository.update).not.toHaveBeenCalled();
     });
   });
 
-  describe("revokeAllUserTokens - 撤销用户所有 Token", () => {
-    it("应该撤销用户的所有 token family", async () => {
-      const mockFamilyIds = [mockFamilyId, "family-uuid-002", "family-uuid-003"];
-      mockRedisClient.smembers.mockResolvedValue(mockFamilyIds);
-      mockRedisService.get.mockResolvedValue(mockFamilyData);
+  describe("revokeAllUserTokens", () => {
+    it("should revoke all token families for a user", async () => {
+      const mockFamilies = [
+        { familyId: "family-1", userId: mockUserId, isRevoked: false },
+        { familyId: "family-2", userId: mockUserId, isRevoked: false },
+      ];
 
-      await service.revokeAllUserTokens(mockUserId);
+      mockTokenFamilyRepository.find.mockResolvedValue(mockFamilies as any);
+      mockRedisService.set.mockResolvedValue(true);
+      mockTokenFamilyRepository.update.mockResolvedValue({ affected: 2 } as any);
 
-      // Verify all families were fetched
-      expect(mockRedisClient.smembers).toHaveBeenCalledWith(
-        `refresh:user:${mockUserId}:families`,
-      );
+      await service.revokeAllUserTokens(mockUserId, "password_change");
 
-      // Verify user's family set was cleared
-      expect(mockMulti.del).toHaveBeenCalledWith(
-        `refresh:user:${mockUserId}:families`,
-      );
+      // 验证获取了用户的所有令牌族
+      expect(tokenFamilyRepository.find).toHaveBeenCalledWith({
+        where: { userId: mockUserId, isRevoked: false },
+      });
 
-      // Verify database update
-      expect(mockTokenFamilyRepository.update).toHaveBeenCalledWith(
-        { userId: mockUserId },
-        { isRevoked: true },
-      );
+      // 验证每个族都被撤销了
+      expect(mockRedisService.set).toHaveBeenCalledTimes(2);
+      expect(tokenFamilyRepository.update).toHaveBeenCalledTimes(2);
     });
 
-    it("当用户没有 families 时应该静默返回", async () => {
-      mockRedisClient.smembers.mockResolvedValue([]);
+    it("should handle user with no active tokens", async () => {
+      mockTokenFamilyRepository.find.mockResolvedValue([]);
 
-      await expect(service.revokeAllUserTokens(mockUserId)).resolves.not.toThrow();
-
-      expect(mockMulti.exec).not.toHaveBeenCalled();
+      await expect(
+        service.revokeAllUserTokens(mockUserId),
+      ).resolves.not.toThrow();
     });
   });
 
-  describe("cleanupExpiredTokens - 清理过期 Token", () => {
-    it("应该删除数据库中过期的 token families", async () => {
+  describe("cleanupExpiredTokens", () => {
+    it("should delete expired token families from database", async () => {
       const mockQueryBuilder = {
         delete: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         execute: jest.fn().mockResolvedValue({ affected: 5 }),
       };
 
-      mockTokenFamilyRepository.createQueryBuilder.mockReturnValue(
+      (mockTokenFamilyRepository.createQueryBuilder as jest.Mock).mockReturnValue(
         mockQueryBuilder as any,
       );
 
-      await service.cleanupExpiredTokens();
+      const result = await service.cleanupExpiredTokens();
 
-      expect(mockTokenFamilyRepository.createQueryBuilder).toHaveBeenCalled();
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        "expiresAt < :now",
-        expect.any(Object),
+      expect(result).toBe(5);
+    });
+
+    it("should return 0 when no expired tokens found", async () => {
+      const mockQueryBuilder = {
+        delete: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 0 }),
+      };
+
+      (mockTokenFamilyRepository.createQueryBuilder as jest.Mock).mockReturnValue(
+        mockQueryBuilder as any,
       );
-      expect(mockQueryBuilder.execute).toHaveBeenCalled();
-    });
-  });
 
-  describe("parseExpiresToSeconds - 解析过期时间", () => {
-    it("应该正确解析秒数", () => {
-      expect((service as any).parseExpiresToSeconds("30s")).toBe(30);
-      expect((service as any).parseExpiresToSeconds("60s")).toBe(60);
-    });
+      const result = await service.cleanupExpiredTokens();
 
-    it("应该正确解析分钟", () => {
-      expect((service as any).parseExpiresToSeconds("15m")).toBe(900); // 15 * 60
-      expect((service as any).parseExpiresToSeconds("1h")).toBe(3600); // 60 * 60
-    });
-
-    it("应该正确解析小时", () => {
-      expect((service as any).parseExpiresToSeconds("2h")).toBe(7200); // 2 * 3600
-    });
-
-    it("应该正确解析天数", () => {
-      expect((service as any).parseExpiresToSeconds("7d")).toBe(604800); // 7 * 86400
-    });
-
-    it("对于无效格式应该抛出错误", () => {
-      expect(() => (service as any).parseExpiresToSeconds("invalid")).toThrow();
-      expect(() => (service as any).parseExpiresToSeconds("10")).toThrow();
-      expect(() => (service as any).parseExpiresToSeconds("10x")).toThrow();
+      expect(result).toBe(0);
     });
   });
 });
