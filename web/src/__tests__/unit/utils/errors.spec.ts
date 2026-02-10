@@ -30,7 +30,7 @@ vi.mock('antd', () => ({
   },
 }))
 
-const { message } = antd as { message: { error: ReturnType<typeof vi.fn>, warning: ReturnType<typeof vi.fn>, success: ReturnType<typeof vi.fn> } }
+const { message } = antd as unknown as { message: { error: ReturnType<typeof vi.fn>, warning: ReturnType<typeof vi.fn>, success: ReturnType<typeof vi.fn> } }
 
 // Mock logger
 vi.mock('@/utils/logger', () => ({

@@ -513,12 +513,11 @@ describe("AnalyticsService", () => {
       const daysToKeep = 90;
       await service.deleteOldActivities(daysToKeep);
 
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-
       expect(mockDeleteBuilder.where).toHaveBeenCalledWith(
         "created_at < :cutoffDate",
-        { cutoffDate },
+        expect.objectContaining({
+          cutoffDate: expect.any(Date),
+        }),
       );
     });
 

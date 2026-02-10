@@ -1,7 +1,7 @@
 /**
  * @file API Type Definitions 单元测试
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { ApiError, ErrorCode } from '@/api/types'
 import type { ApiResponse, ErrorResponse, ValidationError } from '@/api/types'
 

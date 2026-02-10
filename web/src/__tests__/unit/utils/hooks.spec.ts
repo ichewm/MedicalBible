@@ -268,7 +268,7 @@ describe('useApiRequestWithCancel', () => {
   it('应该在新请求时自动取消之前的请求', async () => {
     let firstAborted = false
     const mockFn1 = vi.fn().mockImplementation(async (signal?: AbortSignal) => {
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<void>((_resolve, reject) => {
         signal?.addEventListener('abort', () => {
           firstAborted = true
           reject(new Error('Aborted'))
