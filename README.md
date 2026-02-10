@@ -417,11 +417,24 @@ npm run dev
 
 - **CORS 配置**: 环境级域名白名单，生产环境禁止通配符
 - **安全头**: Helmet 中间件防护常见 Web 漏洞
+- **安全头配置** (SEC-006):
   - **HSTS** (HTTP Strict Transport Security): 强制 HTTPS 连接
   - **CSP** (Content Security Policy): 控制资源加载来源，防止 XSS 攻击
   - **X-Frame-Options**: 防止点击劫持
   - **X-Content-Type-Options**: 防止 MIME 类型嗅探
   - **Permissions-Policy**: 控制浏览器功能访问（地理位置、摄像头等）
+- **输入清洗** (SEC-005): 全局输入清洗中间件，防止 XSS 和注入攻击
+  - 基于 sanitize-html 库
+  - 支持严格/宽松/禁用三种策略
+  - 检测并移除脚本标签、事件处理器、危险协议
+  - 可配置清洗目标（body、query、params）
+  - 恶意内容检测和日志记录
+- **自定义验证器** (SEC-005): DTO 层安全验证装饰器
+  - `@NoScriptTags`: 检测脚本注入
+  - `@NoHtmlTags`: 防止 HTML 标签
+  - `@SafeUrl`: 验证 URL 协议安全
+  - `@NoSqlInjection`: 检测 SQL 注入模式
+  - `@NoCommandInjection`: 检测命令注入模式
 - JWT Token 认证
 - 密码 bcrypt 加密
 - SQL 注入防护
@@ -453,6 +466,15 @@ npm run dev
 - CSP 默认启用，可通过 `CSP_*` 环境变量自定义指令
 - 可通过 `SECURITY_ENABLED=false` 临时禁用（不推荐生产环境）
 
+**输入清洗配置说明** (SEC-005):
+- 默认策略: `strict` (移除所有 HTML 标签)
+- 可通过环境变量配置:
+  - `SANITIZATION_ENABLED`: 启用/禁用输入清洗 (默认: true)
+  - `SANITIZATION_STRATEGY`: 清洗策略 `strict`|`loose`|`disabled` (默认: strict)
+  - `SANITIZATION_THROW_ON_DETECTION`: 检测到恶意内容时抛出错误 (默认: false)
+- 清洗目标: 请求体、查询参数、路径参数
+- 自动检测并记录脚本标签、事件处理器、危险协议
+- 收集清洗指标（清洗数量、恶意内容检测次数等）
 **限流配置说明**:
 - 基于 Redis 的滑动窗口限流实现
 - 支持多种限流策略：按IP、按用户、全局限流
@@ -912,7 +934,20 @@ interface ErrorResponse {
   - 用户历史查询和管理员统计数据API
   - 定时清理旧会话数据（可配置保留天数，默认90天）
   - 21个单元测试覆盖
-
+- 🔒 **输入清洗系统** (SEC-005): 综合输入清洗和验证
+  - 全局输入清洗中间件（基于 sanitize-html）
+  - 支持严格/宽松/禁用三种清洗策略
+  - 检测并移除脚本标签、事件处理器、危险协议
+  - 可配置清洗目标（body、query、params）
+  - 恶意内容检测和日志记录
+  - 清洗指标收集（清洗数量、检测次数等）
+- 🛡️ **自定义安全验证器** (SEC-005): DTO 层安全验证装饰器
+  - `@NoScriptTags`: 检测脚本注入
+  - `@NoHtmlTags`: 防止 HTML 标签
+  - `@SafeUrl`: 验证 URL 协议安全
+  - `@NoSqlInjection`: 检测 SQL 注入模式
+  - `@NoCommandInjection`: 检测命令注入模式
+- ✅ 完整的 E2E 测试覆盖（输入清洗功能）
 ### v1.8.0 (2026-02-10)
 
 - 🔌 **集中式 API 客户端 (API-002)**: 统一前端 HTTP 请求处理

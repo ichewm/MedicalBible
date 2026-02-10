@@ -21,6 +21,7 @@ import { loggerConfig } from "./config/logger.config";
 import { websocketConfig } from "./config/websocket.config";
 import { compressionConfig } from "./config/compression.config";
 import { securityConfig } from "./config/security.config";
+import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
 
 // 业务模块导入
@@ -85,7 +86,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, rateLimitConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig],
       envFilePath: [".env.local", ".env"],
     }),
 

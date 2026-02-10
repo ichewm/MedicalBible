@@ -46,6 +46,7 @@ export interface LoginResponse {
     balance: number
     currentLevelId?: number
     isNewUser?: boolean
+    role?: string
   }
 }
 

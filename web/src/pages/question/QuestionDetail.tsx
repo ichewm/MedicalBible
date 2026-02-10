@@ -16,7 +16,7 @@ import {
   FlagFilled,
   HomeOutlined,
 } from '@ant-design/icons'
-import { getPaperDetail, submitAnswer, startExam, submitExam, getExamProgress, type Question } from '@/api/question'
+import { getPaperDetail, submitAnswer, startExam, submitExam, getExamProgress, type Question, type PaperDetail } from '@/api/question'
 import { useVoiceStore } from '@/stores/voice'
 import { useVoiceCommandHandler } from '@/voice/use-voice-commands'
 import { questionCommands } from '@/voice/commands'
@@ -53,7 +53,7 @@ const QuestionDetail = () => {
       if (!id) return
       setLoading(true)
       try {
-        const detail = await getPaperDetail(Number(id))
+        const detail = await getPaperDetail(Number(id)) as unknown as PaperDetail
         setQuestions(detail.questions || [])
         setCurrentIndex(0)
         

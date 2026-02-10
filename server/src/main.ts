@@ -19,6 +19,7 @@ import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
 import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
 import { CompressionMiddleware } from "./common/middleware/compression.middleware";
+import { SanitizationMiddleware } from "./common/middleware/sanitization.middleware";
 
 /**
  * 应用程序启动函数
@@ -165,9 +166,17 @@ async function bootstrap(): Promise<void> {
   app.use(compressionMiddleware.use.bind(compressionMiddleware));
 
   // 配置请求追踪中间件
+  // 必须在其他中间件之前注册，以便所有后续中间件的日志都能包含 requestId/correlationId
   app.use(
     new RequestTrackingMiddleware().use.bind(new RequestTrackingMiddleware()),
   );
+
+  // 配置输入清洗中间件
+  // 使用 ConfigService 获取清洗配置
+  // 在请求处理前清洗所有输入数据，防止 XSS 和注入攻击
+  // 必须在请求追踪之后注册，以便清洗日志包含请求追踪 ID
+  const sanitizationMiddleware = new SanitizationMiddleware(configService);
+  app.use(sanitizationMiddleware.use.bind(sanitizationMiddleware));
 
   // 配置活动追踪中间件
   app.use(
