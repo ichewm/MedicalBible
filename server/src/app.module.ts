@@ -90,22 +90,55 @@ class HealthController {
 
     // TypeORM 数据库模块
     // - 使用异步配置，从 ConfigService 获取数据库配置
+    // - 配置连接池以防止高负载下连接耗尽
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: "mysql",
-        host: configService.get<string>("database.host"),
-        port: configService.get<number>("database.port"),
-        username: configService.get<string>("database.username"),
-        password: configService.get<string>("database.password"),
-        database: configService.get<string>("database.database"),
-        entities: [__dirname + "/entities/**/*.entity{.ts,.js}"],
-        synchronize: configService.get<string>("NODE_ENV") !== "production",
-        logging: configService.get<string>("NODE_ENV") === "development",
-        charset: "utf8mb4",
-        timezone: "+08:00", // 北京时间
-      }),
+      useFactory: (configService: ConfigService) => {
+        const pool = configService.get<any>("database.pool");
+        const connectionTimeout = configService.get<number>("database.connectionTimeout");
+        const queryTimeout = configService.get<number>("database.queryTimeout");
+
+        return {
+          type: "mysql",
+          host: configService.get<string>("database.host"),
+          port: configService.get<number>("database.port"),
+          username: configService.get<string>("database.username"),
+          password: configService.get<string>("database.password"),
+          database: configService.get<string>("database.database"),
+          entities: [__dirname + "/entities/**/*.entity{.ts,.js}"],
+          synchronize: configService.get<string>("NODE_ENV") !== "production",
+          logging: configService.get<string>("NODE_ENV") === "development",
+          charset: "utf8mb4",
+          timezone: "+08:00", // 北京时间
+
+          // 连接池配置 - 使用 extra 传递给底层 mysql2 驱动
+          extra: {
+            // 连接池大小
+            connectionLimit: pool?.max || 20,
+
+            // 启用连接池的 keepAlive 功能
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 0,
+
+            // 连接建立超时时间（毫秒）
+            connectTimeout: connectionTimeout || 60000,
+
+            // 查询超时时间
+            timeout: queryTimeout || 60000,
+
+            // 连接获取超时时间（通过 acquireTimeout 配置）
+            acquireTimeout: pool?.acquireTimeoutMillis || 30000,
+          } as {
+            connectionLimit: number;
+            enableKeepAlive: boolean;
+            keepAliveInitialDelay: number;
+            connectTimeout: number;
+            timeout: number;
+            acquireTimeout: number;
+          },
+        };
+      },
     }),
 
     // Redis 缓存模块
