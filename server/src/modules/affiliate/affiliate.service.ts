@@ -248,8 +248,8 @@ export class AffiliateService {
       where: whereCondition,
       relations: ["sourceOrder"],
       order: { id: "DESC" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
 
     // 佣金状态映射
@@ -272,6 +272,7 @@ export class AffiliateService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -322,7 +323,7 @@ export class AffiliateService {
 
     return {
       totalCommission: Number(totalResult?.total || 0),
-      availableCommission: Number(user?.balance || 0), // 可提现=账户余额
+      availableCommission: Number(availableResult?.total || 0),
       frozenCommission: Number(frozenResult?.total || 0),
       balance: Number(user?.balance || 0),
       inviteeCount,
@@ -420,8 +421,8 @@ export class AffiliateService {
     const [items, total] = await this.withdrawalRepository.findAndCount({
       where: whereCondition,
       order: { id: "DESC" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
 
     // 状态映射
@@ -447,6 +448,7 @@ export class AffiliateService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -512,8 +514,8 @@ export class AffiliateService {
       .createQueryBuilder("u")
       .where("u.parentId = :userId", { userId })
       .orderBy("u.createdAt", "DESC")
-      .skip((page - 1) * pageSize)
-      .take(pageSize)
+      .skip(query.getSkip())
+      .take(query.getTake())
       .getManyAndCount();
 
     // 查询每个下线贡献的佣金
@@ -532,6 +534,7 @@ export class AffiliateService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 
@@ -755,8 +758,8 @@ export class AffiliateService {
       where: whereCondition,
       relations: ["user"],
       order: { id: "DESC" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
 
     // 提现状态映射
@@ -785,6 +788,7 @@ export class AffiliateService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 

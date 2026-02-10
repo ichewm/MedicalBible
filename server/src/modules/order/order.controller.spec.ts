@@ -6,7 +6,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { OrderController } from "./order.controller";
 import { OrderService } from "./order.service";
+import { PaymentService } from "../payment/payment.service";
 import { JwtAuthGuard, RolesGuard } from "@common/guards";
+import { plainToInstance } from "class-transformer";
+import { OrderQueryDto } from "./dto/order.dto";
 
 describe("OrderController", () => {
   let controller: OrderController;
@@ -19,6 +22,11 @@ describe("OrderController", () => {
     getPaymentUrl: jest.fn(),
     handlePaymentCallback: jest.fn(),
     cancelOrder: jest.fn(),
+  };
+
+  const mockPaymentService = {
+    verifyAlipayCallback: jest.fn().mockResolvedValue(true),
+    verifyWechatCallback: jest.fn().mockResolvedValue(true),
   };
 
   const mockUser = {
@@ -39,6 +47,10 @@ describe("OrderController", () => {
         {
           provide: OrderService,
           useValue: mockOrderService,
+        },
+        {
+          provide: PaymentService,
+          useValue: mockPaymentService,
         },
       ],
     })
@@ -86,7 +98,7 @@ describe("OrderController", () => {
 
   describe("getOrders - 获取订单列表", () => {
     it("应该成功获取用户订单列表", async () => {
-      const query = { page: 1, pageSize: 10 };
+      const query = plainToInstance(OrderQueryDto, { page: 1, pageSize: 10 });
       const mockResult = {
         items: [
           {
@@ -114,7 +126,7 @@ describe("OrderController", () => {
     });
 
     it("应该支持按状态筛选订单", async () => {
-      const query = { status: 1, page: 1, pageSize: 10 };
+      const query = plainToInstance(OrderQueryDto, { status: 1, page: 1, pageSize: 10 });
 
       mockOrderService.getUserOrders.mockResolvedValue({
         items: [],
@@ -231,8 +243,7 @@ describe("OrderController", () => {
         message: "支付成功",
       });
 
-      // Mock payment service
-      jest.spyOn(controller["paymentService"], "verifyAlipayCallback").mockResolvedValue(true);
+      mockPaymentService.verifyAlipayCallback.mockResolvedValue(true);
 
       const result = await controller.alipayCallback(body);
 
@@ -252,8 +263,7 @@ describe("OrderController", () => {
         message: "支付成功",
       });
 
-      // Mock payment service
-      jest.spyOn(controller["paymentService"], "verifyWechatCallback").mockResolvedValue(true);
+      mockPaymentService.verifyWechatCallback.mockResolvedValue(true);
 
       const result = await controller.wechatCallback(
         "1234567890",

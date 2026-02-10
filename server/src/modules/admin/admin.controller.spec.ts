@@ -6,7 +6,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { AdminController } from "./admin.controller";
 import { AdminService } from "./admin.service";
+import { ExportService } from "../../common/export/export.service";
 import { JwtAuthGuard, RolesGuard } from "@common/guards";
+import { plainToInstance } from "class-transformer";
+import { UserListQueryDto } from "./dto/admin.dto";
 
 describe("AdminController", () => {
   let controller: AdminController;
@@ -21,6 +24,10 @@ describe("AdminController", () => {
     getUserGrowthStats: jest.fn(),
     getSystemConfig: jest.fn(),
     updateSystemConfig: jest.fn(),
+  };
+
+  const mockExportService = {
+    exportUsers: jest.fn(),
   };
 
   const mockAdminUser = {
@@ -41,6 +48,10 @@ describe("AdminController", () => {
         {
           provide: AdminService,
           useValue: mockAdminService,
+        },
+        {
+          provide: ExportService,
+          useValue: mockExportService,
         },
       ],
     })
@@ -66,7 +77,7 @@ describe("AdminController", () => {
 
   describe("getUserList - 获取用户列表", () => {
     it("应该成功获取用户列表", async () => {
-      const query = { page: 1, pageSize: 10 };
+      const query = plainToInstance(UserListQueryDto, { page: 1, pageSize: 10 });
       const mockResult = {
         items: [
           {
@@ -98,7 +109,7 @@ describe("AdminController", () => {
     });
 
     it("应该支持按状态筛选用户", async () => {
-      const query = { status: 0, page: 1, pageSize: 10 };
+      const query = plainToInstance(UserListQueryDto, { status: 0, page: 1, pageSize: 10 });
 
       mockAdminService.getUserList.mockResolvedValue({
         items: [],
@@ -113,7 +124,7 @@ describe("AdminController", () => {
     });
 
     it("应该支持按手机号搜索用户", async () => {
-      const query = { phone: "13800138000", page: 1, pageSize: 10 };
+      const query = plainToInstance(UserListQueryDto, { phone: "13800138000", page: 1, pageSize: 10 });
 
       mockAdminService.getUserList.mockResolvedValue({
         items: [

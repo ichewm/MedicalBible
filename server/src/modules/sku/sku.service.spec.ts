@@ -15,6 +15,7 @@ import { Profession } from "../../entities/profession.entity";
 import { Level } from "../../entities/level.entity";
 import { Subject } from "../../entities/subject.entity";
 import { SkuPrice } from "../../entities/sku-price.entity";
+import { Order } from "../../entities/order.entity";
 import { RedisService } from "../../common/redis/redis.service";
 
 describe("SkuService", () => {
@@ -23,6 +24,7 @@ describe("SkuService", () => {
   let levelRepository: Repository<Level>;
   let subjectRepository: Repository<Subject>;
   let skuPriceRepository: Repository<SkuPrice>;
+  let orderRepository: Repository<Order>;
 
   // Mock 数据
   const mockProfession: Partial<Profession> = {
@@ -96,6 +98,10 @@ describe("SkuService", () => {
     delete: jest.fn(),
   };
 
+  const mockOrderRepository = {
+    count: jest.fn(),
+  };
+
   const mockRedisService = {
     get: jest.fn(),
     set: jest.fn(),
@@ -123,6 +129,10 @@ describe("SkuService", () => {
           useValue: mockSkuPriceRepository,
         },
         {
+          provide: getRepositoryToken(Order),
+          useValue: mockOrderRepository,
+        },
+        {
           provide: RedisService,
           useValue: mockRedisService,
         },
@@ -140,6 +150,7 @@ describe("SkuService", () => {
     skuPriceRepository = module.get<Repository<SkuPrice>>(
       getRepositoryToken(SkuPrice),
     );
+    orderRepository = module.get<Repository<Order>>(getRepositoryToken(Order));
 
     jest.clearAllMocks();
   });
@@ -425,6 +436,118 @@ describe("SkuService", () => {
     });
   });
 
+  describe("deleteLevel - 删除等级", () => {
+    it("应该成功删除没有关联资源的等级", async () => {
+      // Arrange
+      const levelWithEmptyRelations = {
+        ...mockLevel,
+        subjects: [],
+        prices: [],
+        orders: [],
+        subscriptions: [],
+      };
+      mockLevelRepository.findOne.mockResolvedValue(levelWithEmptyRelations);
+
+      // Act
+      const result = await service.deleteLevel(1);
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(mockLevelRepository.delete).toHaveBeenCalledWith(1);
+    });
+
+    it("等级下存在科目时应该抛出异常", async () => {
+      // Arrange
+      const levelWithSubjects = {
+        ...mockLevel,
+        subjects: [{ id: 1, name: "临床检验基础" }],
+        prices: [],
+        orders: [],
+        subscriptions: [],
+      };
+      mockLevelRepository.findOne.mockResolvedValue(levelWithSubjects);
+
+      // Act & Assert
+      await expect(service.deleteLevel(1)).rejects.toThrow(BadRequestException);
+      await expect(service.deleteLevel(1)).rejects.toThrow("1个科目");
+    });
+
+    it("等级下存在价格档位时应该抛出异常", async () => {
+      // Arrange
+      const levelWithPrices = {
+        ...mockLevel,
+        subjects: [],
+        prices: [{ id: 1, durationMonths: 12 }],
+        orders: [],
+        subscriptions: [],
+      };
+      mockLevelRepository.findOne.mockResolvedValue(levelWithPrices);
+
+      // Act & Assert
+      await expect(service.deleteLevel(1)).rejects.toThrow(BadRequestException);
+      await expect(service.deleteLevel(1)).rejects.toThrow("1个价格档位");
+    });
+
+    it("等级下存在订单时应该抛出异常", async () => {
+      // Arrange
+      const levelWithOrders = {
+        ...mockLevel,
+        subjects: [],
+        prices: [],
+        orders: [{ id: 1 }, { id: 2 }],
+        subscriptions: [],
+      };
+      mockLevelRepository.findOne.mockResolvedValue(levelWithOrders);
+
+      // Act & Assert
+      await expect(service.deleteLevel(1)).rejects.toThrow(BadRequestException);
+      await expect(service.deleteLevel(1)).rejects.toThrow("2个订单");
+    });
+
+    it("等级下存在订阅时应该抛出异常", async () => {
+      // Arrange
+      const levelWithSubscriptions = {
+        ...mockLevel,
+        subjects: [],
+        prices: [],
+        orders: [],
+        subscriptions: [{ id: 1 }],
+      };
+      mockLevelRepository.findOne.mockResolvedValue(levelWithSubscriptions);
+
+      // Act & Assert
+      await expect(service.deleteLevel(1)).rejects.toThrow(BadRequestException);
+      await expect(service.deleteLevel(1)).rejects.toThrow("1个订阅");
+    });
+
+    it("等级下存在多种关联资源时应该包含所有类型", async () => {
+      // Arrange
+      const levelWithMultipleRelations = {
+        ...mockLevel,
+        subjects: [{ id: 1 }],
+        prices: [{ id: 1 }],
+        orders: [],
+        subscriptions: [{ id: 1 }],
+      };
+      mockLevelRepository.findOne.mockResolvedValue(levelWithMultipleRelations);
+
+      // Act & Assert
+      await expect(service.deleteLevel(1)).rejects.toThrow(BadRequestException);
+      const error = await service.deleteLevel(1).catch((e) => e);
+      expect(error.message).toContain("科目");
+      expect(error.message).toContain("价格档位");
+      expect(error.message).toContain("订阅");
+    });
+
+    it("等级不存在时应该抛出异常", async () => {
+      // Arrange
+      mockLevelRepository.findOne.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.deleteLevel(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
   // ==================== 科目管理 ====================
 
   describe("getSubjectsByLevel - 获取科目列表", () => {
@@ -466,6 +589,78 @@ describe("SkuService", () => {
       await expect(service.createSubject(createDto)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe("deleteSubject - 删除科目", () => {
+    it("应该成功删除没有关联内容的科目", async () => {
+      // Arrange
+      const subjectWithEmptyRelations = {
+        ...mockSubject,
+        papers: [],
+        lectures: [],
+      };
+      mockSubjectRepository.findOne.mockResolvedValue(subjectWithEmptyRelations);
+
+      // Act
+      const result = await service.deleteSubject(1);
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(mockSubjectRepository.delete).toHaveBeenCalledWith(1);
+    });
+
+    it("科目下存在试卷时应该抛出异常", async () => {
+      // Arrange
+      const subjectWithPapers = {
+        ...mockSubject,
+        papers: [{ id: 1, name: "2024年真题" }],
+        lectures: [],
+      };
+      mockSubjectRepository.findOne.mockResolvedValue(subjectWithPapers);
+
+      // Act & Assert
+      await expect(service.deleteSubject(1)).rejects.toThrow(BadRequestException);
+      await expect(service.deleteSubject(1)).rejects.toThrow("1个试卷");
+    });
+
+    it("科目下存在讲义时应该抛出异常", async () => {
+      // Arrange
+      const subjectWithLectures = {
+        ...mockSubject,
+        papers: [],
+        lectures: [{ id: 1, title: "第一章讲义" }],
+      };
+      mockSubjectRepository.findOne.mockResolvedValue(subjectWithLectures);
+
+      // Act & Assert
+      await expect(service.deleteSubject(1)).rejects.toThrow(BadRequestException);
+      await expect(service.deleteSubject(1)).rejects.toThrow("1个讲义");
+    });
+
+    it("科目下同时存在试卷和讲义时应该包含两种类型", async () => {
+      // Arrange
+      const subjectWithMultipleRelations = {
+        ...mockSubject,
+        papers: [{ id: 1 }, { id: 2 }],
+        lectures: [{ id: 1 }],
+      };
+      mockSubjectRepository.findOne.mockResolvedValue(subjectWithMultipleRelations);
+
+      // Act & Assert
+      await expect(service.deleteSubject(1)).rejects.toThrow(BadRequestException);
+      const error = await service.deleteSubject(1).catch((e) => e);
+      expect(error.message).toContain("2个试卷");
+      expect(error.message).toContain("1个讲义");
+      expect(error.message).toContain("和");
+    });
+
+    it("科目不存在时应该抛出异常", async () => {
+      // Arrange
+      mockSubjectRepository.findOne.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.deleteSubject(999)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -645,6 +840,39 @@ describe("SkuService", () => {
       await expect(service.getSkuPriceById(999)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe("deleteSkuPrice - 删除价格档位", () => {
+    it("应该成功删除没有关联订单的价格档位", async () => {
+      // Arrange
+      mockSkuPriceRepository.findOne.mockResolvedValue(mockSkuPrice);
+      mockOrderRepository.count.mockResolvedValue(0);
+
+      // Act
+      const result = await service.deleteSkuPrice(1);
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(mockSkuPriceRepository.delete).toHaveBeenCalledWith(1);
+    });
+
+    it("价格档位下存在订单时应该抛出异常", async () => {
+      // Arrange
+      mockSkuPriceRepository.findOne.mockResolvedValue(mockSkuPrice);
+      mockOrderRepository.count.mockResolvedValue(3);
+
+      // Act & Assert
+      await expect(service.deleteSkuPrice(1)).rejects.toThrow(BadRequestException);
+      await expect(service.deleteSkuPrice(1)).rejects.toThrow("3个订单");
+    });
+
+    it("价格档位不存在时应该抛出异常", async () => {
+      // Arrange
+      mockSkuPriceRepository.findOne.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(service.deleteSkuPrice(999)).rejects.toThrow(NotFoundException);
     });
   });
 });
