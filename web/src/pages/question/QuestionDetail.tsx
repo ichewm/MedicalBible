@@ -237,9 +237,6 @@ const QuestionDetail = () => {
     }
   }
 
-  // 添加 ref
-  const touchStartXRef = useRef(0)
-
   if (loading) return <Card loading />
   if (!currentQuestion) return (
     <Card>
@@ -413,8 +410,5 @@ const QuestionDetail = () => {
     </div>
   )
 }
-
-// 添加 ref 声明
-const touchStartXRef = { current: 0 }
 
 export default QuestionDetail
