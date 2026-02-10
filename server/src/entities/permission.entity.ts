@@ -149,6 +149,6 @@ export class Permission {
   // ==================== 关联关系 ====================
 
   /** 拥有此权限的角色列表 */
-  @OneToMany(() => RolePermission, (rolePermission) => rolePermission.permission)
+  @OneToMany(() => RolePermission, (rolePermission) => rolePermission.permission, { eager: false })
   roles: RolePermission[];
 }
