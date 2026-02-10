@@ -65,12 +65,12 @@ describe('Order Controller Integration Tests', () => {
   beforeEach(async () => {
     if (!testHelper) return;
 
-    await testHelper.startTransaction();
-
     // Skip setup if database is not available (testHelper is a skip helper)
-    if (isSkippedTestHelper(testHelper)) {
+    if (isSkippedTestHelper(testHelper) || !userRepo) {
       return;
     }
+
+    await testHelper.startTransaction();
 
     // Create test user and device
     testUser = await UserFactory.create()
@@ -134,6 +134,11 @@ describe('Order Controller Integration Tests', () => {
 
   describe('GET /api/v1/order - Get user orders', () => {
     beforeEach(async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !orderRepo) {
+        return;
+      }
+
       // Create test orders
       await OrderFactory.create(testUser.id)
         .asPending()
@@ -185,6 +190,11 @@ describe('Order Controller Integration Tests', () => {
     let testOrder: Order;
 
     beforeEach(async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !orderRepo) {
+        return;
+      }
+
       testOrder = await OrderFactory.create(testUser.id)
         .asPending()
         .save(orderRepo);
@@ -222,6 +232,11 @@ describe('Order Controller Integration Tests', () => {
     let paidOrder: Order;
 
     beforeEach(async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !orderRepo) {
+        return;
+      }
+
       pendingOrder = await OrderFactory.create(testUser.id)
         .asPending()
         .save(orderRepo);
@@ -281,6 +296,11 @@ describe('Order Controller Integration Tests', () => {
     let paidOrder: Order;
 
     beforeEach(async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !orderRepo) {
+        return;
+      }
+
       pendingOrder = await OrderFactory.create(testUser.id)
         .asPending()
         .save(orderRepo);
@@ -437,6 +457,11 @@ describe('Order Controller Integration Tests', () => {
     let adminAuthToken: string;
 
     beforeEach(async () => {
+      // Skip if database is not available
+      if (isSkippedTestHelper(testHelper) || !userRepo) {
+        return;
+      }
+
       // Create admin user
       adminUser = await UserFactory.create()
         .withPhone('13800138999')

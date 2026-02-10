@@ -71,16 +71,16 @@ describe('Lecture Controller Integration Tests', () => {
   beforeEach(async () => {
     if (!testHelper) return;
 
-    await testHelper.startTransaction();
-
     // Skip setup if database is not available (testHelper is a skip helper)
-    if (isSkippedTestHelper(testHelper)) {
+    if (isSkippedTestHelper(testHelper) || !userRepo) {
       // Set dummy values to prevent undefined errors in tests
       testUser = { id: 1 } as any;
       authToken = 'skip-token';
       testLecture = { id: 1 } as any;
       return;
     }
+
+    await testHelper.startTransaction();
 
     // Create test user and device
     testUser = await UserFactory.create()
@@ -266,7 +266,7 @@ describe('Lecture Controller Integration Tests', () => {
 
     beforeEach(async () => {
       // Skip setup if database is not available
-      if (isSkippedTestHelper(testHelper)) {
+      if (isSkippedTestHelper(testHelper) || !userRepo) {
         teacherUser = { id: 2 } as any;
         teacherAuthToken = 'skip-teacher-token';
         return;
@@ -495,7 +495,7 @@ describe('Lecture Controller Integration Tests', () => {
       if (!testHelper || !userRepo || !userDeviceRepo) return;
 
       // Skip setup if database is not available
-      if (isSkippedTestHelper(testHelper)) {
+      if (isSkippedTestHelper(testHelper) || !userRepo) {
         adminUser = { id: 3 } as any;
         adminAuthToken = 'skip-admin-token';
         return;

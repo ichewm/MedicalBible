@@ -63,12 +63,12 @@ describe('User Controller Integration Tests', () => {
   beforeEach(async () => {
     if (!testHelper) return;
 
-    await testHelper.startTransaction();
-
     // Skip setup if database is not available (testHelper is a skip helper)
-    if (isSkippedTestHelper(testHelper)) {
+    if (isSkippedTestHelper(testHelper) || !userRepo) {
       return;
     }
+
+    await testHelper.startTransaction();
 
     // Create test user and device
     testUser = await UserFactory.create()
@@ -168,6 +168,11 @@ describe('User Controller Integration Tests', () => {
 
   describe('GET /api/v1/user/devices - Get user devices', () => {
     beforeEach(async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !userDeviceRepo) {
+        return;
+      }
+
       // Create additional devices
       await UserDeviceFactory.create(testUser.id)
         .withDeviceId('test-device-002')
@@ -215,6 +220,11 @@ describe('User Controller Integration Tests', () => {
     let otherDevice: UserDevice;
 
     beforeEach(async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !userDeviceRepo) {
+        return;
+      }
+
       // Create another device
       otherDevice = await UserDeviceFactory.create(testUser.id)
         .withDeviceId('test-device-002')
@@ -320,6 +330,11 @@ describe('User Controller Integration Tests', () => {
 
   describe('POST /api/v1/user/close - Apply for account closure', () => {
     it('should apply for account closure successfully', async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !userRepo) {
+        return;
+      }
+
       const response = await testHelper.post(
         '/api/v1/user/close',
         {},
@@ -345,11 +360,21 @@ describe('User Controller Integration Tests', () => {
 
   describe('DELETE /api/v1/user/close - Cancel account closure', () => {
     beforeEach(async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !userRepo) {
+        return;
+      }
+
       // Set user to pending closure
       await userRepo.update(testUser.id, { status: UserStatus.PENDING_CLOSE });
     });
 
     it('should cancel account closure successfully', async () => {
+      // Skip if database is not available or testUser is not defined
+      if (isSkippedTestHelper(testHelper) || !testUser || !userRepo) {
+        return;
+      }
+
       const response = await testHelper.delete('/api/v1/user/close', {
         Authorization: `Bearer ${authToken}`,
       });

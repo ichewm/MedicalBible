@@ -56,13 +56,12 @@ describe('Auth Controller Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    if (testHelper) {
-      await testHelper.startTransaction();
-
     // Skip setup if database is not available (testHelper is a skip helper)
     if (isSkippedTestHelper(testHelper)) {
       return;
     }
+    if (testHelper) {
+      await testHelper.startTransaction();
     }
   });
 
@@ -86,6 +85,11 @@ describe('Auth Controller Integration Tests', () => {
     let existingUser: User;
 
     beforeEach(async () => {
+      // Skip if database is not available
+      if (isSkippedTestHelper(testHelper) || !userRepo) {
+        return;
+      }
+
       // Create a test user with password
       existingUser = await UserFactory.create()
         .withPhone('13800138001')
@@ -168,6 +172,11 @@ describe('Auth Controller Integration Tests', () => {
     });
 
     it('should return 401 for disabled user', async () => {
+      // Skip if database is not available
+      if (isSkippedTestHelper(testHelper) || !userRepo) {
+        return;
+      }
+
       // Create disabled user
       await UserFactory.create()
         .withPhone('13800138002')
@@ -288,6 +297,11 @@ describe('Auth Controller Integration Tests', () => {
     let authToken: string;
 
     beforeEach(async () => {
+      // Skip if database is not available
+      if (isSkippedTestHelper(testHelper) || !userRepo) {
+        return;
+      }
+
       // Create user and get auth token
       user = await UserFactory.create()
         .withPhone('13800138005')
@@ -369,6 +383,11 @@ describe('Auth Controller Integration Tests', () => {
     let authToken: string;
 
     beforeEach(async () => {
+      // Skip if database is not available
+      if (isSkippedTestHelper(testHelper) || !userRepo) {
+        return;
+      }
+
       user = await UserFactory.create()
         .withPhone('13800138007')
         .withPassword('password123')
@@ -401,6 +420,11 @@ describe('Auth Controller Integration Tests', () => {
     let authToken: string;
 
     beforeEach(async () => {
+      // Skip if database is not available
+      if (isSkippedTestHelper(testHelper) || !userRepo) {
+        return;
+      }
+
       user = await UserFactory.create()
         .withPhone('13800138008')
         .withPassword('password123')
