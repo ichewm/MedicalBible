@@ -242,25 +242,20 @@ class ApiClient {
    * Execute token refresh request
    */
   private async doTokenRefresh(refreshToken: string): Promise<string> {
-    try {
-      const response = await axios.post('/api/v1/auth/refresh-token', { refreshToken })
-      const { accessToken, refreshToken: newRefreshToken } = response.data.data
+    const response = await axios.post('/api/v1/auth/refresh-token', { refreshToken })
+    const { accessToken, refreshToken: newRefreshToken } = response.data.data
 
-      // Update auth store with new tokens
-      const user = useAuthStore.getState().user
-      if (user) {
-        useAuthStore.getState().setAuth(
-          accessToken,
-          newRefreshToken || refreshToken,
-          user
-        )
-      }
-
-      return accessToken
-    } catch (error) {
-      // Refresh failed - throw to trigger logout
-      throw error
+    // Update auth store with new tokens
+    const user = useAuthStore.getState().user
+    if (user) {
+      useAuthStore.getState().setAuth(
+        accessToken,
+        newRefreshToken || refreshToken,
+        user
+      )
     }
+
+    return accessToken
   }
 
   /**

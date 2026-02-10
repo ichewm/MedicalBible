@@ -21,6 +21,7 @@ import { loggerConfig } from "./config/logger.config";
 import { websocketConfig } from "./config/websocket.config";
 import { compressionConfig } from "./config/compression.config";
 import { securityConfig } from "./config/security.config";
+import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
 import { retryConfig } from "./config/retry.config";
 
@@ -42,6 +43,7 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { FhirModule } from "./modules/fhir/fhir.module";
 import { DataExportModule } from "./modules/data-export/data-export.module";
 import { RbacModule } from "./modules/rbac/rbac.module";
+import { SymptomCheckerModule } from "./modules/symptom-checker/symptom-checker.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
@@ -86,7 +88,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, rateLimitConfig, retryConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, retryConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -191,6 +193,7 @@ class HealthController {
     FhirModule, // FHIR医疗数据互操作性模块
     DataExportModule, // 数据导出模块
     RbacModule, // RBAC 角色权限模块
+    SymptomCheckerModule, // AI症状检查模块
   ],
   providers: [
     // 全局 JWT 认证守卫
