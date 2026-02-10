@@ -7,7 +7,7 @@
 
 import { Repository } from 'typeorm';
 
-import { IntegrationTestHelper } from '../../../test-helpers/base.integration.spec';
+import { IntegrationTestHelper, isDatabaseAvailable } from '../../../test-helpers/base.integration.spec';
 import { User, UserStatus } from '../../entities/user.entity';
 import { UserDevice } from '../../entities/user-device.entity';
 import { Lecture } from '../../entities/lecture.entity';
@@ -44,6 +44,13 @@ describe('Lecture Controller Integration Tests', () => {
   let testLecture: Lecture;
 
   beforeAll(async () => {
+    // Skip all tests in this suite if database is not available
+    const dbAvailable = await isDatabaseAvailable();
+    if (!dbAvailable) {
+      console.warn('\n⚠️  Skipping Lecture Controller Integration Tests - database not available');
+      return;
+    }
+
     testHelper = new IntegrationTestHelper();
     await testHelper.initialize();
     userRepo = testHelper.getRepository(User);
@@ -54,10 +61,14 @@ describe('Lecture Controller Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await testHelper.cleanup();
+    if (testHelper) {
+      await testHelper.cleanup();
+    }
   });
 
   beforeEach(async () => {
+    if (!testHelper) return;
+
     await testHelper.startTransaction();
 
     // Create test user and device
@@ -89,7 +100,9 @@ describe('Lecture Controller Integration Tests', () => {
   });
 
   afterEach(async () => {
-    await testHelper.rollbackTransaction();
+    if (testHelper) {
+      await testHelper.rollbackTransaction();
+    }
   });
 
   describe('GET /api/v1/lecture/subject/:subjectId - Get lectures by subject', () => {
@@ -461,6 +474,8 @@ describe('Lecture Controller Integration Tests', () => {
     let adminAuthToken: string;
 
     beforeEach(async () => {
+      if (!testHelper || !userRepo || !userDeviceRepo) return;
+
       // Create admin user
       adminUser = await UserFactory.create()
         .withPhone('13800138888')

@@ -8,7 +8,7 @@
 import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
-import { IntegrationTestHelper } from '../../../test-helpers/base.integration.spec';
+import { IntegrationTestHelper, isDatabaseAvailable } from '../../../test-helpers/base.integration.spec';
 import { User, UserStatus } from '../../entities/user.entity';
 import { UserDevice } from '../../entities/user-device.entity';
 import { UserFactory } from '../../../test-helpers/factories/user.factory';
@@ -35,6 +35,13 @@ describe('Auth Controller Integration Tests', () => {
   let userDeviceRepo: Repository<UserDevice>;
 
   beforeAll(async () => {
+    // Skip all tests in this suite if database is not available
+    const dbAvailable = await isDatabaseAvailable();
+    if (!dbAvailable) {
+      console.warn('\n⚠️  Skipping Auth Controller Integration Tests - database not available');
+      return;
+    }
+
     testHelper = new IntegrationTestHelper();
     await testHelper.initialize();
     userRepo = testHelper.getRepository(User);
@@ -42,15 +49,21 @@ describe('Auth Controller Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await testHelper.cleanup();
+    if (testHelper) {
+      await testHelper.cleanup();
+    }
   });
 
   beforeEach(async () => {
-    await testHelper.startTransaction();
+    if (testHelper) {
+      await testHelper.startTransaction();
+    }
   });
 
   afterEach(async () => {
-    await testHelper.rollbackTransaction();
+    if (testHelper) {
+      await testHelper.rollbackTransaction();
+    }
   });
 
   describe('GET /api/v1/auth/config - Public config endpoint', () => {

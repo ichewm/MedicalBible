@@ -13,11 +13,58 @@ import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../src/common/redis/redis.service';
 import * as request from 'supertest';
 import * as bcrypt from 'bcrypt';
+import * as net from 'net';
 
 import { AppModule } from '../src/app.module';
 import { User, UserStatus } from '../src/entities/user.entity';
 import { UserDevice } from '../src/entities/user-device.entity';
-import { createTestDataSource, TestDatabaseHelper, getTableCleanupOrder } from './database.config';
+import { createTestDataSource, TestDatabaseHelper, getTableCleanupOrder, testDatabaseConfig } from './database.config';
+
+/**
+ * Check if the test database is available
+ * @returns true if database is accessible, false otherwise
+ */
+export async function isDatabaseAvailable(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const config = testDatabaseConfig as any;
+    const socket = net.createConnection({
+      host: typeof config.host === 'string' ? config.host : 'localhost',
+      port: typeof config.port === 'number' ? config.port : 3306,
+      timeout: 2000,
+    });
+
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+
+    socket.on('error', () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
+}
+
+/**
+ * Helper to skip integration tests if database is not available
+ * Use this at the top of your integration test suite
+ */
+export function skipIfNoDatabase(): void {
+  beforeAll(async () => {
+    const isAvailable = await isDatabaseAvailable();
+    if (!isAvailable) {
+      const config = testDatabaseConfig as any;
+      console.warn('\n⚠️  Test database is not available. Skipping integration tests.');
+      console.warn('   To run integration tests, ensure MySQL is running and the test database exists.');
+      console.warn(`   Expected database: ${config.database || 'medical_bible_test'} on ${config.host || 'localhost'}:${config.port || 3306}\n`);
+    }
+  });
+}
 
 /**
  * JWT payload interface
@@ -57,7 +104,6 @@ export interface HttpResponse<T = any> {
  *   afterAll(async () => {
  *     await testHelper.cleanup();
  *   });
- *
  *   beforeEach(async () => {
  *     await testHelper.startTransaction();
  *   });
