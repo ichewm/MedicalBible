@@ -8,6 +8,11 @@
 import { Role } from "../../entities/role.entity";
 import { Permission, Resource, Action } from "../../entities/permission.entity";
 import { RolePermission } from "../../entities/role-permission.entity";
+import { PERMISSIONS_KEY, RequirePermission, REQUIRE_ALL_PERMISSIONS_KEY, RequireAllPermissions } from "../../common/decorators/permissions.decorator";
+import { PermissionsGuard } from "../../common/guards/permissions.guard";
+import { RbacService } from "./rbac.service";
+import { RbacModule } from "./rbac.module";
+import { RbacController } from "./rbac.controller";
 
 /**
  * RBAC Integration Tests
@@ -146,44 +151,34 @@ describe("RBAC Integration Tests", () => {
 
   describe("@RequirePermission Decorator - PRD Requirement 2", () => {
     it("PERMISSIONS_KEY 应该定义为 'permissions'", () => {
-      const { PERMISSIONS_KEY } = require("../../common/decorators/permissions.decorator");
       expect(PERMISSIONS_KEY).toBe("permissions");
     });
 
     it("@RequirePermission 应该是一个函数", () => {
-      const { RequirePermission } = require("../../common/decorators/permissions.decorator");
       expect(typeof RequirePermission).toBe("function");
     });
 
     it("@RequirePermission 应该接受单个权限参数", () => {
-      const { RequirePermission } = require("../../common/decorators/permissions.decorator");
-
       expect(() => {
         RequirePermission("user:create");
       }).not.toThrow();
     });
 
     it("@RequirePermission 应该接受多个权限参数", () => {
-      const { RequirePermission } = require("../../common/decorators/permissions.decorator");
-
       expect(() => {
         RequirePermission("user:create", "user:read");
       }).not.toThrow();
     });
 
     it("REQUIRE_ALL_PERMISSIONS_KEY 应该定义为 'require_all_permissions'", () => {
-      const { REQUIRE_ALL_PERMISSIONS_KEY } = require("../../common/decorators/permissions.decorator");
       expect(REQUIRE_ALL_PERMISSIONS_KEY).toBe("require_all_permissions");
     });
 
     it("@RequireAllPermissions 应该是一个函数", () => {
-      const { RequireAllPermissions } = require("../../common/decorators/permissions.decorator");
       expect(typeof RequireAllPermissions).toBe("function");
     });
 
     it("@RequireAllPermissions 应该接受权限参数", () => {
-      const { RequireAllPermissions } = require("../../common/decorators/permissions.decorator");
-
       expect(() => {
         RequireAllPermissions("user:update", "role:read");
       }).not.toThrow();
@@ -192,8 +187,6 @@ describe("RBAC Integration Tests", () => {
 
   describe("PermissionsGuard - PRD Requirement 3", () => {
     it("PermissionsGuard 应该可以实例化", () => {
-      const { PermissionsGuard } = require("../../common/guards/permissions.guard");
-
       const mockReflector = {
         getAllAndOverride: jest.fn(() => []),
       };
@@ -208,8 +201,6 @@ describe("RBAC Integration Tests", () => {
     });
 
     it("PermissionsGuard 应该有 canActivate 方法", () => {
-      const { PermissionsGuard } = require("../../common/guards/permissions.guard");
-
       const mockReflector = {
         getAllAndOverride: jest.fn(() => []),
       };
@@ -224,8 +215,6 @@ describe("RBAC Integration Tests", () => {
     });
 
     it("PermissionsGuard 应该是可注入的", () => {
-      const { PermissionsGuard } = require("../../common/guards/permissions.guard");
-
       // 验证守卫有正确的元数据标记
       expect(typeof PermissionsGuard).toBe("function");
     });
@@ -233,22 +222,18 @@ describe("RBAC Integration Tests", () => {
 
   describe("RbacService - PRD Requirement 4", () => {
     it("RbacService 应该有 getRolePermissions 方法", () => {
-      const { RbacService } = require("../../modules/rbac/rbac.service");
       expect(typeof RbacService.prototype.getRolePermissions).toBe("function");
     });
 
     it("RbacService 应该有 hasPermission 方法", () => {
-      const { RbacService } = require("../../modules/rbac/rbac.service");
       expect(typeof RbacService.prototype.hasPermission).toBe("function");
     });
 
     it("RbacService 应该实现 OnModuleInit (用于种子数据)", () => {
-      const { RbacService } = require("../../modules/rbac/rbac.service");
       expect(typeof RbacService.prototype.onModuleInit).toBe("function");
     });
 
     it("RbacService 应该有 seedInitialData 方法", () => {
-      const { RbacService } = require("../../modules/rbac/rbac.service");
       expect(typeof RbacService.prototype.seedInitialData).toBe("function");
     });
   });
@@ -387,12 +372,10 @@ describe("RBAC Integration Tests", () => {
 
   describe("RBAC 模块导出", () => {
     it("RbacModule 应该被正确导出", () => {
-      const { RbacModule } = require("../../modules/rbac/rbac.module");
       expect(RbacModule).toBeDefined();
     });
 
     it("RbacController 应该被定义", () => {
-      const { RbacController } = require("../../modules/rbac/rbac.controller");
       expect(RbacController).toBeDefined();
     });
   });

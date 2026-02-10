@@ -11,6 +11,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
+import * as XLSX from "xlsx";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, In, IsNull, LessThan } from "typeorm";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -311,7 +312,7 @@ export class DataExportService {
         exportId: userId,
         dataVersion: "1.0.0",
       },
-    };
+    } as UserExportData;
   }
 
   /**
@@ -326,24 +327,27 @@ export class DataExportService {
     format: ExportFormat,
   ): Promise<void> {
     switch (format) {
-      case ExportFormat.JSON:
+      case ExportFormat.JSON: {
         await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
         break;
+      }
 
-      case ExportFormat.CSV:
+      case ExportFormat.CSV: {
         // 对于 CSV，我们需要展平数据结构
         // 这里简化处理，仅导出主要数据
         const csvData = this.flattenForCsv(data);
         await fs.writeFile(filePath, csvData, "utf-8");
         break;
+      }
 
-      case ExportFormat.XLSX:
+      case ExportFormat.XLSX: {
         // 使用现有的 ExportService
         const { ExportService } = await import("../../common/export/export.service");
         const exportService = new ExportService();
         const buffer = this.convertToExcelData(data, exportService);
         await fs.writeFile(filePath, buffer);
         break;
+      }
 
       default:
         throw new BadRequestException(`Unsupported export format: ${format}`);
@@ -428,7 +432,6 @@ export class DataExportService {
     data: UserExportData,
     exportService: any,
   ): Buffer {
-    const XLSX = require("xlsx");
 
     // 创建工作簿
     const workbook = XLSX.utils.book_new();
