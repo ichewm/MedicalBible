@@ -92,6 +92,6 @@ export class Role {
   // ==================== 关联关系 ====================
 
   /** 角色拥有的权限列表 */
-  @OneToMany(() => RolePermission, (rolePermission) => rolePermission.role)
+  @OneToMany(() => RolePermission, (rolePermission) => rolePermission.role, { eager: false })
   permissions: RolePermission[];
 }
