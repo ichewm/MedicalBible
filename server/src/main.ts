@@ -9,7 +9,8 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
-import helmet from "helmet";
+import helmet, { HelmetOptions } from "helmet";
+import { Request, Response, NextFunction } from "express";
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
@@ -43,28 +44,119 @@ async function bootstrap(): Promise<void> {
   // 设置全局 API 前缀
   app.setGlobalPrefix("api");
 
-  // 启用安全头中间件（Helmet）
-  // 设置各种 HTTP 头以提高安全性，防止常见 Web 漏洞
-  // 注意：需要配置 contentSecurityPolicy 以允许 Swagger 和静态资源
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
-          imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'"],
-          fontSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          mediaSrc: ["'self'"],
-          frameSrc: ["'none'"],
-        },
+  // 配置安全头中间件（Helmet）
+  // 从配置服务获取安全设置，实现可配置的 HTTP 安全头
+  const securityConfig = configService.get("security");
+  if (!securityConfig) {
+    logger.error(
+      "Security configuration not found. Please ensure securityConfig is properly registered in AppModule.",
+    );
+    throw new Error("Security configuration is missing");
+  }
+
+  // 仅在启用时应用 Helmet 安全头
+  if (securityConfig.enabled) {
+    // 构建 CSP 指令对象
+    const cspDirectives: any = {};
+    if (securityConfig.contentSecurityPolicy.enabled) {
+      const directives = securityConfig.contentSecurityPolicy.directives;
+      cspDirectives.defaultSrc = directives.defaultSrc;
+      cspDirectives.scriptSrc = directives.scriptSrc;
+      cspDirectives.styleSrc = directives.styleSrc;
+      cspDirectives.imgSrc = directives.imgSrc;
+      cspDirectives.connectSrc = directives.connectSrc;
+      cspDirectives.fontSrc = directives.fontSrc;
+      cspDirectives.objectSrc = directives.objectSrc;
+      cspDirectives.mediaSrc = directives.mediaSrc;
+      cspDirectives.frameSrc = directives.frameSrc;
+      cspDirectives.workerSrc = directives.workerSrc;
+      cspDirectives.baseUri = directives.baseUri;
+      cspDirectives.formAction = directives.formAction;
+      cspDirectives.frameAncestors = directives.frameAncestors;
+
+      // 升级不安全请求（HTTP -> HTTPS）
+      if (directives.upgradeInsecureRequests) {
+        cspDirectives.upgradeInsecureRequests = [];
+      }
+    }
+
+    // 构建 Helmet 配置选项
+    const helmetOptions: HelmetOptions = {
+      // CSP 配置
+      contentSecurityPolicy: securityConfig.contentSecurityPolicy.enabled
+        ? {
+            directives: cspDirectives,
+          }
+        : false,
+
+      // HSTS 配置
+      hsts: securityConfig.hsts.enabled
+        ? {
+            maxAge: securityConfig.hsts.maxAge,
+            includeSubDomains: securityConfig.hsts.includeSubDomains,
+            preload: securityConfig.hsts.preload,
+          }
+        : false,
+
+      // X-Frame-Options（通过 frameguard 控制）
+      // Note: ALLOW-FROM is deprecated in modern browsers, use CSP frame-ancestors instead
+      frameguard: {
+        action: securityConfig.xFrameOptions === "SAMEORIGIN"
+          ? "sameorigin"
+          : "deny",
       },
-      crossOriginEmbedderPolicy: false, // 禁用以兼容某些第三方资源
-    }),
-  );
-  logger.log("Helmet security headers enabled");
+
+      // 禁用跨域嵌入策略以兼容某些第三方资源
+      crossOriginEmbedderPolicy: securityConfig.crossOriginEmbedderPolicy
+        ? { policy: "require-corp" }
+        : false,
+
+      // 跨域资源策略
+      crossOriginResourcePolicy: securityConfig.crossOriginResourcePolicy
+        ? { policy: "cross-origin" }
+        : false,
+
+      // Referrer-Policy
+      referrerPolicy: { policy: securityConfig.referrerPolicy },
+
+      // 其他安全头
+      noSniff: true, // X-Content-Type-Options: nosniff
+      xssFilter: true, // X-XSS-Protection (已过时但保留)
+    };
+
+    app.use(helmet(helmetOptions));
+
+    // Permissions-Policy (原 Feature-Policy)
+    // Helmet 8.x 不再内置 Permissions-Policy，需要手动设置
+    const permissionsPolicyValue = Object.entries(securityConfig.permissionsPolicy)
+      .map(([feature, origins]) => `${feature}=(${Array.isArray(origins) ? origins.join(" ") : origins})`)
+      .join(", ");
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      res.setHeader("Permissions-Policy", permissionsPolicyValue);
+      next();
+    });
+    logger.log("Helmet security headers enabled with custom configuration");
+
+    // 记录 HSTS 状态
+    if (securityConfig.hsts.enabled) {
+      logger.log(
+        `HSTS enabled: maxAge=${securityConfig.hsts.maxAge}s, ` +
+          `includeSubDomains=${securityConfig.hsts.includeSubDomains}, ` +
+          `preload=${securityConfig.hsts.preload}`,
+      );
+    } else {
+      logger.warn("HSTS is disabled. In production, HSTS should be enabled.");
+    }
+
+    // 记录 CSP 状态
+    if (securityConfig.contentSecurityPolicy.enabled) {
+      logger.log("Content Security Policy enabled");
+    } else {
+      logger.warn("Content Security Policy is disabled. Consider enabling for better security.");
+    }
+  } else {
+    logger.warn("Security headers middleware is disabled. Enable by setting SECURITY_ENABLED=true");
+  }
 
   // 配置压缩中间件
   // 使用 ConfigService 获取压缩配置
