@@ -433,12 +433,13 @@ npm run dev
 ### v1.4.0 (2026-02-10)
 
 - 📊 **APM 性能监控**: 基于 OpenTelemetry 的应用性能监控
-  - 分布式追踪（支持 OpenTelemetry、Jaeger、Zipkin）
+  - 分布式追踪（支持 OTLP、Jaeger、Zipkin、DataDog、New Relic）
   - 性能指标收集（HTTP 请求、数据库查询、Redis 命令）
   - 慢查询和慢请求自动检测与告警
   - 可配置的采样率和告警规则
   - APM 状态查询端点：`GET /apm/status`
   - APM 健康检查端点：`GET /apm/health`
+  - 详见 [APM 使用文档](./server/src/common/apm/README.md)
 
 ### v1.3.0 (2026-02-09)
 

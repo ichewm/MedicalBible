@@ -133,6 +133,14 @@ ENCRYPTION_KEY=your_32_character_encryption_key
 
 # 域名配置
 CORS_ORIGIN=https://your-domain.com
+
+# APM 性能监控（可选，生产环境推荐启用）
+APM_ENABLED=true
+APM_SERVICE_TYPE=otlp
+APM_OTLP_ENDPOINT=http://your-opentelemetry-collector:4317
+APM_SAMPLE_RATE=0.1
+APM_ALERTS_ENABLED=true
+APM_ALERT_WEBHOOK_URL=https://your-webhook-url.com/alerts
 ```
 
 > 生成随机密钥：`openssl rand -base64 32`
