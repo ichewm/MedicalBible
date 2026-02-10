@@ -324,6 +324,7 @@ ws:reconnect_state:{userId}  # 重连状态
 | `heartbeatAck` | `{timestamp, serverTime}` | 心跳响应 |
 | `queuedMessages` | `{messages, count}` | 离线消息 |
 | `newMessage` | `{message}` | 新消息通知 |
+| `unreadCountUpdated` | `{unreadCount, hasUnread}` | 未读消息数实时更新 (BUG-001) |
 | `reconnectRequested` | `{reason, timestamp}` | 请求重连 |
 
 ### 环境变量配置
