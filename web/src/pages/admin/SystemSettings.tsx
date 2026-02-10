@@ -6,12 +6,12 @@
 import { useEffect, useState } from 'react'
 import {
   Card, Form, InputNumber, Switch, Button, message, Typography,
-  Descriptions, Modal, Alert, Tabs, Input, Select, Space, Spin
+  Descriptions, Modal, Alert, Tabs, Input, Select,
 } from 'antd'
 import {
   ExclamationCircleFilled, SettingOutlined, MailOutlined,
   MessageOutlined, PayCircleOutlined, FileTextOutlined,
-  SafetyOutlined, EyeOutlined, CloudServerOutlined, BugOutlined, DeleteOutlined
+  SafetyOutlined, EyeOutlined, CloudServerOutlined, BugOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import DOMPurify from 'dompurify'
 import request from '@/utils/request'
@@ -52,7 +52,7 @@ const SystemSettings = () => {
   
   const [loading, setLoading] = useState(false)
   const [config, setConfig] = useState<any>({})
-  const [testModeLoading, setTestModeLoading] = useState(false)
+  const [_testModeLoading, setTestModeLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('basic')
   const [smsProvider, setSmsProvider] = useState('')
   const [storageProvider, setStorageProvider] = useState('local')
@@ -432,7 +432,7 @@ const SystemSettings = () => {
   }
 
   // 切换测试模式（旧版兼容，后续将移除）
-  const handleTestModeChange = (checked: boolean) => {
+  const _handleTestModeChange = (checked: boolean) => {
     const title = checked ? '确认开启测试模式？' : '确认关闭测试模式？'
     const content = checked 
       ? '开启测试模式后，学员在订阅支付时可以直接模拟完成支付，无需真实付款。请确保仅在测试环境使用！'
