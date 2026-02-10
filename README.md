@@ -261,7 +261,10 @@ MedicalBible/
 │   │   │   ├── lecture/   # 讲义模块
 │   │   │   ├── order/     # 订单模块
 │   │   │   ├── affiliate/ # 分销模块
+│   │   │   ├── analytics/ # 分析模块
 │   │   │   ├── admin/     # 管理模块
+│   │   │   ├── data-export/ # 数据导出模块
+│   │   │   ├── rbac/      # RBAC角色权限模块
 │   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
 │   │   ├── config/        # 配置文件
@@ -575,6 +578,15 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.7.0 (2026-02-09)
+
+- ✅ 实现用户活动追踪和分析系统
+- ✅ 支持追踪登录、内容访问、购买等关键用户行为
+- ✅ 添加活动追踪中间件和拦截器
+- ✅ 提供管理员统计 API 和用户个人统计 API
+- ✅ 支持数据导出（CSV/JSON 格式）
+- ✅ 新增 user_activities 表及相关索引优化
 
 ### v1.6.0 (2026-02-09)
 
