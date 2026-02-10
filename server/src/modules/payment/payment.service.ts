@@ -9,6 +9,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CryptoService } from "../../common/crypto/crypto.service";
+import { Retry } from "../../common/retry";
 import {
   SystemConfig,
   SystemConfigKeys,
@@ -167,6 +168,21 @@ export class PaymentService {
   /**
    * 微信支付 - Native支付（扫码支付）
    */
+  @Retry({
+    maxAttempts: 3,
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+    retryableErrors: [
+      (error) => error.message.includes('ETIMEDOUT'),
+      (error) => error.message.includes('ECONNREFUSED'),
+      (error) => error.message.includes('ECONNRESET'),
+      (error) => error.message.includes('ENOTFOUND'),
+      (error) => error.message.includes('503'),
+      (error) => error.message.includes('502'),
+      (error) => error.message.includes('504'),
+    ],
+    logContext: { service: 'payment', provider: 'wechat' },
+  })
   private async createWechatOrder(
     options: CreateOrderOptions,
   ): Promise<PaymentResult> {
@@ -253,6 +269,21 @@ export class PaymentService {
   /**
    * 支付宝 - 当面付（扫码支付）
    */
+  @Retry({
+    maxAttempts: 3,
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+    retryableErrors: [
+      (error) => error.message.includes('ETIMEDOUT'),
+      (error) => error.message.includes('ECONNREFUSED'),
+      (error) => error.message.includes('ECONNRESET'),
+      (error) => error.message.includes('ENOTFOUND'),
+      (error) => error.message.includes('503'),
+      (error) => error.message.includes('502'),
+      (error) => error.message.includes('504'),
+    ],
+    logContext: { service: 'payment', provider: 'alipay' },
+  })
   private async createAlipayOrder(
     options: CreateOrderOptions,
   ): Promise<PaymentResult> {
@@ -338,6 +369,21 @@ export class PaymentService {
   /**
    * PayPal - 创建订单
    */
+  @Retry({
+    maxAttempts: 3,
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+    retryableErrors: [
+      (error) => error.message.includes('ETIMEDOUT'),
+      (error) => error.message.includes('ECONNREFUSED'),
+      (error) => error.message.includes('ECONNRESET'),
+      (error) => error.message.includes('ENOTFOUND'),
+      (error) => error.message.includes('503'),
+      (error) => error.message.includes('502'),
+      (error) => error.message.includes('504'),
+    ],
+    logContext: { service: 'payment', provider: 'paypal' },
+  })
   private async createPaypalOrder(
     options: CreateOrderOptions,
   ): Promise<PaymentResult> {
@@ -435,6 +481,21 @@ export class PaymentService {
   /**
    * Stripe - 创建Checkout Session
    */
+  @Retry({
+    maxAttempts: 3,
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+    retryableErrors: [
+      (error) => error.message.includes('ETIMEDOUT'),
+      (error) => error.message.includes('ECONNREFUSED'),
+      (error) => error.message.includes('ECONNRESET'),
+      (error) => error.message.includes('ENOTFOUND'),
+      (error) => error.message.includes('503'),
+      (error) => error.message.includes('502'),
+      (error) => error.message.includes('504'),
+    ],
+    logContext: { service: 'payment', provider: 'stripe' },
+  })
   private async createStripeOrder(
     options: CreateOrderOptions,
   ): Promise<PaymentResult> {

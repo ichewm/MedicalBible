@@ -9,6 +9,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CryptoService } from "../../common/crypto/crypto.service";
+import { Retry } from "../../common/retry";
 import {
   SystemConfig,
   SystemConfigKeys,
@@ -85,6 +86,21 @@ export class SmsService {
   /**
    * 阿里云短信发送
    */
+  @Retry({
+    maxAttempts: 3,
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+    retryableErrors: [
+      (error) => error.message.includes('ETIMEDOUT'),
+      (error) => error.message.includes('ECONNREFUSED'),
+      (error) => error.message.includes('ECONNRESET'),
+      (error) => error.message.includes('ENOTFOUND'),
+      (error) => error.message.includes('503'),
+      (error) => error.message.includes('502'),
+      (error) => error.message.includes('504'),
+    ],
+    logContext: { service: 'sms', provider: 'aliyun' },
+  })
   private async sendAliyunSms(
     options: SendSmsOptions,
   ): Promise<{ success: boolean; error?: string }> {
@@ -162,6 +178,21 @@ export class SmsService {
   /**
    * 腾讯云短信发送
    */
+  @Retry({
+    maxAttempts: 3,
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+    retryableErrors: [
+      (error) => error.message.includes('ETIMEDOUT'),
+      (error) => error.message.includes('ECONNREFUSED'),
+      (error) => error.message.includes('ECONNRESET'),
+      (error) => error.message.includes('ENOTFOUND'),
+      (error) => error.message.includes('503'),
+      (error) => error.message.includes('502'),
+      (error) => error.message.includes('504'),
+    ],
+    logContext: { service: 'sms', provider: 'tencent' },
+  })
   private async sendTencentSms(
     options: SendSmsOptions,
   ): Promise<{ success: boolean; error?: string }> {
@@ -275,6 +306,21 @@ export class SmsService {
   /**
    * 容联云短信发送
    */
+  @Retry({
+    maxAttempts: 3,
+    baseDelayMs: 500,
+    maxDelayMs: 5000,
+    retryableErrors: [
+      (error) => error.message.includes('ETIMEDOUT'),
+      (error) => error.message.includes('ECONNREFUSED'),
+      (error) => error.message.includes('ECONNRESET'),
+      (error) => error.message.includes('ENOTFOUND'),
+      (error) => error.message.includes('503'),
+      (error) => error.message.includes('502'),
+      (error) => error.message.includes('504'),
+    ],
+    logContext: { service: 'sms', provider: 'ronglian' },
+  })
   private async sendRonglianSms(
     options: SendSmsOptions,
   ): Promise<{ success: boolean; error?: string }> {

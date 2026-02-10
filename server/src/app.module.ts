@@ -21,6 +21,7 @@ import { loggerConfig } from "./config/logger.config";
 import { websocketConfig } from "./config/websocket.config";
 import { compressionConfig } from "./config/compression.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
+import { retryConfig } from "./config/retry.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -48,6 +49,7 @@ import { CryptoModule } from "./common/crypto/crypto.module";
 import { DatabaseModule } from "./common/database/database.module";
 import { LoggerModule } from "./common/logger";
 import { CircuitBreakerModule } from "./common/circuit-breaker";
+import { RetryModule } from "./common/retry";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
@@ -83,7 +85,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, rateLimitConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, rateLimitConfig, retryConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -124,6 +126,9 @@ class HealthController {
 
     // 断路器模块（全局）
     CircuitBreakerModule,
+
+    // 重试模块（全局）
+    RetryModule,
 
     // 静态文件服务（上传文件访问）
     ServeStaticModule.forRoot({

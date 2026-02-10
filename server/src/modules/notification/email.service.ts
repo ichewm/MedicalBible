@@ -12,6 +12,7 @@ import { Repository } from "typeorm";
 import * as nodemailer from "nodemailer";
 import { CryptoService } from "../../common/crypto/crypto.service";
 import { CircuitBreakerService, ExternalService } from "../../common/circuit-breaker";
+import { Retry } from "../../common/retry";
 import {
   SystemConfig,
   SystemConfigKeys,
@@ -104,6 +105,17 @@ export class EmailService {
   /**
    * 初始化邮件传输器
    */
+  @Retry({
+    maxAttempts: 2,
+    baseDelayMs: 1000,
+    maxDelayMs: 3000,
+    retryableErrors: [
+      (error) => error.message.includes('ETIMEDOUT'),
+      (error) => error.message.includes('ECONNREFUSED'),
+      (error) => error.message.includes('ECONNRESET'),
+    ],
+    logContext: { service: 'email', operation: 'initTransporter' },
+  })
   private async initTransporter(): Promise<nodemailer.Transporter | null> {
     try {
       const provider = await this.getConfig(SystemConfigKeys.EMAIL_PROVIDER);
