@@ -28,6 +28,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { DatabaseMonitoringService } from "./database-monitoring.service";
 import { DataSource } from "typeorm";
 import { BadRequestException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 /**
  * Integration tests: DatabaseMonitoringService with TypeORM DataSource
@@ -38,6 +39,7 @@ import { BadRequestException } from "@nestjs/common";
 describe("DatabaseMonitoringService Integration Tests", () => {
   let service: DatabaseMonitoringService;
   let mockDataSource: jest.Mocked<DataSource>;
+  let mockConfigService: jest.Mocked<ConfigService>;
 
   /**
    * Mock DataSource that simulates MySQL system table responses
@@ -48,6 +50,24 @@ describe("DatabaseMonitoringService Integration Tests", () => {
     createQueryRunner: jest.fn(),
   });
 
+  /**
+   * Mock ConfigService that provides database pool configuration
+   */
+  const mockConfigServiceFactory = () => ({
+    get: jest.fn().mockImplementation((key: string) => {
+      if (key === "database.pool") {
+        return {
+          max: 20,
+          min: 5,
+          acquireTimeoutMillis: 30000,
+          idleTimeoutMillis: 300000,
+          maxLifetimeMillis: 1800000,
+        };
+      }
+      return undefined;
+    }),
+  });
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,11 +76,16 @@ describe("DatabaseMonitoringService Integration Tests", () => {
           provide: DataSource,
           useFactory: mockDataSourceFactory,
         },
+        {
+          provide: ConfigService,
+          useFactory: mockConfigServiceFactory,
+        },
       ],
     }).compile();
 
     service = module.get<DatabaseMonitoringService>(DatabaseMonitoringService);
     mockDataSource = module.get(DataSource);
+    mockConfigService = module.get(ConfigService);
 
     // Reset all mocks before each test
     jest.clearAllMocks();

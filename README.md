@@ -306,6 +306,7 @@ MedicalBible/
 - [API 响应格式文档](./server/docs/error-handling.md) - 成功响应、分页和错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [事务模式文档](./docs/TRANSACTION_PATTERNS.md) - 数据库事务使用指南
+- [数据库连接池配置](./server/docs/DATABASE_CONNECTION_POOL.md) - 连接池配置、监控与优化指南
 - [数据加载策略](./docs/data-loading-strategies.md) - TypeORM 懒加载与优化指南
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
