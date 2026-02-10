@@ -78,6 +78,8 @@ services:
       OSS_MOCK_MODE: "true"
       # 创建测试用户
       CREATE_TEST_USERS: "true"
+      # 文件上传目录（开发环境可以使用相对路径）
+      UPLOAD_ROOT: /app/uploads
     env_file:
       - path: ./config/test-users.env
         required: false

@@ -114,8 +114,15 @@ class HealthController {
     LoggerModule,
 
     // 静态文件服务（上传文件访问）
+    // 配置说明：
+    // - UPLOAD_ROOT 环境变量指定上传文件的存储路径，建议设置在应用目录之外
+    // - 默认值：./uploads（仅用于开发环境，生产环境必须配置独立路径）
+    // - 安全建议：生产环境应将上传目录放在 web 根目录之外，防止直接访问
+    // - 示例配置：
+    //   - 开发环境：UPLOAD_ROOT=./uploads
+    //   - 生产环境：UPLOAD_ROOT=/var/uploads/medical-bible
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, "..", "uploads"),
+      rootPath: process.env.UPLOAD_ROOT || join(__dirname, "..", "uploads"),
       serveRoot: "/uploads",
       serveStaticOptions: {
         index: false,
