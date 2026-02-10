@@ -7,7 +7,7 @@
 
 import { Repository } from 'typeorm';
 
-import { IntegrationTestHelper, isDatabaseAvailable } from '../../../test-helpers/base.integration.spec';
+import { IntegrationTestHelper, isDatabaseAvailable, createSkippedTestHelper, isSkippedTestHelper } from '../../../test-helpers/base.integration.spec';
 import { User, UserStatus } from '../../entities/user.entity';
 import { UserDevice } from '../../entities/user-device.entity';
 import { Order, OrderStatus, PayMethod } from '../../entities/order.entity';
@@ -45,6 +45,7 @@ describe('Order Controller Integration Tests', () => {
     const dbAvailable = await isDatabaseAvailable();
     if (!dbAvailable) {
       console.warn('\n⚠️  Skipping Order Controller Integration Tests - database not available');
+      testHelper = createSkippedTestHelper();
       return;
     }
 
@@ -65,6 +66,11 @@ describe('Order Controller Integration Tests', () => {
     if (!testHelper) return;
 
     await testHelper.startTransaction();
+
+    // Skip setup if database is not available (testHelper is a skip helper)
+    if (isSkippedTestHelper(testHelper)) {
+      return;
+    }
 
     // Create test user and device
     testUser = await UserFactory.create()

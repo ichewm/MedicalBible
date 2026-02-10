@@ -7,7 +7,7 @@
 
 import { Repository } from 'typeorm';
 
-import { IntegrationTestHelper, isDatabaseAvailable } from '../../../test-helpers/base.integration.spec';
+import { IntegrationTestHelper, isDatabaseAvailable, createSkippedTestHelper, isSkippedTestHelper } from '../../../test-helpers/base.integration.spec';
 import { User, UserStatus } from '../../entities/user.entity';
 import { UserDevice } from '../../entities/user-device.entity';
 import { Lecture } from '../../entities/lecture.entity';
@@ -48,6 +48,8 @@ describe('Lecture Controller Integration Tests', () => {
     const dbAvailable = await isDatabaseAvailable();
     if (!dbAvailable) {
       console.warn('\n⚠️  Skipping Lecture Controller Integration Tests - database not available');
+      // Assign a skip helper to prevent undefined errors
+      testHelper = createSkippedTestHelper();
       return;
     }
 
@@ -70,6 +72,15 @@ describe('Lecture Controller Integration Tests', () => {
     if (!testHelper) return;
 
     await testHelper.startTransaction();
+
+    // Skip setup if database is not available (testHelper is a skip helper)
+    if (isSkippedTestHelper(testHelper)) {
+      // Set dummy values to prevent undefined errors in tests
+      testUser = { id: 1 } as any;
+      authToken = 'skip-token';
+      testLecture = { id: 1 } as any;
+      return;
+    }
 
     // Create test user and device
     testUser = await UserFactory.create()
@@ -254,6 +265,13 @@ describe('Lecture Controller Integration Tests', () => {
     let teacherAuthToken: string;
 
     beforeEach(async () => {
+      // Skip setup if database is not available
+      if (isSkippedTestHelper(testHelper)) {
+        teacherUser = { id: 2 } as any;
+        teacherAuthToken = 'skip-teacher-token';
+        return;
+      }
+
       // Create teacher user
       teacherUser = await UserFactory.create()
         .withPhone('13800138999')
@@ -475,6 +493,13 @@ describe('Lecture Controller Integration Tests', () => {
 
     beforeEach(async () => {
       if (!testHelper || !userRepo || !userDeviceRepo) return;
+
+      // Skip setup if database is not available
+      if (isSkippedTestHelper(testHelper)) {
+        adminUser = { id: 3 } as any;
+        adminAuthToken = 'skip-admin-token';
+        return;
+      }
 
       // Create admin user
       adminUser = await UserFactory.create()

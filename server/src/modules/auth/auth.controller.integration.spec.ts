@@ -8,7 +8,7 @@
 import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
-import { IntegrationTestHelper, isDatabaseAvailable } from '../../../test-helpers/base.integration.spec';
+import { IntegrationTestHelper, isDatabaseAvailable, createSkippedTestHelper, isSkippedTestHelper } from '../../../test-helpers/base.integration.spec';
 import { User, UserStatus } from '../../entities/user.entity';
 import { UserDevice } from '../../entities/user-device.entity';
 import { UserFactory } from '../../../test-helpers/factories/user.factory';
@@ -39,6 +39,7 @@ describe('Auth Controller Integration Tests', () => {
     const dbAvailable = await isDatabaseAvailable();
     if (!dbAvailable) {
       console.warn('\n⚠️  Skipping Auth Controller Integration Tests - database not available');
+      testHelper = createSkippedTestHelper();
       return;
     }
 
@@ -57,6 +58,11 @@ describe('Auth Controller Integration Tests', () => {
   beforeEach(async () => {
     if (testHelper) {
       await testHelper.startTransaction();
+
+    // Skip setup if database is not available (testHelper is a skip helper)
+    if (isSkippedTestHelper(testHelper)) {
+      return;
+    }
     }
   });
 

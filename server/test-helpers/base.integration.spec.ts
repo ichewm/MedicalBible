@@ -21,6 +21,12 @@ import { UserDevice } from '../src/entities/user-device.entity';
 import { createTestDataSource, TestDatabaseHelper, getTableCleanupOrder, testDatabaseConfig } from './database.config';
 
 /**
+ * Cached database availability status
+ * This is set synchronously before tests run
+ */
+let _databaseAvailable: boolean | null = null;
+
+/**
  * Check if the test database is available
  * @returns true if database is accessible, false otherwise
  */
@@ -35,19 +41,92 @@ export async function isDatabaseAvailable(): Promise<boolean> {
 
     socket.on('connect', () => {
       socket.destroy();
+      _databaseAvailable = true;
       resolve(true);
     });
 
     socket.on('timeout', () => {
       socket.destroy();
+      _databaseAvailable = false;
       resolve(false);
     });
 
     socket.on('error', () => {
       socket.destroy();
+      _databaseAvailable = false;
       resolve(false);
     });
   });
+}
+
+/**
+ * Get the cached database availability status
+ * Call this in describe blocks to conditionally skip tests
+ * @returns true if database is available (cached), null if not yet checked
+ */
+export function getDatabaseAvailable(): boolean | null {
+  return _databaseAvailable;
+}
+
+/**
+ * Helper to check if database is available
+ * @returns Promise<boolean> - true if database is available
+ */
+async function checkDatabaseAvailability(): Promise<boolean> {
+  const isAvailable = await isDatabaseAvailable();
+  if (!isAvailable) {
+    const config = testDatabaseConfig as any;
+    console.warn('\n⚠️  Test database is not available. Skipping integration tests.');
+    console.warn('   To run integration tests, ensure MySQL is running and the test database exists.');
+    console.warn(`   Expected database: ${config.database || 'medical_bible_test'} on ${config.host || 'localhost'}:${config.port || 3306}\n`);
+  }
+  return isAvailable;
+}
+
+/**
+ * Create a mock test helper that throws a skip error when methods are called
+ * This is used when the database is not available to prevent undefined errors
+ * @returns A mock IntegrationTestHelper that throws errors on actual test methods
+ */
+export function createSkippedTestHelper(): IntegrationTestHelper {
+  return {
+    get: () => { throw new Error('Test skipped - database not available'); },
+    post: () => { throw new Error('Test skipped - database not available'); },
+    put: () => { throw new Error('Test skipped - database not available'); },
+    patch: () => { throw new Error('Test skipped - database not available'); },
+    delete: () => { throw new Error('Test skipped - database not available'); },
+    generateTestToken: () => { throw new Error('Test skipped - database not available'); },
+    getRepository: () => { throw new Error('Test skipped - database not available'); },
+    getEntityManager: () => { throw new Error('Test skipped - database not available'); },
+    createTestUser: () => { throw new Error('Test skipped - database not available'); },
+    createTestDevice: () => { throw new Error('Test skipped - database not available'); },
+    getAuthHeaders: () => { throw new Error('Test skipped - database not available'); },
+    cleanAllTables: () => { throw new Error('Test skipped - database not available'); },
+    flushRedis: () => { throw new Error('Test skipped - database not available'); },
+    getFromRedis: () => { throw new Error('Test skipped - database not available'); },
+    setToRedis: () => { throw new Error('Test skipped - database not available'); },
+    isTransactionActive: () => false,
+    verifyErrorResponse: () => {},
+    verifySuccessResponse: () => {},
+    startTransaction: async () => {},
+    rollbackTransaction: async () => {},
+    cleanup: async () => {},
+    initialize: async () => {},
+  } as any;
+}
+
+/**
+ * Check if the test helper is a skip helper (database not available)
+ * @param helper - The test helper to check
+ * @returns true if the helper is a skip helper
+ */
+export function isSkippedTestHelper(helper: IntegrationTestHelper): boolean {
+  try {
+    helper.getRepository(User);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -56,14 +135,48 @@ export async function isDatabaseAvailable(): Promise<boolean> {
  */
 export function skipIfNoDatabase(): void {
   beforeAll(async () => {
-    const isAvailable = await isDatabaseAvailable();
-    if (!isAvailable) {
-      const config = testDatabaseConfig as any;
-      console.warn('\n⚠️  Test database is not available. Skipping integration tests.');
-      console.warn('   To run integration tests, ensure MySQL is running and the test database exists.');
-      console.warn(`   Expected database: ${config.database || 'medical_bible_test'} on ${config.host || 'localhost'}:${config.port || 3306}\n`);
-    }
+    await checkDatabaseAvailability();
   });
+}
+
+/**
+ * Helper that returns a describe function that conditionally skips tests
+ * Use this to wrap your describe blocks
+ * @returns describe or describe.skip function based on database availability
+ */
+export function conditionalDescribe(
+  name: string,
+  fn: () => void,
+  skipCondition?: boolean
+): void {
+  // If skipCondition is provided and true, skip the tests
+  // Otherwise, check database availability
+  const shouldSkip = skipCondition ?? false;
+  if (shouldSkip) {
+    describe.skip(name, fn);
+  } else {
+    describe(name, fn);
+  }
+}
+
+/**
+ * Async version of conditionalDescribe that checks database availability
+ * This is the recommended way to conditionally skip integration tests
+ *
+ * Usage:
+ * ```typescript
+ * await describeIfDatabase('My Integration Tests', () => {
+ *   // your tests here
+ * });
+ * ```
+ */
+export async function describeIfDatabase(name: string, fn: () => void): Promise<void> {
+  const isAvailable = await checkDatabaseAvailability();
+  if (isAvailable) {
+    describe(name, fn);
+  } else {
+    describe.skip(name, fn);
+  }
 }
 
 /**
