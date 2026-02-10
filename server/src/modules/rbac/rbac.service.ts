@@ -7,7 +7,7 @@
 
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, DataSource } from "typeorm";
 import { Role } from "../../entities/role.entity";
 import { Permission, Resource, Action } from "../../entities/permission.entity";
 import { RolePermission } from "../../entities/role-permission.entity";
@@ -27,6 +27,7 @@ export class RbacService implements OnModuleInit {
     private readonly permissionRepository: Repository<Permission>,
     @InjectRepository(RolePermission)
     private readonly rolePermissionRepository: Repository<RolePermission>,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -44,37 +45,49 @@ export class RbacService implements OnModuleInit {
   /**
    * 播种初始角色和权限数据
    * @description 创建系统预置的角色和权限，并建立关联关系
+   * 使用事务确保原子性，使用 find-or-create 模式确保幂等性
    */
   async seedInitialData(): Promise<void> {
     this.logger.log("Seeding initial RBAC data...");
 
-    // 检查是否已经初始化过（通过检查 admin 角色是否存在）
-    const existingAdminRole = await this.roleRepository.findOne({
-      where: { name: "admin" },
+    // 使用事务确保原子性
+    await this.dataSource.transaction(async (manager) => {
+      // 检查是否已经初始化过（通过检查系统权限数量是否完整）
+      const existingPermissionCount = await manager.count(Permission, {
+        where: { isSystem: 1 },
+      });
+
+      // 如果已经有完整的系统权限（43个），跳过种子
+      if (existingPermissionCount >= 43) {
+        this.logger.log("RBAC initial data already exists, skipping seed");
+        return;
+      }
+
+      this.logger.log(
+        `Found ${existingPermissionCount} system permissions, proceeding with seed`,
+      );
+
+      // 1. 创建或获取权限（幂等）
+      const permissions = await this.createPermissions(manager);
+
+      // 2. 创建或获取角色（幂等）
+      const roles = await this.createRoles(manager);
+
+      // 3. 建立角色-权限关联（幂等）
+      await this.assignPermissionsToRoles(manager, roles, permissions);
     });
-
-    if (existingAdminRole) {
-      this.logger.log("RBAC initial data already exists, skipping seed");
-      return;
-    }
-
-    // 1. 创建权限
-    const permissions = await this.createPermissions();
-
-    // 2. 创建角色
-    const roles = await this.createRoles();
-
-    // 3. 建立角色-权限关联
-    await this.assignPermissionsToRoles(roles, permissions);
 
     this.logger.log("RBAC initial data seeded successfully");
   }
 
   /**
-   * 创建系统预置权限
-   * @returns 创建的权限映射（按名称索引）
+   * 创建或获取系统预置权限
+   * @param manager - 事务管理器
+   * @returns 权限映射（按名称索引）
    */
-  private async createPermissions(): Promise<Map<string, Permission>> {
+  private async createPermissions(
+    manager: Parameters<DataSource["transaction"]>[0],
+  ): Promise<Map<string, Permission>> {
     const permissionMap = new Map<string, Permission>();
 
     const permissionDefinitions = [
@@ -141,29 +154,41 @@ export class RbacService implements OnModuleInit {
     ];
 
     for (const def of permissionDefinitions) {
-      const permission = this.permissionRepository.create({
-        name: def.name,
-        resource: def.resource,
-        action: def.action,
-        displayName: def.displayName,
-        description: `${def.group} - ${def.displayName}`,
-        isSystem: 1,
-        permissionGroup: def.group,
-        sortOrder: 0,
+      // 先尝试查找现有权限
+      let permission = await manager.findOne(Permission, {
+        where: { name: def.name },
       });
-      const saved = await this.permissionRepository.save(permission);
-      permissionMap.set(def.name, saved);
+
+      if (!permission) {
+        // 不存在则创建
+        permission = manager.create(Permission, {
+          name: def.name,
+          resource: def.resource,
+          action: def.action,
+          displayName: def.displayName,
+          description: `${def.group} - ${def.displayName}`,
+          isSystem: 1,
+          permissionGroup: def.group,
+          sortOrder: 0,
+        });
+        permission = await manager.save(permission);
+      }
+
+      permissionMap.set(def.name, permission);
     }
 
-    this.logger.log(`Created ${permissionMap.size} permissions`);
+    this.logger.log(`Ensured ${permissionMap.size} permissions exist`);
     return permissionMap;
   }
 
   /**
-   * 创建系统预置角色
-   * @returns 创建的角色映射（按名称索引）
+   * 创建或获取系统预置角色
+   * @param manager - 事务管理器
+   * @returns 角色映射（按名称索引）
    */
-  private async createRoles(): Promise<Map<string, Role>> {
+  private async createRoles(
+    manager: Parameters<DataSource["transaction"]>[0],
+  ): Promise<Map<string, Role>> {
     const roleMap = new Map<string, Role>();
 
     const roleDefinitions = [
@@ -194,28 +219,39 @@ export class RbacService implements OnModuleInit {
     ];
 
     for (const def of roleDefinitions) {
-      const role = this.roleRepository.create({
-        name: def.name,
-        displayName: def.displayName,
-        description: def.description,
-        isSystem: 1,
-        sortOrder: def.sortOrder,
-        isEnabled: 1,
+      // 先尝试查找现有角色
+      let role = await manager.findOne(Role, {
+        where: { name: def.name },
       });
-      const saved = await this.roleRepository.save(role);
-      roleMap.set(def.name, saved);
+
+      if (!role) {
+        // 不存在则创建
+        role = manager.create(Role, {
+          name: def.name,
+          displayName: def.displayName,
+          description: def.description,
+          isSystem: 1,
+          sortOrder: def.sortOrder,
+          isEnabled: 1,
+        });
+        role = await manager.save(role);
+      }
+
+      roleMap.set(def.name, role);
     }
 
-    this.logger.log(`Created ${roleMap.size} roles`);
+    this.logger.log(`Ensured ${roleMap.size} roles exist`);
     return roleMap;
   }
 
   /**
-   * 为角色分配权限
+   * 为角色分配权限（幂等）
+   * @param manager - 事务管理器
    * @param roles 角色映射
    * @param permissions 权限映射
    */
   private async assignPermissionsToRoles(
+    manager: Parameters<DataSource["transaction"]>[0],
     roles: Map<string, Role>,
     permissions: Map<string, Permission>,
   ): Promise<void> {
@@ -266,14 +302,25 @@ export class RbacService implements OnModuleInit {
           continue;
         }
 
-        const rolePermission = this.rolePermissionRepository.create({
-          roleId: role.id,
-          permissionId: permission.id,
+        // 检查是否已经存在该角色-权限关联
+        const existing = await manager.findOne(RolePermission, {
+          where: {
+            roleId: role.id,
+            permissionId: permission.id,
+          },
         });
-        await this.rolePermissionRepository.save(rolePermission);
+
+        if (!existing) {
+          // 不存在则创建
+          const rolePermission = manager.create(RolePermission, {
+            roleId: role.id,
+            permissionId: permission.id,
+          });
+          await manager.save(rolePermission);
+        }
       }
 
-      this.logger.log(`Assigned ${permissionNames.length} permissions to role ${roleName}`);
+      this.logger.log(`Ensured ${permissionNames.length} permissions for role ${roleName}`);
     }
   }
 

@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, UseGuards, Param, NotFoundException } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../../common/guards/permissions.guard";
@@ -24,16 +24,34 @@ export class RbacController {
 
   /**
    * 获取指定角色的所有权限
+   * @param roleName 角色名称（如 admin, teacher, student, user）
+   * @returns 该角色的权限列表
    */
   @Get("roles/:roleName/permissions")
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiBearerAuth()
   @RequirePermission("role:read", "permission:read")
   @ApiOperation({ summary: "获取角色的所有权限" })
-  async getRolePermissions() {
-    // 此接口需要实现获取角色权限的逻辑
-    // 暂时返回空对象，后续可以完善
-    return { message: "Use GET /rbac/permissions with role query param" };
+  async getRolePermissions(@Param("roleName") roleName: string) {
+    const permissions = await this.rbacService.getRolePermissions(roleName);
+
+    if (!permissions || permissions.length === 0) {
+      throw new NotFoundException(
+        `角色 "${roleName}" 不存在或该角色没有任何权限`,
+      );
+    }
+
+    return {
+      role: roleName,
+      permissions: permissions.map((p) => ({
+        name: p.name,
+        displayName: p.displayName,
+        description: p.description,
+        resource: p.resource,
+        action: p.action,
+      })),
+      count: permissions.length,
+    };
   }
 
   /**

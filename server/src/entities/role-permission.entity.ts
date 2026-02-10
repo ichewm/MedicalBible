@@ -13,6 +13,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   Index,
+  Unique,
 } from "typeorm";
 import { Role } from "./role.entity";
 import { Permission } from "./permission.entity";
@@ -23,6 +24,7 @@ import { Permission } from "./permission.entity";
  * 一个角色可以拥有多个权限，一个权限可以被多个角色拥有
  */
 @Entity("role_permissions")
+@Unique(["roleId", "permissionId"])
 export class RolePermission {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "int", comment: "主键" })

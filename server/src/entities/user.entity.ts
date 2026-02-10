@@ -25,7 +25,6 @@ import { ReadingProgress } from "./reading-progress.entity";
 import { Commission } from "./commission.entity";
 import { Withdrawal } from "./withdrawal.entity";
 import { Level } from "./level.entity";
-import { Role } from "./role.entity";
 
 /**
  * 用户状态枚举
@@ -159,11 +158,12 @@ export class User {
   currentLevelId: number;
 
   /** 用户角色 */
+  @Index("idx_users_role")
   @Column({
     type: "varchar",
     length: 20,
     default: "user",
-    comment: "用户角色：user-普通用户, admin-管理员",
+    comment: "用户角色名称，对应 roles 表中的 name 字段。系统预置角色名称（admin, teacher, student, user）不可变更，自定义角色添加后名称也应保持稳定以确保数据一致性",
   })
   role: string;
 
@@ -202,11 +202,6 @@ export class User {
   /** 下线用户列表 */
   @OneToMany(() => User, (user) => user.parent, { eager: false })
   children: User[];
-
-  /** 用户角色 */
-  @ManyToOne(() => Role, { nullable: true })
-  @JoinColumn({ name: "role_name", referencedColumnName: "name" })
-  roleEntity: Role;
 
   /** 当前选中的等级 */
   @ManyToOne(() => Level, { nullable: true })

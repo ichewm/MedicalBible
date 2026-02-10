@@ -12,6 +12,7 @@ import { Permission } from "../../entities/permission.entity";
 import { RolePermission } from "../../entities/role-permission.entity";
 import { RbacService } from "./rbac.service";
 import { RbacController } from "./rbac.controller";
+import { PermissionsGuard } from "../../common/guards/permissions.guard";
 
 /**
  * RBAC 模块
@@ -26,7 +27,7 @@ import { RbacController } from "./rbac.controller";
     TypeOrmModule.forFeature([Role, Permission, RolePermission]),
   ],
   controllers: [RbacController],
-  providers: [RbacService],
-  exports: [RbacService],
+  providers: [RbacService, PermissionsGuard],
+  exports: [RbacService, PermissionsGuard],
 })
 export class RbacModule {}

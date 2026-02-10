@@ -15,7 +15,6 @@ import { Reflector } from "@nestjs/core";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Role } from "../../entities/role.entity";
-import { Permission } from "../../entities/permission.entity";
 import { PERMISSIONS_KEY } from "../decorators/permissions.decorator";
 import { REQUIRE_ALL_PERMISSIONS_KEY } from "../decorators/permissions.decorator";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
@@ -35,12 +34,17 @@ interface UserPermissionsPayload {
  * PermissionsGuard 类
  * @description 基于权限的访问控制守卫
  *
+ * 权限规则:
+ * - "资源:manage" 是该资源的超级权限，包含该资源的所有其他权限
+ * - 例如: 拥有 "question:manage" 可以访问需要 "question:create", "question:read",
+ *   "question:update", "question:delete" 的任何接口
+ *
  * 工作流程:
  * 1. 检查是否为公开接口，如果是则跳过权限验证
  * 2. 从路由处理器或控制器类读取所需权限元数据
  * 3. 获取当前请求用户信息
  * 4. 获取用户角色的所有权限
- * 5. 验证用户权限是否满足要求
+ * 5. 验证用户权限是否满足要求（支持 manage 超级权限）
  * 6. 如果没有权限要求，允许访问
  * 7. 如果用户权限满足要求，允许访问，否则抛出 403 错误
  */
@@ -50,8 +54,6 @@ export class PermissionsGuard implements CanActivate {
     private readonly reflector: Reflector,
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
-    @InjectRepository(Permission)
-    private readonly permissionRepository: Repository<Permission>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -104,12 +106,12 @@ export class PermissionsGuard implements CanActivate {
     // 检查是否需要全部权限
     if (requireAllPermissions && requireAllPermissions.length > 0) {
       const hasAllPermissions = requireAllPermissions.every((permission) =>
-        userPermissions.has(permission),
+        this.hasPermission(userPermissions, permission),
       );
 
       if (!hasAllPermissions) {
         const missing = requireAllPermissions.filter(
-          (p) => !userPermissions.has(p),
+          (p) => !this.hasPermission(userPermissions, p),
         );
         throw new ForbiddenException(
           `需要以下所有权限: ${missing.join(", ")}`,
@@ -122,7 +124,7 @@ export class PermissionsGuard implements CanActivate {
     // 检查是否拥有任意一个所需权限
     if (requiredPermissions && requiredPermissions.length > 0) {
       const hasAnyPermission = requiredPermissions.some((permission) =>
-        userPermissions.has(permission),
+        this.hasPermission(userPermissions, permission),
       );
 
       if (!hasAnyPermission) {
@@ -135,6 +137,33 @@ export class PermissionsGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /**
+   * 检查用户是否拥有指定权限
+   * @description 支持资源:manage 作为资源的所有权限的隐含超级权限
+   * @param userPermissions - 用户权限集合
+   * @param permission - 需要检查的权限
+   * @returns 是否拥有权限
+   */
+  private hasPermission(userPermissions: Set<string>, permission: string): boolean {
+    // 如果直接拥有该权限，返回 true
+    if (userPermissions.has(permission)) {
+      return true;
+    }
+
+    // 检查是否拥有对应的 manage 权限（作为超级权限）
+    // 例如: question:update 可以被 question:manage 满足
+    const parts = permission.split(":");
+    if (parts.length === 2) {
+      const [resource, _action] = parts;
+      const managePermission = `${resource}:manage`;
+      if (userPermissions.has(managePermission)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

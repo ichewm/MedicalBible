@@ -578,7 +578,7 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
   - `PermissionsGuard` 守卫支持精细权限控制
   - 预置 43 个权限覆盖 9 个资源模块
   - 初始角色和权限自动种子数据
-  - 完整的单元测试覆盖（10 个测试文件）
+  - 完整的 RBAC 相关单元测试覆盖
 
 ### v1.3.0 (2026-02-09)
 
