@@ -391,6 +391,18 @@ npm run dev
 
 - **CORS 配置**: 环境级域名白名单，生产环境禁止通配符
 - **安全头**: Helmet 中间件防护常见 Web 漏洞
+- **输入清洗**: 全局输入清洗中间件，防止 XSS 和注入攻击
+  - 基于 sanitize-html 库
+  - 支持严格/宽松/禁用三种策略
+  - 检测并移除脚本标签、事件处理器、危险协议
+  - 可配置清洗目标（body、query、params）
+  - 恶意内容检测和日志记录
+- **自定义验证器**: DTO 层安全验证装饰器
+  - `@NoScriptTags`: 检测脚本注入
+  - `@NoHtmlTags`: 防止 HTML 标签
+  - `@SafeUrl`: 验证 URL 协议安全
+  - `@NoSqlInjection`: 检测 SQL 注入模式
+  - `@NoCommandInjection`: 检测命令注入模式
 - JWT Token 认证
 - 密码 bcrypt 加密
 - SQL 注入防护
@@ -405,6 +417,16 @@ npm run dev
 - 生产环境: 必须通过 `CORS_ORIGIN` 环境变量指定具体域名
 - 支持逗号分隔的多个域名: `https://example.com,https://app.example.com`
 - 生产环境使用通配符 (`*`) 将导致应用拒绝启动
+
+**输入清洗配置说明**:
+- 默认策略: `strict` (移除所有 HTML 标签)
+- 可通过环境变量配置:
+  - `SANITIZATION_ENABLED`: 启用/禁用输入清洗 (默认: true)
+  - `SANITIZATION_STRATEGY`: 清洗策略 `strict`|`loose`|`disabled` (默认: strict)
+  - `SANITIZATION_THROW_ON_DETECTION`: 检测到恶意内容时抛出错误 (默认: false)
+- 清洗目标: 请求体、查询参数、路径参数
+- 自动检测并记录脚本标签、事件处理器、危险协议
+- 收集清洗指标（清洗数量、恶意内容检测次数等）
 
 ## 📈 性能
 
@@ -437,6 +459,23 @@ npm run dev
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.4.0 (2026-02-10)
+
+- 🔒 **输入清洗系统** (SEC-005): 综合输入清洗和验证
+  - 全局输入清洗中间件（基于 sanitize-html）
+  - 支持严格/宽松/禁用三种清洗策略
+  - 检测并移除脚本标签、事件处理器、危险协议
+  - 可配置清洗目标（body、query、params）
+  - 恶意内容检测和日志记录
+  - 清洗指标收集（清洗数量、检测次数等）
+- 🛡️ **自定义安全验证器**: DTO 层安全验证装饰器
+  - `@NoScriptTags`: 检测脚本注入
+  - `@NoHtmlTags`: 防止 HTML 标签
+  - `@SafeUrl`: 验证 URL 协议安全
+  - `@NoSqlInjection`: 检测 SQL 注入模式
+  - `@NoCommandInjection`: 检测命令注入模式
+- ✅ 完整的 E2E 测试覆盖（输入清洗功能）
 
 ### v1.3.0 (2026-02-09)
 

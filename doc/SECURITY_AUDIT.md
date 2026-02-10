@@ -60,9 +60,30 @@ this.userRepository.find({ where: { phone } });
 .where("user.id = :id", { id })  // 参数化
 ```
 
-### 2.2 XSS 防护 ⚠️
+### 2.2 XSS 防护 ✅
 
-**发现风险点**：
+**后端输入清洗 (SEC-005)**:
+- ✅ 全局输入清洗中间件 (`server/src/common/middleware/sanitization.middleware.ts`)
+  - 基于 `sanitize-html` 库
+  - 支持严格/宽松/禁用三种策略
+  - 检测并移除脚本标签、事件处理器、危险协议
+  - 可配置清洗目标（body、query、params）
+  - 恶意内容检测和日志记录
+- ✅ 自定义验证器 (`server/src/common/validators/sanitization.validator.ts`)
+  - `@NoScriptTags`: 检测脚本注入
+  - `@NoHtmlTags`: 防止 HTML 标签
+  - `@SafeUrl`: 验证 URL 协议安全
+  - `@NoSqlInjection`: 检测 SQL 注入模式
+  - `@NoCommandInjection`: 检测命令注入模式
+
+**配置说明**:
+- 默认策略: `strict` (移除所有 HTML 标签)
+- 可通过环境变量配置:
+  - `SANITIZATION_ENABLED`: 启用/禁用输入清洗 (默认: true)
+  - `SANITIZATION_STRATEGY`: 清洗策略 `strict`|`loose`|`disabled` (默认: strict)
+  - `SANITIZATION_THROW_ON_DETECTION`: 检测到恶意内容时抛出错误 (默认: false)
+
+**前端风险点**：
 前端有 4 处使用 `dangerouslySetInnerHTML`：
 
 | 文件 | 用途 | 风险级别 |
@@ -157,13 +178,20 @@ import DOMPurify from "dompurify";
    - 实现了环境级域名白名单
    - 生产环境强制验证，禁止通配符
 
-3. **XSS 防护增强**
+3. ~~**输入清洗系统**~~ ✅ **已完成 (SEC-005)**
+   - 全局输入清洗中间件（基于 sanitize-html）
+   - 支持严格/宽松/禁用三种清洗策略
+   - 自定义验证器（@NoScriptTags、@NoHtmlTags、@SafeUrl 等）
+   - 恶意内容检测和日志记录
+   - 完整的 E2E 测试覆盖
+
+4. **XSS 防护增强**
    ```bash
    cd web && npm install dompurify @types/dompurify
    ```
    为所有 `dangerouslySetInnerHTML` 添加净化
 
-4. **前端依赖更新**
+5. **前端依赖更新**
    ```bash
    cd web && npm audit fix
    ```
@@ -213,3 +241,4 @@ import DOMPurify from "dompurify";
 | 2025-01-31 | SEC-009 结构化日志实现 | 完成 - 移除所有 console.log，使用 NestJS Logger |
 | 2025-01-31 | CORS 安全配置 (SEC-002) | ✅ 完成环境级域名白名单 |
 | 2025-01-31 | Helmet 中间件集成 (SEC-002) | ✅ 完成安全头配置 |
+| 2026-02-10 | SEC-005 输入清洗系统 | ✅ 完成 - 全局输入清洗中间件 + 自定义验证器 |
