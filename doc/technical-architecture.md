@@ -221,7 +221,6 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 2. **缓存键验证**: 模式参数只允许字母、数字、冒号、下划线和星号
 3. **速率限制**: 批量删除接口启用速率限制防止 DoS 攻击
 4. **权限控制**: 所有缓存管理接口需要管理员权限
-
 ---
 
 ## 5. WebSocket 实时通信 (WebSocket)
@@ -363,3 +362,158 @@ notifyAdminsNewMessage(userId: number, message: any): void
 3. **连接限制**: 防止单个用户占用过多连接资源
 4. **心跳超时**: 自动清理无效连接
 5. **消息队列 TTL**: 防止离线消息无限累积
+
+---
+
+## 6. RBAC 权限架构 (Role-Based Access Control)
+
+### 权限模型 (Permission Model)
+
+**位置**: `server/src/entities/permission.entity.ts`
+
+RBAC 系统采用 "资源:动作" 的权限命名格式，提供精细化的访问控制。
+
+#### 资源类型 (Resource)
+
+| 资源 | 说明 |
+|------|------|
+| `user` | 用户管理 |
+| `role` | 角色管理 |
+| `permission` | 权限管理 |
+| `question` | 题库管理 |
+| `lecture` | 讲义管理 |
+| `order` | 订单管理 |
+| `affiliate` | 分销管理 |
+| `system` | 系统配置 |
+| `content` | 内容管理 |
+
+#### 动作类型 (Action)
+
+| 动作 | 说明 |
+|------|------|
+| `create` | 创建资源 |
+| `read` | 查看资源 |
+| `update` | 更新资源 |
+| `delete` | 删除资源 |
+| `manage` | 完全管理权限 |
+
+### 权限装饰器 (Permission Decorators)
+
+**位置**: `server/src/common/decorators/permissions.decorator.ts`
+
+#### @RequirePermission 装饰器
+
+要求用户拥有指定权限中的至少一个（OR 逻辑）：
+
+```typescript
+@Post('users')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('user:create')
+async createUser() {
+  // 只有拥有 user:create 权限的用户可以访问
+}
+
+// 多权限：满足其一即可
+@Put('questions/:id')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('question:update', 'question:manage')
+async updateQuestion() {
+  // 拥有 question:update 或 question:manage 权限都可访问
+}
+```
+
+#### @RequireAllPermissions 装饰器
+
+要求用户同时拥有所有指定权限（AND 逻辑）：
+
+```typescript
+@Post('users/:id/roles')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequireAllPermissions('user:update', 'role:read')
+async assignUserRole() {
+  // 需要同时拥有 user:update 和 role:read 权限
+}
+```
+
+### 权限守卫 (PermissionsGuard)
+
+**位置**: `server/src/common/guards/permissions.guard.ts`
+
+守卫工作流程：
+
+1. 检查是否为公开接口（跳过权限验证）
+2. 从路由处理器读取所需权限元数据
+3. 获取当前请求用户的角色
+4. 查询用户角色的所有权限
+5. 验证用户权限是否满足要求
+6. 不满足则抛出 `ForbiddenException`
+
+### 预置角色和权限
+
+**位置**: `server/src/modules/rbac/rbac.service.ts`
+
+系统在首次启动时自动创建以下角色和权限：
+
+#### 角色
+
+| 角色 | 显示名 | 描述 |
+|------|--------|------|
+| `admin` | 系统管理员 | 拥有所有权限 |
+| `teacher` | 教师 | 管理题库和讲义内容 |
+| `student` | 学生 | 只能查看内容 |
+| `user` | 普通用户 | 默认角色，基础读取权限 |
+
+#### 权限分配示例
+
+- **admin**: 所有 43 个权限
+- **teacher**: 题库和讲义的完整 CRUD + 内容读取（15 个权限）
+- **student**: 题库、讲义、内容读取权限（3 个权限）
+- **user**: 题库和讲义读取权限（2 个权限）
+
+### RBAC 服务 (RbacService)
+
+**位置**: `server/src/modules/rbac/rbac.service.ts`
+
+提供以下功能：
+
+- `seedInitialData()`: 初始化角色和权限数据（模块启动时自动执行）
+- `getRolePermissions(roleName)`: 获取角色的所有权限
+- `hasPermission(roleName, permissionName)`: 检查角色是否拥有指定权限
+
+### RBAC API (RbacController)
+
+**位置**: `server/src/modules/rbac/rbac.controller.ts`
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/rbac/health` | GET | RBAC 模块健康检查 |
+| `/rbac/roles/:roleName/permissions` | GET | 获取角色的所有权限 |
+
+### 使用示例
+
+```typescript
+// 在 Controller 中使用权限控制
+@Controller('questions')
+export class QuestionController {
+  @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('question:create')
+  async createQuestion() {
+    // 创建题目
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('question:delete', 'question:manage')
+  async deleteQuestion() {
+    // 拥有 question:delete 或 question:manage 任一权限即可删除
+  }
+
+  @Patch(':id/publish')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequireAllPermissions('question:update', 'question:manage')
+  async publishQuestion() {
+    // 需要同时拥有 question:update 和 question:manage 权限
+  }
+}
+```
