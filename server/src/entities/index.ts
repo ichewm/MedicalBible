@@ -40,3 +40,6 @@ export * from "./withdrawal.entity";
 // ==================== 客服系统 ====================
 export * from "./conversation.entity";
 export * from "./message.entity";
+
+// ==================== 分析追踪 ====================
+export * from "./user-activity.entity";

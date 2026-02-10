@@ -17,6 +17,7 @@ import { Profession } from "../../entities/profession.entity";
 import { Level } from "../../entities/level.entity";
 import { Subject } from "../../entities/subject.entity";
 import { SkuPrice } from "../../entities/sku-price.entity";
+import { Order } from "../../entities/order.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import {
   CreateProfessionDto,
@@ -53,6 +54,9 @@ export class SkuService {
 
     @InjectRepository(SkuPrice)
     private readonly skuPriceRepository: Repository<SkuPrice>,
+
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
 
     private readonly redisService: RedisService,
   ) {}
@@ -225,6 +229,10 @@ export class SkuService {
    * 删除职业大类
    * @param id - 职业大类ID
    * @returns 删除结果
+   * @throws NotFoundException 当职业大类不存在时
+   * @throws BadRequestException 当该职业下存在等级时（包含具体数量）
+   * @description 删除前会检查该职业下是否存在等级，存在则不允许删除。
+   *              成功删除后会清除 SKU 分类树缓存。
    */
   async deleteProfession(id: number): Promise<{ success: boolean }> {
     const profession = await this.professionRepository.findOne({
@@ -356,19 +364,48 @@ export class SkuService {
    * 删除等级
    * @param id - 等级ID
    * @returns 删除结果
+   * @throws NotFoundException 当等级不存在时
+   * @throws BadRequestException 当该等级下存在关联资源时（包含各类型资源的具体数量）
+   * @description 删除前会检查是否存在以下关联资源：
+   *              - 科目 (subjects)
+   *              - 价格档位 (prices)
+   *              - 订单 (orders)
+   *              - 订阅 (subscriptions)
+   *              存在任何关联资源则不允许删除。成功删除后会清除 SKU 分类树缓存。
    */
   async deleteLevel(id: number): Promise<{ success: boolean }> {
     const level = await this.levelRepository.findOne({
       where: { id },
-      relations: ["subjects"],
+      relations: ["subjects", "prices", "orders", "subscriptions"],
     });
 
     if (!level) {
       throw new NotFoundException("等级不存在");
     }
 
-    if (level.subjects && level.subjects.length > 0) {
-      throw new BadRequestException("该等级下存在科目，无法删除");
+    // 检查是否有关联的资源
+    const subjectCount = level.subjects?.length ?? 0;
+    const priceCount = level.prices?.length ?? 0;
+    const orderCount = level.orders?.length ?? 0;
+    const subscriptionCount = level.subscriptions?.length ?? 0;
+
+    if (subjectCount > 0 || priceCount > 0 || orderCount > 0 || subscriptionCount > 0) {
+      const details: string[] = [];
+      if (subjectCount > 0) {
+        details.push(`${subjectCount}个科目`);
+      }
+      if (priceCount > 0) {
+        details.push(`${priceCount}个价格档位`);
+      }
+      if (orderCount > 0) {
+        details.push(`${orderCount}个订单`);
+      }
+      if (subscriptionCount > 0) {
+        details.push(`${subscriptionCount}个订阅`);
+      }
+      throw new BadRequestException(
+        `该等级下存在${details.join("、")}，无法删除。请先删除关联内容。`,
+      );
     }
 
     await this.levelRepository.delete(id);
@@ -483,17 +520,39 @@ export class SkuService {
    * 删除科目
    * @param id - 科目ID
    * @returns 删除结果
+   * @throws NotFoundException 当科目不存在时
+   * @throws BadRequestException 当该科目下存在关联资源时（包含各类型资源的具体数量）
+   * @description 删除前会检查是否存在以下关联资源：
+   *              - 试卷 (papers)
+   *              - 讲义 (lectures)
+   *              存在任何关联资源则不允许删除。成功删除后会清除 SKU 分类树缓存。
    */
   async deleteSubject(id: number): Promise<{ success: boolean }> {
     const subject = await this.subjectRepository.findOne({
       where: { id },
+      relations: ["papers", "lectures"],
     });
 
     if (!subject) {
       throw new NotFoundException("科目不存在");
     }
 
-    // TODO: 检查是否有关联的试卷或讲义
+    // 检查是否有关联的试卷
+    const paperCount = subject.papers?.length ?? 0;
+    const lectureCount = subject.lectures?.length ?? 0;
+
+    if (paperCount > 0 || lectureCount > 0) {
+      const details: string[] = [];
+      if (paperCount > 0) {
+        details.push(`${paperCount}个试卷`);
+      }
+      if (lectureCount > 0) {
+        details.push(`${lectureCount}个讲义`);
+      }
+      throw new BadRequestException(
+        `该科目下存在${details.join("和")}，无法删除。请先删除关联内容。`,
+      );
+    }
 
     await this.subjectRepository.delete(id);
 
@@ -639,6 +698,10 @@ export class SkuService {
    * 删除价格档位
    * @param id - 价格档位ID
    * @returns 删除结果
+   * @throws NotFoundException 当价格档位不存在时
+   * @throws BadRequestException 当该价格档位下存在关联订单时（包含订单数量）
+   * @description 删除前会检查是否存在关联的订单 (orders)。
+   *              存在订单则不允许删除。注意：此操作不会清除 SKU 分类树缓存。
    */
   async deleteSkuPrice(id: number): Promise<{ success: boolean }> {
     const price = await this.skuPriceRepository.findOne({
@@ -647,6 +710,17 @@ export class SkuService {
 
     if (!price) {
       throw new NotFoundException("价格档位不存在");
+    }
+
+    // 检查是否有关联的订单
+    const orderCount = await this.orderRepository.count({
+      where: { skuPriceId: id },
+    });
+
+    if (orderCount > 0) {
+      throw new BadRequestException(
+        `该价格档位下存在${orderCount}个订单，无法删除。请先删除关联内容。`,
+      );
     }
 
     await this.skuPriceRepository.delete(id);

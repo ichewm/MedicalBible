@@ -1,6 +1,7 @@
 /**
  * @file 统一存储服务
  * @description 根据配置自动选择存储后端，提供统一的文件上传/删除接口
+ * 集成断路器模式，在外部存储服务不可用时降级到本地存储
  */
 
 import { Injectable, OnModuleInit, Logger,InternalServerErrorException } from "@nestjs/common";
@@ -25,13 +26,20 @@ import {
   S3StorageAdapter,
   MinioStorageAdapter,
 } from "./adapters";
+import {
+  CircuitBreakerService,
+  ExternalService,
+} from "../../common/circuit-breaker";
 import * as crypto from "crypto";
+import * as path from "path";
+import { v4 as uuidv4 } from "uuid";
 
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private adapter: IStorageAdapter;
   private config: StorageConfig;
+  private localAdapter: IStorageAdapter; // 本地存储适配器作为降级选项
 
   // 加密密钥（必须从环境变量获取）
   private readonly encryptionKey =
@@ -42,6 +50,7 @@ export class StorageService implements OnModuleInit {
   constructor(
     @InjectRepository(SystemConfig)
     private readonly configRepository: Repository<SystemConfig>,
+    private readonly circuitBreakerService: CircuitBreakerService,
   ) {}
 
   async onModuleInit() {
@@ -55,6 +64,13 @@ export class StorageService implements OnModuleInit {
     try {
       this.config = await this.loadConfig();
       this.adapter = await this.createAdapter(this.config);
+
+      // 初始化本地存储适配器作为降级选项
+      this.localAdapter = new LocalStorageAdapter({
+        basePath: "./uploads",
+        urlPrefix: "/uploads",
+      });
+
       this.logger.log(`Storage adapter initialized: ${this.config.provider}`);
     } catch (error) {
       this.logger.error("Failed to initialize storage adapter:", error);
@@ -70,6 +86,7 @@ export class StorageService implements OnModuleInit {
         basePath: this.config.local!.path,
         urlPrefix: this.config.local!.urlPrefix,
       });
+      this.localAdapter = this.adapter;
       this.logger.warn("Fallback to local storage adapter");
     }
   }
@@ -97,10 +114,29 @@ export class StorageService implements OnModuleInit {
       "local") as StorageProvider;
     const cdnDomain = getConfig(SystemConfigKeys.STORAGE_CDN_DOMAIN);
 
+    // CDN 缓存失效配置
+    const cacheInvalidationEnabled =
+      getConfig(SystemConfigKeys.STORAGE_CACHE_INVALIDATION_ENABLED) === "true";
+    const cacheInvalidationProvider = getConfig(
+      SystemConfigKeys.STORAGE_CACHE_INVALIDATION_PROVIDER,
+    );
+
     const config: StorageConfig = {
       provider,
       cdnDomain: cdnDomain || undefined,
     };
+
+    // 加载缓存失效配置
+    if (cacheInvalidationEnabled && cacheInvalidationProvider && cdnDomain) {
+      config.cacheInvalidation = {
+        enabled: true,
+        provider: cacheInvalidationProvider as any,
+        distributionId:
+          getConfig(SystemConfigKeys.STORAGE_CF_DISTRIBUTION_ID) || undefined,
+        zoneId: getConfig(SystemConfigKeys.STORAGE_CF_ZONE_ID) || undefined,
+        apiToken: getConfig(SystemConfigKeys.STORAGE_CF_API_TOKEN) || undefined,
+      };
+    }
 
     switch (provider) {
       case "local":
@@ -208,35 +244,200 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
-   * 上传文件
+   * 上传文件（带断路器保护）
    */
   async upload(
     buffer: Buffer,
     originalName: string,
     options?: UploadOptions,
   ): Promise<UploadResult> {
-    return this.adapter.upload(buffer, originalName, options);
+    // 如果是本地存储，直接执行不需要断路器
+    if (this.config.provider === "local") {
+      return this.adapter.upload(buffer, originalName, options);
+    }
+
+    // 使用断路器保护外部存储调用
+    const serviceKey = this.getServiceKey(this.config.provider);
+    const presetOptions = this.circuitBreakerService.getPresetOptions(serviceKey);
+
+    return this.circuitBreakerService.execute(
+      serviceKey,
+      () => this.adapter.upload(buffer, originalName, options),
+      {
+        ...presetOptions,
+        fallback: async () => {
+          // 降级到本地存储
+          this.logger.warn(
+            `Circuit breaker triggered for ${serviceKey}, falling back to local storage`,
+          );
+          return this.localAdapter.upload(buffer, originalName, options);
+        },
+      },
+    );
   }
 
   /**
-   * 删除文件
+   * 删除文件（带断路器保护）
    */
   async delete(key: string): Promise<void> {
-    return this.adapter.delete(key);
+    // 如果是本地存储，直接执行不需要断路器
+    if (this.config.provider === "local") {
+      await this.adapter.delete(key);
+      // 尝试缓存失效（最佳尝试，失败不影响删除操作）
+      await this.attemptCacheInvalidation(key);
+      return;
+    }
+
+    // 使用断路器保护外部存储调用
+    const serviceKey = this.getServiceKey(this.config.provider);
+    const presetOptions = this.circuitBreakerService.getPresetOptions(serviceKey);
+
+    await this.circuitBreakerService.execute(
+      serviceKey,
+      async () => {
+        await this.adapter.delete(key);
+        // 尝试缓存失效（最佳尝试，失败不影响删除操作）
+        await this.attemptCacheInvalidation(key);
+      },
+      {
+        ...presetOptions,
+        fallback: async () => {
+          // 降级时仅记录日志，本地存储可能没有该文件
+          this.logger.warn(
+            `Circuit breaker triggered for ${serviceKey}, delete operation skipped`,
+          );
+          // 尝试删除本地文件
+          try {
+            await this.localAdapter.delete(key);
+          } catch {
+            // 忽略本地删除失败
+          }
+        },
+      },
+    );
   }
 
   /**
-   * 检查文件是否存在
+   * 检查文件是否存在（带断路器保护）
    */
   async exists(key: string): Promise<boolean> {
-    return this.adapter.exists(key);
+    // 如果是本地存储，直接执行不需要断路器
+    if (this.config.provider === "local") {
+      return this.adapter.exists(key);
+    }
+
+    // 使用断路器保护外部存储调用
+    const serviceKey = this.getServiceKey(this.config.provider);
+    const presetOptions = this.circuitBreakerService.getPresetOptions(serviceKey);
+
+    return this.circuitBreakerService.execute(
+      serviceKey,
+      () => this.adapter.exists(key),
+      {
+        ...presetOptions,
+        fallback: async () => {
+          // 降级时检查本地存储
+          this.logger.debug(
+            `Circuit breaker triggered for ${serviceKey}, checking local storage`,
+          );
+          return this.localAdapter.exists(key);
+        },
+      },
+    );
   }
 
   /**
-   * 获取文件 URL
+   * 获取文件 URL（带断路器保护）
    */
   async getUrl(key: string, expiresIn?: number): Promise<string> {
-    return this.adapter.getUrl(key, expiresIn);
+    // 如果是本地存储，直接执行不需要断路器
+    if (this.config.provider === "local") {
+      return this.adapter.getUrl(key, expiresIn);
+    }
+
+    // 使用断路器保护外部存储调用
+    const serviceKey = this.getServiceKey(this.config.provider);
+    const presetOptions = this.circuitBreakerService.getPresetOptions(serviceKey);
+
+    return this.circuitBreakerService.execute(
+      serviceKey,
+      () => this.adapter.getUrl(key, expiresIn),
+      {
+        ...presetOptions,
+        fallback: async () => {
+          // 降级时返回本地 URL
+          this.logger.debug(
+            `Circuit breaker triggered for ${serviceKey}, using local URL`,
+          );
+          return this.localAdapter.getUrl(key, expiresIn);
+        },
+      },
+    );
+  }
+
+  /**
+   * 获取外部服务对应的断路器服务键
+   */
+  private getServiceKey(provider: StorageProvider): ExternalService {
+    switch (provider) {
+      case "aws-s3":
+        return ExternalService.AWS_S3;
+      case "aliyun-oss":
+        return ExternalService.ALIYUN_OSS;
+      case "tencent-cos":
+        return ExternalService.TENCENT_COS;
+      case "minio":
+        return ExternalService.MINIO;
+      default:
+        return ExternalService.AWS_S3; // 默认
+    }
+  }
+
+  /**
+   * 尝试使 CDN 缓存失效（最佳尝试，失败不影响主操作）
+   */
+  private async attemptCacheInvalidation(key: string): Promise<void> {
+    if (!this.isCacheInvalidationEnabled()) {
+      return;
+    }
+
+    if (!this.hasCacheInvalidation()) {
+      this.logger.debug(
+        `Cache invalidation not supported by current adapter: ${this.config.provider}`,
+      );
+      return;
+    }
+
+    try {
+      const adapter = this.adapter as any;
+      const success = await adapter.invalidateCache(key);
+      if (success) {
+        this.logger.log(`CDN cache invalidated for: ${key}`);
+      } else {
+        this.logger.warn(`CDN cache invalidation failed for: ${key}`);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `CDN cache invalidation error for ${key}:`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * 检查是否启用缓存失效
+   */
+  private isCacheInvalidationEnabled(): boolean {
+    return this.config.cacheInvalidation?.enabled === true &&
+      !!this.config.cdnDomain;
+  }
+
+  /**
+   * 检查适配器是否支持缓存失效
+   */
+  private hasCacheInvalidation(): boolean {
+    const adapter = this.adapter as any;
+    return typeof adapter.invalidateCache === "function";
   }
 
   /**

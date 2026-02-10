@@ -6,6 +6,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import * as request from "supertest";
+import { Response } from "supertest";
 import { AppModule } from "../src/app.module";
 import { VersioningType } from "@nestjs/common";
 
@@ -46,7 +47,7 @@ describe("API Versioning (e2e)", () => {
       return request(app.getHttpServer())
         .get("/health")
         .expect(200)
-        .expect((res) => {
+        .expect((res: Response) => {
           expect(res.body).toHaveProperty("status", "ok");
           expect(res.body).toHaveProperty("timestamp");
           expect(res.body).toHaveProperty("uptime");
@@ -60,7 +61,7 @@ describe("API Versioning (e2e)", () => {
         return request(app.getHttpServer())
           .get("/api/v1/auth/config")
           .expect(200)
-          .expect((res) => {
+          .expect((res: Response) => {
             expect(res.body).toBeDefined();
           });
       });
@@ -69,7 +70,7 @@ describe("API Versioning (e2e)", () => {
         return request(app.getHttpServer())
           .get("/api/v1/sku/tree")
           .expect(200)
-          .expect((res) => {
+          .expect((res: Response) => {
             expect(Array.isArray(res.body)).toBe(true);
           });
       });
@@ -78,7 +79,7 @@ describe("API Versioning (e2e)", () => {
         return request(app.getHttpServer())
           .get("/api/v1/sku/professions")
           .expect(200)
-          .expect((res) => {
+          .expect((res: Response) => {
             expect(Array.isArray(res.body)).toBe(true);
           });
       });
@@ -89,7 +90,7 @@ describe("API Versioning (e2e)", () => {
         return request(app.getHttpServer())
           .get("/api/auth/config")
           .expect(200)
-          .expect((res) => {
+          .expect((res: Response) => {
             expect(res.body).toBeDefined();
           });
       });
@@ -98,7 +99,7 @@ describe("API Versioning (e2e)", () => {
         return request(app.getHttpServer())
           .get("/api/sku/tree")
           .expect(200)
-          .expect((res) => {
+          .expect((res: Response) => {
             expect(Array.isArray(res.body)).toBe(true);
           });
       });
@@ -153,7 +154,7 @@ describe("API Versioning (e2e)", () => {
       return request(app.getHttpServer())
         .get("/api-docs-json")
         .expect(200)
-        .expect((res) => {
+        .expect((res: Response) => {
           expect(res.body).toHaveProperty("openapi");
           expect(res.body).toHaveProperty("info");
           expect(res.body).toHaveProperty("paths");
@@ -174,7 +175,7 @@ describe("API Versioning (e2e)", () => {
     it("/api/v1/auth/config (POST) 应该返回错误", () => {
       return request(app.getHttpServer())
         .post("/api/v1/auth/config")
-        .expect((res) => {
+        .expect((res: Response) => {
           // 可能是 404 (路由未定义) 或 405 (方法不允许)
           expect([404, 405]).toContain(res.status);
         });

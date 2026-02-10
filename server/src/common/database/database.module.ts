@@ -11,6 +11,7 @@ import { DatabaseMonitoringService } from "./database-monitoring.service";
 import { DatabaseMonitoringController } from "./database-monitoring.controller";
 import { TransactionService } from "./transaction.service";
 import { DatabaseConnectionService } from "./database-connection.service";
+import { QueryOptimizerService } from "./query-optimizer.service";
 
 /**
  * Global database module
@@ -25,11 +26,13 @@ import { DatabaseConnectionService } from "./database-connection.service";
     DatabaseMonitoringService,
     TransactionService,
     DatabaseConnectionService,
+    QueryOptimizerService,
   ],
   exports: [
     DatabaseMonitoringService,
     TransactionService,
     DatabaseConnectionService,
+    QueryOptimizerService,
   ],
 })
 export class DatabaseModule {}

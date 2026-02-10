@@ -6,6 +6,7 @@ export interface Lecture {
   title: string
   cover?: string
   fileUrl: string  // 后端返回的是 fileUrl（相对路径如 /uploads/xxx.pdf）
+  pdfUrl?: string // 别名，兼容不同API返回
   pageCount: number
   viewCount?: number
   lastPage?: number  // 上次阅读页码

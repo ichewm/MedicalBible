@@ -8,6 +8,7 @@ import * as path from "path";
 import { v4 as uuidv4 } from "uuid";
 import {
   IStorageAdapter,
+  ICacheInvalidationAdapter,
   UploadOptions,
   UploadResult,
   StorageProvider,
@@ -22,7 +23,7 @@ export interface LocalStorageConfig {
   cdnDomain?: string;
 }
 
-export class LocalStorageAdapter implements IStorageAdapter {
+export class LocalStorageAdapter implements IStorageAdapter, ICacheInvalidationAdapter {
   private basePath: string;
   private urlPrefix: string;
   private cdnDomain?: string;
@@ -111,5 +112,21 @@ export class LocalStorageAdapter implements IStorageAdapter {
       ".svg": "image/svg+xml",
     };
     return mimeTypes[ext.toLowerCase()] || "application/octet-stream";
+  }
+
+  /**
+   * 使单个文件缓存失效（本地存储无操作，因为通常无 CDN）
+   */
+  async invalidateCache(_key: string): Promise<boolean> {
+    // 本地存储没有 CDN 缓存需要失效
+    return false;
+  }
+
+  /**
+   * 使目录下所有文件缓存失效（本地存储无操作，因为通常无 CDN）
+   */
+  async invalidateDirectory(_directory: string): Promise<boolean> {
+    // 本地存储没有 CDN 缓存需要失效
+    return false;
   }
 }

@@ -7,7 +7,7 @@
 
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsInt, IsOptional, Max, Min } from "class-validator";
+import { IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 
 /**
  * 分页请求 DTO
@@ -83,6 +83,69 @@ export class PaginationDto {
    */
   getTake(): number {
     return this.pageSize ?? 20;
+  }
+}
+
+/**
+ * 光标分页请求 DTO
+ * @description 基于光标的分页查询参数，用于大数据集的高效分页
+ */
+export class CursorPaginationDto {
+  /**
+   * 每页数量
+   * @description 每页的记录数量，最大值为 100
+   * @example 20
+   */
+  @ApiPropertyOptional({
+    description: "每页数量",
+    example: 20,
+    default: 20,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: "每页数量必须是整数" })
+  @Min(1, { message: "每页数量最小为1" })
+  @Max(100, { message: "每页数量最大为100" })
+  pageSize?: number = 20;
+
+  /**
+   * 分页光标
+   * @description Base64 编码的光标，包含上一页最后一条记录的位置信息
+   * @example "eyJpZCI6MTIzfQ"
+   */
+  @ApiPropertyOptional({
+    description: "分页光标",
+    example: "eyJpZCI6MTIzfQ",
+  })
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  /**
+   * 获取每页记录数
+   * @description 用于 TypeORM 查询的 take 参数
+   * @returns 每页记录数
+   */
+  getTake(): number {
+    return this.pageSize ?? 20;
+  }
+
+  /**
+   * 解码光标
+   * @description 将 Base64 编码的光标解码为原始对象
+   * @returns 解码后的对象，解析失败时返回 null
+   */
+  decodeCursor(): Record<string, unknown> | null {
+    if (!this.cursor) {
+      return null;
+    }
+
+    try {
+      const decoded = Buffer.from(this.cursor, "base64").toString("utf-8");
+      return JSON.parse(decoded) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
   }
 }
 

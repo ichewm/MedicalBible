@@ -8,7 +8,6 @@ import { Drawer, Button, Tag, Progress, Space, Divider } from 'antd'
 import {
   CheckCircleFilled,
   CloseCircleFilled,
-  QuestionCircleOutlined,
   FlagFilled,
 } from '@ant-design/icons'
 import './AnswerCard.css'

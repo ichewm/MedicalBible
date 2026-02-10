@@ -733,6 +733,66 @@ export class DatabaseMonitoringService {
   // ==================== 索引维护 ====================
 
   /**
+   * 检测索引碎片化程度
+   * @param tableName 表名，可选。如果不提供则返回所有表的碎片化情况
+   * @returns 碎片化统计信息
+   */
+  async getIndexFragmentation(tableName?: string): Promise<
+    Array<{
+      tableName: string;
+      fragmentationPercent: number;
+      recommendation: string;
+    }>
+  > {
+    let whereClause = "";
+    const params: any[] = [];
+
+    if (tableName) {
+      whereClause = "AND TABLE_NAME = ?";
+      params.push(tableName);
+    }
+
+    const query = `
+      SELECT
+        TABLE_NAME AS table_name,
+        CASE
+          WHEN (DATA_LENGTH + INDEX_LENGTH) > 0 THEN
+            ROUND(DATA_FREE / (DATA_LENGTH + INDEX_LENGTH) * 100, 2)
+          ELSE 0
+        END AS fragmentation_percent
+      FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_TYPE = 'BASE TABLE'
+        ${whereClause}
+      ORDER BY fragmentation_percent DESC;
+    `;
+
+    try {
+      const result = await this.dataSource.query(query, params);
+      return result.map((row: any) => {
+        const fragPercent = parseFloat(row.fragmentation_percent) || 0;
+        let recommendation = "No action needed";
+        if (fragPercent > 20) {
+          recommendation = "High fragmentation: Consider OPTIMIZE TABLE";
+        } else if (fragPercent > 10) {
+          recommendation = "Moderate fragmentation: Monitor and consider maintenance";
+        } else if (fragPercent > 5) {
+          recommendation = "Low fragmentation: Normal operation";
+        }
+
+        return {
+          tableName: row.table_name,
+          fragmentationPercent: fragPercent,
+          recommendation,
+        };
+      });
+    } catch (error) {
+      this.logger.error(`Failed to get index fragmentation: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
    * 分析表并更新索引统计信息
    * @param tableName 表名
    */
@@ -838,15 +898,17 @@ export class DatabaseMonitoringService {
     topTablesBySize: any[];
     topIndexesByUsage: any[];
     unusedIndexes: any[];
+    indexFragmentation: any[];
     slowQueryStatus: any;
     generatedAt: Date;
   }> {
-    const [databaseStats, topTablesBySize, topIndexesByUsage, unusedIndexes, slowQueryStatus] =
+    const [databaseStats, topTablesBySize, topIndexesByUsage, unusedIndexes, indexFragmentation, slowQueryStatus] =
       await Promise.all([
         this.getDatabaseStats(),
         this.getTableStats(),
         this.getIndexUsageStats(),
         this.getUnusedIndexes(),
+        this.getIndexFragmentation(),
         this.getSlowQueryStatus(),
       ]);
 
@@ -855,6 +917,7 @@ export class DatabaseMonitoringService {
       topTablesBySize: topTablesBySize.slice(0, 10),
       topIndexesByUsage: topIndexesByUsage.slice(0, 20),
       unusedIndexes: unusedIndexes.slice(0, 10),
+      indexFragmentation: indexFragmentation.filter((f) => f.fragmentationPercent > 5).slice(0, 10),
       slowQueryStatus,
       generatedAt: new Date(),
     };
