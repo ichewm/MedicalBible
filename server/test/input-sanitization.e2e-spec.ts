@@ -23,7 +23,7 @@
  */
 
 import { Test, TestingModule } from "@nestjs/testing";
-import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { INestApplication, ValidationPipe, VersioningType } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const request = require("supertest");
 import { AppModule } from "../src/app.module";
@@ -75,6 +75,10 @@ async function createTestApp(envOverrides: Record<string, string>): Promise<{
 
     // Apply the same configuration as main.ts
     nestApp.setGlobalPrefix("api");
+    nestApp.enableVersioning({
+      type: VersioningType.URI,
+      defaultVersion: "1",
+    });
     nestApp.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -116,11 +120,14 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
      * TEST: Verify that script tags are removed from request body in strict mode
      */
     it("should remove script tags from request body in strict mode", async () => {
-      const { app } = await createTestApp({
+      const { app, sanitizationMiddleware } = await createTestApp({
         NODE_ENV: "development",
         SANITIZATION_ENABLED: "true",
         SANITIZATION_STRATEGY: "strict",
       });
+
+      // Reset metrics before test
+      sanitizationMiddleware.resetMetrics();
 
       const maliciousPayload = {
         name: "<script>alert('XSS')</script>Test User",
@@ -135,6 +142,11 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
       // The request should proceed (possibly with validation errors for missing fields)
       // but without script tags in the sanitized input
       expect(response.status).not.toBe(500);
+
+      // Verify that sanitization metrics were updated
+      const metrics = getSanitizationMetrics(sanitizationMiddleware);
+      expect(metrics.scriptTagsDetected).toBeGreaterThan(0);
+      expect(metrics.totalSanitized).toBeGreaterThan(0);
 
       await app.close();
     });
@@ -170,11 +182,14 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
      * TEST: Verify that event handlers are detected and removed
      */
     it("should remove event handlers from input", async () => {
-      const { app } = await createTestApp({
+      const { app, sanitizationMiddleware } = await createTestApp({
         NODE_ENV: "development",
         SANITIZATION_ENABLED: "true",
         SANITIZATION_STRATEGY: "strict",
       });
+
+      // Reset metrics before test
+      sanitizationMiddleware.resetMetrics();
 
       const maliciousPayload = {
         name: 'Test <img onerror="alert(1)">',
@@ -187,6 +202,11 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
       // Event handlers should be sanitized
       expect(response.status).not.toBe(500);
 
+      // Verify that sanitization metrics were updated (event handlers are detected as malicious)
+      const metrics = getSanitizationMetrics(sanitizationMiddleware);
+      expect(metrics.totalSanitized).toBeGreaterThan(0);
+      expect(metrics.maliciousDetected).toBeGreaterThan(0);
+
       await app.close();
     });
 
@@ -197,11 +217,14 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
      * TEST: Verify that javascript: protocol is removed
      */
     it("should remove javascript: protocol from links", async () => {
-      const { app } = await createTestApp({
+      const { app, sanitizationMiddleware } = await createTestApp({
         NODE_ENV: "development",
         SANITIZATION_ENABLED: "true",
         SANITIZATION_STRATEGY: "strict",
       });
+
+      // Reset metrics before test
+      sanitizationMiddleware.resetMetrics();
 
       const maliciousPayload = {
         name: 'Test <a href="javascript:alert(1)">link</a>',
@@ -214,6 +237,11 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
       // javascript: protocol should be removed
       expect(response.status).not.toBe(500);
 
+      // Verify that sanitization metrics were updated (javascript: is detected as suspicious)
+      const metrics = getSanitizationMetrics(sanitizationMiddleware);
+      expect(metrics.totalSanitized).toBeGreaterThan(0);
+      expect(metrics.maliciousDetected).toBeGreaterThan(0);
+
       await app.close();
     });
 
@@ -224,11 +252,14 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
      * TEST: Verify that nested objects in request body are sanitized
      */
     it("should sanitize nested objects in request body", async () => {
-      const { app } = await createTestApp({
+      const { app, sanitizationMiddleware } = await createTestApp({
         NODE_ENV: "development",
         SANITIZATION_ENABLED: "true",
         SANITIZATION_STRATEGY: "strict",
       });
+
+      // Reset metrics before test
+      sanitizationMiddleware.resetMetrics();
 
       const maliciousPayload = {
         user: {
@@ -245,6 +276,11 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
       // Nested content should also be sanitized
       expect(response.status).not.toBe(500);
 
+      // Verify that sanitization metrics were updated
+      const metrics = getSanitizationMetrics(sanitizationMiddleware);
+      expect(metrics.totalSanitized).toBeGreaterThan(0);
+      expect(metrics.scriptTagsDetected).toBeGreaterThan(0);
+
       await app.close();
     });
 
@@ -255,11 +291,14 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
      * TEST: Verify that arrays in request body are sanitized
      */
     it("should sanitize arrays in request body", async () => {
-      const { app } = await createTestApp({
+      const { app, sanitizationMiddleware } = await createTestApp({
         NODE_ENV: "development",
         SANITIZATION_ENABLED: "true",
         SANITIZATION_STRATEGY: "strict",
       });
+
+      // Reset metrics before test
+      sanitizationMiddleware.resetMetrics();
 
       const maliciousPayload = {
         items: [
@@ -275,6 +314,11 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
       // Array elements should be sanitized
       expect(response.status).not.toBe(500);
 
+      // Verify that sanitization metrics were updated (2 script tags detected)
+      const metrics = getSanitizationMetrics(sanitizationMiddleware);
+      expect(metrics.totalSanitized).toBeGreaterThan(0);
+      expect(metrics.scriptTagsDetected).toBe(2);
+
       await app.close();
     });
   });
@@ -287,11 +331,14 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
      * TEST: Verify that safe HTML tags are allowed in loose mode
      */
     it("should allow safe HTML tags in loose mode", async () => {
-      const { app } = await createTestApp({
+      const { app, sanitizationMiddleware } = await createTestApp({
         NODE_ENV: "development",
         SANITIZATION_ENABLED: "true",
         SANITIZATION_STRATEGY: "loose",
       });
+
+      // Reset metrics before test
+      sanitizationMiddleware.resetMetrics();
 
       const safePayload = {
         name: "<strong>Bold</strong> <em>Italic</em> Text",
@@ -304,6 +351,11 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
       // Safe tags should be allowed
       expect(response.status).not.toBe(500);
 
+      // Verify that sanitization ran but no malicious content was detected
+      const metrics = getSanitizationMetrics(sanitizationMiddleware);
+      expect(metrics.totalSanitized).toBe(0); // No changes = no sanitization needed
+      expect(metrics.maliciousDetected).toBe(0);
+
       await app.close();
     });
 
@@ -314,11 +366,14 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
      * TEST: Verify that script tags are still removed in loose mode
      */
     it("should remove script tags even in loose mode", async () => {
-      const { app } = await createTestApp({
+      const { app, sanitizationMiddleware } = await createTestApp({
         NODE_ENV: "development",
         SANITIZATION_ENABLED: "true",
         SANITIZATION_STRATEGY: "loose",
       });
+
+      // Reset metrics before test
+      sanitizationMiddleware.resetMetrics();
 
       const maliciousPayload = {
         name: "<strong>Safe</strong> <script>alert('XSS')</script>",
@@ -331,6 +386,11 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
       // Script tags should be removed even in loose mode
       expect(response.status).not.toBe(500);
 
+      // Verify that sanitization metrics were updated (script tag detected)
+      const metrics = getSanitizationMetrics(sanitizationMiddleware);
+      expect(metrics.totalSanitized).toBeGreaterThan(0);
+      expect(metrics.scriptTagsDetected).toBeGreaterThan(0);
+
       await app.close();
     });
 
@@ -341,11 +401,14 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
      * TEST: Verify that javascript: links are removed in loose mode
      */
     it("should remove javascript: protocol from href in loose mode", async () => {
-      const { app } = await createTestApp({
+      const { app, sanitizationMiddleware } = await createTestApp({
         NODE_ENV: "development",
         SANITIZATION_ENABLED: "true",
         SANITIZATION_STRATEGY: "loose",
       });
+
+      // Reset metrics before test
+      sanitizationMiddleware.resetMetrics();
 
       const maliciousPayload = {
         name: '<a href="javascript:alert(1)">Click</a>',
@@ -357,6 +420,11 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
 
       // javascript: links should be removed
       expect(response.status).not.toBe(500);
+
+      // Verify that sanitization metrics were updated (javascript: detected as suspicious)
+      const metrics = getSanitizationMetrics(sanitizationMiddleware);
+      expect(metrics.totalSanitized).toBeGreaterThan(0);
+      expect(metrics.maliciousDetected).toBeGreaterThan(0);
 
       await app.close();
     });
@@ -468,12 +536,17 @@ describe("Input Sanitization E2E Tests (SEC-005)", () => {
       sanitizationMiddleware.resetMetrics();
 
       // Send request with malicious content in all sources
-      const response = await request(app.getHttpServer())
-        .get("/api/v1/health?query=<script>alert('query')</script>")
-        .set("x-param", "<script>alert('param')</script>")
-        .send({ body: "<script>alert('body')</script>" });
+      // Using /api/v1/sku/subjects/:id which is a public endpoint with path param
+      const maliciousPathParam = "<script>alert('param')</script>";
+      const maliciousQueryParam = "<script>alert('query')</script>";
+      const maliciousBody = { data: "<script>alert('body')</script>" };
 
-      expect(response.status).toBe(200);
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/sku/subjects/${encodeURIComponent(maliciousPathParam)}?search=${encodeURIComponent(maliciousQueryParam)}`)
+        .send(maliciousBody);
+
+      // Request may succeed with sanitized params or fail with invalid ID, but should not crash
+      expect(response.status).not.toBe(500);
 
       // Verify metrics tracked sanitization across all sources
       const metrics = getSanitizationMetrics(sanitizationMiddleware);

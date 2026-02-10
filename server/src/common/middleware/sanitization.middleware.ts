@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Injectable, NestMiddleware } from "@nestjs/common";
+import { Injectable, NestMiddleware, BadRequestException } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
 import { ConfigService } from "@nestjs/config";
 import * as sanitizeHtml from "sanitize-html";
@@ -34,6 +34,8 @@ interface SanitizeOptions {
   allowedAttributes: Record<string, string[]>;
   textFilter?: (text: string) => string;
   allowedScriptHostnames?: string[];
+  allowedSchemes?: string[];
+  allowedSchemesByTag?: Record<string, string[]>;
 }
 
 /**
@@ -138,7 +140,8 @@ export class SanitizationMiddleware implements NestMiddleware {
 
         // 如果配置为检测到恶意内容时抛出错误
         if (this.config.throwOnDetection) {
-          throw new Error("Request contains potentially malicious content");
+          const error = new BadRequestException("Request contains potentially malicious content");
+          return next(error);
         }
       }
 
@@ -148,7 +151,7 @@ export class SanitizationMiddleware implements NestMiddleware {
         path: req.path,
         method: req.method,
       });
-      throw error;
+      return next(error);
     }
   }
 
@@ -251,7 +254,9 @@ export class SanitizationMiddleware implements NestMiddleware {
         type,
         content: str.substring(0, 100),
       };
-      this.metrics.scriptTagsDetected++;
+      if (hasScriptTag) {
+        this.metrics.scriptTagsDetected++;
+      }
     }
 
     // 根据策略选择清洗选项
@@ -260,6 +265,8 @@ export class SanitizationMiddleware implements NestMiddleware {
         ? {
             ...this.config.loose,
             textFilter: this.config.loose.textFilter || undefined,
+            allowedSchemes: this.config.loose.allowedSchemes,
+            allowedSchemesByTag: this.config.loose.allowedSchemesByTag,
           }
         : {
             ...this.config.strict,

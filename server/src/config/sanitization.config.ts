@@ -42,6 +42,11 @@ export const sanitizationConfig = registerAs("sanitization", () => {
   // 检查是否在检测到脚本内容时抛出错误
   const throwOnDetection = process.env.SANITIZATION_THROW_ON_DETECTION === "true";
 
+  // 检查哪些请求属性需要清洗（默认全部启用）
+  const sanitizeBody = process.env.SANITIZE_BODY !== "false";
+  const sanitizeQuery = process.env.SANITIZE_QUERY !== "false";
+  const sanitizeParams = process.env.SANITIZE_PARAMS !== "false";
+
   return {
     /** 是否启用输入清洗 */
     enabled,
@@ -71,22 +76,17 @@ export const sanitizationConfig = registerAs("sanitization", () => {
         a: ["href", "title", "target"],
       },
       // 仅允许 http/https 链接，阻止 javascript: 协议
-      transformingTag: (tagName: string, attribs: any) => {
-        if (tagName === "a" && attribs.href) {
-          // 移除以 javascript: 开头的链接
-          if (/^\s*javascript:/i.test(attribs.href)) {
-            return false;
-          }
-        }
-        return true;
+      allowedSchemes: ["http", "https"],
+      allowedSchemesByTag: {
+        a: ["http", "https"],
       },
     },
 
     /** 需要清洗的请求属性 */
     sanitizeTargets: {
-      body: true,
-      query: true,
-      params: true,
+      body: sanitizeBody,
+      query: sanitizeQuery,
+      params: sanitizeParams,
     },
   };
 });
