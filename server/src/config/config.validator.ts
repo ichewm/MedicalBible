@@ -129,6 +129,81 @@ export class ConfigValidationError extends Error {
 }
 
 /**
+ * Mapping from namespace and path to actual environment variable names
+ * @description Maps Zod schema paths to their corresponding environment variables
+ */
+const ENV_VAR_MAPPING: Record<string, Record<string, string>> = {
+  database: {
+    host: 'DB_HOST',
+    port: 'DB_PORT',
+    username: 'DB_USERNAME',
+    password: 'DB_PASSWORD',
+    database: 'DB_DATABASE',
+  },
+  redis: {
+    host: 'REDIS_HOST',
+    port: 'REDIS_PORT',
+    password: 'REDIS_PASSWORD',
+    db: 'REDIS_DB',
+    keyPrefix: 'REDIS_KEY_PREFIX',
+  },
+  jwt: {
+    secret: 'JWT_SECRET',
+    refreshTokenSecret: 'JWT_REFRESH_SECRET',
+    accessTokenExpires: 'JWT_ACCESS_EXPIRES',
+    refreshTokenExpires: 'JWT_REFRESH_EXPIRES',
+    issuer: 'JWT_ISSUER',
+  },
+  cors: {
+    origin: 'CORS_ORIGIN',
+  },
+  websocket: {
+    maxConnectionsPerUser: 'WS_MAX_CONNECTIONS_PER_USER',
+    heartbeatInterval: 'WS_HEARTBEAT_INTERVAL',
+    connectionTimeout: 'WS_CONNECTION_TIMEOUT',
+    messageQueueTtl: 'WS_MESSAGE_QUEUE_TTL',
+    reconnectDelayMin: 'WS_RECONNECT_DELAY_MIN',
+    reconnectDelayMax: 'WS_RECONNECT_DELAY_MAX',
+    maxReconnectAttempts: 'WS_MAX_RECONNECT_ATTEMPTS',
+  },
+  compression: {
+    enabled: 'COMPRESSION_ENABLED',
+    level: 'COMPRESSION_LEVEL',
+    threshold: 'COMPRESSION_THRESHOLD',
+  },
+  rateLimit: {
+    enabled: 'RATE_LIMIT_ENABLED',
+    globalLimit: 'RATE_LIMIT_GLOBAL_MAX',
+    globalWindow: 'RATE_LIMIT_GLOBAL_WINDOW',
+    authLimit: 'RATE_LIMIT_AUTH_MAX',
+    authWindow: 'RATE_LIMIT_AUTH_WINDOW',
+    standardLimit: 'RATE_LIMIT_STANDARD_MAX',
+    standardWindow: 'RATE_LIMIT_STANDARD_WINDOW',
+    verificationCodeLimit: 'RATE_LIMIT_VERIFICATION_MAX',
+    verificationCodeWindow: 'RATE_LIMIT_VERIFICATION_WINDOW',
+    strictLimit: 'RATE_LIMIT_STRICT_MAX',
+    strictWindow: 'RATE_LIMIT_STRICT_WINDOW',
+    relaxedLimit: 'RATE_LIMIT_RELAXED_MAX',
+    relaxedWindow: 'RATE_LIMIT_RELAXED_WINDOW',
+    keyPrefix: 'RATE_LIMIT_KEY_PREFIX',
+    skipOnRedisError: 'RATE_LIMIT_SKIP_ON_REDIS_ERROR',
+  },
+  logger: {
+    level: 'LOG_LEVEL',
+    dir: 'LOG_DIR',
+    prettyPrint: 'LOG_PRETTY_PRINT',
+    maxSize: 'LOG_MAX_SIZE',
+    maxFiles: 'LOG_MAX_FILES',
+    retentionDays: 'LOG_RETENTION_DAYS',
+  },
+  app: {
+    nodeEnv: 'NODE_ENV',
+    port: 'PORT',
+    corsOrigin: 'CORS_ORIGIN',
+  },
+};
+
+/**
  * Convert Zod error to ConfigError
  * @param namespace Configuration namespace
  * @param error Zod validation error
@@ -137,9 +212,9 @@ export class ConfigValidationError extends Error {
 function zodErrorToConfigError(namespace: string, error: z.ZodIssue): ConfigError {
   const path = error.path.join('.');
 
-  // Extract environment variable name from path
-  const envVar = path
-    ? `${namespace.toUpperCase()}_${path.replace(/([A-Z])/g, '_$1').toUpperCase()}`
+  // Use explicit mapping for environment variable names
+  const envVar = path && ENV_VAR_MAPPING[namespace]?.[path]
+    ? ENV_VAR_MAPPING[namespace][path]
     : undefined;
 
   // Build suggestion based on error type
@@ -284,6 +359,7 @@ interface RawEnvConfig {
   logger: {
     level?: string;
     dir?: string;
+    prettyPrint?: string;
     maxSize?: string;
     maxFiles?: string;
     retentionDays?: string;
@@ -357,6 +433,7 @@ function collectRawEnvConfig(): RawEnvConfig {
     logger: {
       level: process.env.LOG_LEVEL,
       dir: process.env.LOG_DIR,
+      prettyPrint: process.env.LOG_PRETTY_PRINT,
       maxSize: process.env.LOG_MAX_SIZE,
       maxFiles: process.env.LOG_MAX_FILES,
       retentionDays: process.env.LOG_RETENTION_DAYS,
@@ -386,6 +463,7 @@ export function validateAllConfigs(): void {
     { namespace: 'database', schema: databaseConfigSchema, data: rawConfig.database as unknown },
     { namespace: 'redis', schema: redisConfigSchema, data: rawConfig.redis as unknown },
     { namespace: 'jwt', schema: jwtConfigSchema, data: rawConfig.jwt as unknown },
+    { namespace: 'cors', schema: corsConfigSchema, data: { origin: rawConfig.cors.origin ?? undefined } as unknown },
     { namespace: 'websocket', schema: websocketConfigSchema, data: rawConfig.websocket as unknown },
     { namespace: 'compression', schema: compressionConfigSchema, data: rawConfig.compression as unknown },
     { namespace: 'rateLimit', schema: rateLimitConfigSchema, data: rawConfig.rateLimit as unknown },
@@ -465,6 +543,15 @@ export function validateConfigNamespace(namespace: string): void {
     case 'jwt':
       try {
         validateConfig('jwt', jwtConfigSchema, rawConfig.jwt as unknown);
+      } catch (error) {
+        if (error instanceof ConfigValidationError) {
+          allErrors.push(...error.errors);
+        }
+      }
+      break;
+    case 'cors':
+      try {
+        validateConfig('cors', corsConfigSchema, { origin: rawConfig.cors.origin ?? undefined } as unknown);
       } catch (error) {
         if (error instanceof ConfigValidationError) {
           allErrors.push(...error.errors);

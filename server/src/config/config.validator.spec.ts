@@ -54,7 +54,7 @@ describe('ConfigValidator', () => {
         // Clear JWT_SECRET
         delete process.env.JWT_SECRET;
 
-        const error = expect(() => validateAllConfigs()).toThrow(ConfigValidationError);
+        expect(() => validateAllConfigs()).toThrow(ConfigValidationError);
         try {
           validateAllConfigs();
         } catch (e) {

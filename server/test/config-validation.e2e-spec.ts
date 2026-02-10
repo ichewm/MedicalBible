@@ -84,8 +84,8 @@ describe('Configuration Validation (E2E)', () => {
         fail('Application should have failed to start');
       } catch (error) {
         expect(error).toBeDefined();
-        // The error should mention configuration validation
-        expect(error.message).toMatch(/configuration|config/i);
+        // The error should mention the missing JWT_SECRET environment variable
+        expect(error.message).toMatch(/JWT_SECRET/i);
       }
     });
 

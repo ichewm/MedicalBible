@@ -27,18 +27,12 @@ import { SanitizationMiddleware } from "./common/middleware/sanitization.middlew
  * @description 初始化 NestJS 应用，配置全局管道、Swagger 文档和 CORS
  */
 async function bootstrap(): Promise<void> {
-  // 创建 NestJS 应用实例
-  const app = await NestFactory.create(AppModule, {
-    logger: ["error", "warn", "log", "debug", "verbose"],
-  });
-
-  // 获取配置服务
-  const configService = app.get(ConfigService);
+  // Initialize logger for bootstrap process
   const logger = new Logger("Bootstrap");
 
-  // Validate configuration before continuing
+  // Validate configuration before creating NestJS app
   // This ensures all required environment variables are present and valid
-  // before the application starts serving requests
+  // before any module initialization occurs
   try {
     validateAllConfigs();
     logger.log("Configuration validation passed");
@@ -50,6 +44,14 @@ async function bootstrap(): Promise<void> {
     }
     throw error;
   }
+
+  // 创建 NestJS 应用实例
+  const app = await NestFactory.create(AppModule, {
+    logger: ["error", "warn", "log", "debug", "verbose"],
+  });
+
+  // 获取配置服务
+  const configService = app.get(ConfigService);
 
   // 启用 API 版本控制
   // 使用 URI 版本策略: /api/v1/..., /api/v2/...

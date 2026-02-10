@@ -128,6 +128,10 @@ export const jwtConfigSchema = z
     refreshTokenExpires: z.string().default('7d'),
     issuer: z.string().default('medical-bible'),
   })
+  .transform((data) => ({
+    ...data,
+    refreshTokenSecret: data.refreshTokenSecret ?? data.secret,
+  }))
   .refine((data) => data.secret.length >= 32, 'JWT_SECRET must be at least 32 characters for security');
 
 export type JwtConfig = z.infer<typeof jwtConfigSchema>;
@@ -135,9 +139,10 @@ export type JwtConfig = z.infer<typeof jwtConfigSchema>;
 /**
  * CORS configuration schema
  * @description Cross-origin resource sharing settings with production safety checks
+ * @note The origin field is optional here because it's validated by parseCorsOrigins() in cors.config.ts
  */
 export const corsConfigSchema = z.object({
-  origin: z.union([z.string(), z.array(z.string()), z.boolean()]),
+  origin: z.union([z.string(), z.array(z.string()), z.boolean()]).optional(),
   methods: z.array(z.string()).default(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']),
   allowedHeaders: z
     .array(z.string())
@@ -470,26 +475,29 @@ export type RateLimitConfig = z.infer<typeof rateLimitConfigSchema>;
 
 /**
  * Logger configuration schema
- * @description Pino structured logging settings
+ * @description Pino structured logging settings with environment-based defaults
  */
 export const logLevelSchema = z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'], {
   errorMap: () => ({ message: 'LOG_LEVEL must be one of: fatal, error, warn, info, debug, trace, silent' }),
 });
 
-export const loggerConfigSchema = z.object({
-  level: logLevelSchema.default('info'),
+/**
+ * Helper to parse prettyPrint from string or boolean
+ * Returns undefined if val is undefined or empty string, otherwise returns parsed boolean
+ */
+function parsePrettyPrint(val: boolean | string | undefined): boolean | undefined {
+  if (val === undefined) return undefined;
+  if (typeof val === 'boolean') return val;
+  if (val === '') return undefined;
+  const lower = val.toLowerCase();
+  return lower === 'true' || lower === '1' || lower === 'yes';
+}
+
+// Define the base schema without environment-based defaults
+const loggerConfigBaseSchema = z.object({
+  level: logLevelSchema.optional(),
   dir: z.string().default('logs'),
-  prettyPrint: z
-    .union([z.boolean(), z.string()])
-    .default('false')
-    .transform((val) => {
-      if (typeof val === 'boolean') return val;
-      if (val === '') return false;
-      const lower = val.toLowerCase();
-      if (lower === 'true' || lower === '1' || lower === 'yes') return true;
-      return false;
-    })
-    .pipe(z.boolean()),
+  prettyPrint: z.union([z.boolean(), z.string()]).optional(),
   maxSize: z.string().default('100M'),
   maxFiles: z
     .string()
@@ -537,6 +545,21 @@ export const loggerConfigSchema = z.object({
       return Math.floor(num);
     })
     .pipe(z.number().int().positive()),
+});
+
+/**
+ * Logger configuration schema with environment-based defaults
+ * @description Defaults to debug/prettyPrint in development, info/no-prettyPrint in production
+ */
+export const loggerConfigSchema = loggerConfigBaseSchema.transform((data) => {
+  // Apply environment-based defaults for level and prettyPrint
+  const isProduction = process.env.NODE_ENV === 'production';
+  const parsedPrettyPrint = parsePrettyPrint(data.prettyPrint);
+  return {
+    ...data,
+    level: data.level ?? (isProduction ? 'info' : 'debug'),
+    prettyPrint: parsedPrettyPrint ?? !isProduction,
+  };
 });
 
 export type LoggerConfig = z.infer<typeof loggerConfigSchema>;
