@@ -121,6 +121,9 @@ class HealthController {
             enableKeepAlive: true,
             keepAliveInitialDelay: 0,
 
+            // 连接建立超时时间（毫秒）
+            connectTimeout: connectionTimeout || 60000,
+
             // 查询超时时间
             timeout: queryTimeout || 60000,
 
@@ -130,6 +133,7 @@ class HealthController {
             connectionLimit: number;
             enableKeepAlive: boolean;
             keepAliveInitialDelay: number;
+            connectTimeout: number;
             timeout: number;
             acquireTimeout: number;
           },

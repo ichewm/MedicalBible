@@ -172,14 +172,14 @@ export class DatabaseMonitoringService {
   async getConnectionPoolStatus(): Promise<ConnectionPoolStatus> {
     try {
       const poolConfig = this.configService.get<any>("database.pool");
-      const maxConnections = poolConfig?.max || 20;
-      const minConnections = poolConfig?.min || 5;
+      const maxConnections = poolConfig?.max ?? 20;
+      const minConnections = poolConfig?.min ?? 5;
 
       // 从 MySQL 获取当前线程连接信息
       const query = `
         SELECT
           COUNT(*) as total_connections,
-          SUM(CASE WHEN command = 0 THEN 1 ELSE 0 END) as idle_connections
+          SUM(CASE WHEN command = 'Sleep' THEN 1 ELSE 0 END) as idle_connections
         FROM information_schema.processlist
         WHERE user = SUBSTRING_INDEX(USER(), '@', 1);
       `;
@@ -234,11 +234,11 @@ export class DatabaseMonitoringService {
   } {
     const pool = this.configService.get<any>("database.pool");
     return {
-      max: pool?.max || 20,
-      min: pool?.min || 5,
-      acquireTimeout: pool?.acquireTimeoutMillis || 30000,
-      idleTimeout: pool?.idleTimeoutMillis || 300000,
-      maxLifetime: pool?.maxLifetimeMillis || 1800000,
+      max: pool?.max ?? 20,
+      min: pool?.min ?? 5,
+      acquireTimeout: pool?.acquireTimeoutMillis ?? 30000,
+      idleTimeout: pool?.idleTimeoutMillis ?? 300000,
+      maxLifetime: pool?.maxLifetimeMillis ?? 1800000,
     };
   }
 

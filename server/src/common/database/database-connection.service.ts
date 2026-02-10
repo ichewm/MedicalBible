@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, QueryRunner } from "typeorm";
 import { ConfigService } from "@nestjs/config";
@@ -44,7 +44,7 @@ export interface DatabaseOperationOptions {
 /**
  * 默认操作选项
  */
-const DEFAULT_OPERATION_OPTIONS: Required<DatabaseOperationOptions> = {
+export const DEFAULT_OPERATION_OPTIONS: Required<DatabaseOperationOptions> = {
   maxRetries: 3,
   baseDelayMs: 100,
   maxDelayMs: 5000,
@@ -55,7 +55,7 @@ const DEFAULT_OPERATION_OPTIONS: Required<DatabaseOperationOptions> = {
 /**
  * 可重试的数据库错误类型
  */
-const RETRYABLE_ERROR_PATTERNS = [
+export const RETRYABLE_ERROR_PATTERNS = [
   /connection/i,
   /timeout/i,
   /ETIMEDOUT/i,
@@ -279,20 +279,23 @@ export class DatabaseConnectionService {
    * @private
    */
   private withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new Error(
-                `Database operation timed out after ${timeoutMs}ms`,
-              ),
-            ),
-          timeoutMs,
-        ),
-      ),
-    ]);
+    let timeoutId: NodeJS.Timeout | undefined;
+
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(
+          new Error(
+            `Database operation timed out after ${timeoutMs}ms`,
+          ),
+        );
+      }, timeoutMs);
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    });
   }
 
   /**

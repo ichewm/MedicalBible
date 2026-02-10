@@ -26,11 +26,13 @@ import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
+import { JwtModule } from "@nestjs/jwt";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const request = require("supertest");
 import { DataSource } from "typeorm";
 import { DatabaseMonitoringService } from "../src/common/database/database-monitoring.service";
 import { DatabaseConnectionService } from "../src/common/database/database-connection.service";
+import { DatabaseMonitoringController } from "../src/common/database/database-monitoring.controller";
 import { databaseConfig } from "../src/config/database.config";
 import { JwtService } from "@nestjs/jwt";
 
@@ -81,7 +83,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
               synchronize: false,
               logging: false,
               extra: {
-                connectionLimit: pool?.max || 20,
+                connectionLimit: pool?.max ?? 20,
                 enableKeepAlive: true,
                 keepAliveInitialDelay: 0,
               },
@@ -89,11 +91,15 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
           },
         }),
         ScheduleModule.forRoot(),
+        JwtModule.register({
+          secret: "test-jwt-secret-key-for-testing-only",
+          signOptions: { expiresIn: "1h" },
+        }),
       ],
+      controllers: [DatabaseMonitoringController],
       providers: [
         DatabaseMonitoringService,
         DatabaseConnectionService,
-        JwtService,
       ],
     }).compile();
 
@@ -578,7 +584,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
       const fs = require("fs");
       const path = require("path");
 
-      const docPath = path.join(__dirname, "../src/docs/DATABASE_CONNECTION_POOL.md");
+      const docPath = path.join(__dirname, "../docs/DATABASE_CONNECTION_POOL.md");
       expect(fs.existsSync(docPath)).toBe(true);
     });
 
@@ -624,11 +630,11 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
         .set("Authorization", `Bearer ${adminToken}`)
         .expect(200);
 
-      // Test with invalid limit (should still work with default)
+      // Test with invalid limit (should be rejected by validation)
       await request(app.getHttpServer())
         .get("/admin/database/pool/alerts?limit=invalid")
         .set("Authorization", `Bearer ${adminToken}`)
-        .expect(200);
+        .expect(400);
     });
   });
 

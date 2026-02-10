@@ -57,7 +57,7 @@ docker compose ps
 | 后端 API | http://localhost:3000 |
 | API 文档 | http://localhost:3000/api-docs |
 | 健康检查 | http://localhost:3000/api/v1/health |
-| 数据库池状态（需管理员权限） | http://localhost:3000/admin/database/pool/status |
+| 数据库池状态（需管理员权限） | http://localhost:3000/api/v1/admin/database/pool/status |
 
 ### 2.3 默认账号
 
@@ -123,7 +123,7 @@ nano .env
 # 数据库密码（使用强密码）
 DB_ROOT_PASSWORD=YourStrongPassword123!
 
-# Redis 密钥
+# Redis 密码
 REDIS_PASSWORD=YourRedisPassword456!
 
 # JWT 密钥（至少32位随机字符串）

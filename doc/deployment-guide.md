@@ -275,10 +275,10 @@ docker compose -f docker-compose.prod.yml restart frontend
 生产环境建议监控以下数据库连接池指标（详见 `server/docs/DATABASE_CONNECTION_POOL.md`）：
 
 **监控端点**（需管理员权限）：
-- `/admin/database/pool/status` - 连接池实时状态
-- `/admin/database/pool/config` - 连接池配置
-- `/admin/database/pool/health-check` - 健康检查
-- `/admin/database/pool/alerts` - 告警历史
+- `/api/v1/admin/database/pool/status` - 连接池实时状态
+- `/api/v1/admin/database/pool/config` - 连接池配置
+- `/api/v1/admin/database/pool/health-check` - 健康检查
+- `/api/v1/admin/database/pool/alerts` - 告警历史
 
 **告警阈值**：
 - WARNING: 连接池利用率 > 70%

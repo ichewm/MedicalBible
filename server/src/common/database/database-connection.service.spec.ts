@@ -7,7 +7,7 @@
 
 import { Test, TestingModule } from "@nestjs/testing";
 import { DatabaseConnectionService } from "./database-connection.service";
-import { DataSource, QueryRunner } from "typeorm";
+import { DataSource } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 
 describe("DatabaseConnectionService", () => {

@@ -136,6 +136,24 @@ MySQL connections are relatively expensive to establish. The pool settings:
 - `keepAliveInitialDelay: 0` - Starts keepalive immediately
 - These help avoid connection drops during idle periods
 
+### mysql2 Driver Pool Implementation
+
+This application uses TypeORM with the `mysql2` driver. The mysql2 connection pool has different characteristics compared to other pool implementations like HikariCP:
+
+**Supported mysql2 Pool Options:**
+- `connectionLimit` (maps to `DB_POOL_MAX`) - Maximum number of connections
+- `acquireTimeout` (maps to `DB_POOL_ACQUIRE_TIMEOUT`) - Maximum time to wait for a connection
+- `timeout` (maps to `DB_QUERY_TIMEOUT`) - Query execution timeout
+- `enableKeepAlive` - Enables TCP keepalive
+- `keepAliveInitialDelay` - Delay before keepalive starts
+
+**Not Directly Supported by mysql2:**
+- `DB_POOL_MIN` - mysql2 does not maintain a minimum number of connections; connections are created on demand
+- `DB_POOL_IDLE_TIMEOUT` - mysql2 does not have built-in idle connection timeout; this is configured for monitoring purposes
+- `DB_POOL_MAX_LIFETIME` - mysql2 does not have built-in connection lifetime limits; this is configured for monitoring purposes
+
+**Note:** The `DB_POOL_MIN`, `DB_POOL_IDLE_TIMEOUT`, and `DB_POOL_MAX_LIFETIME` environment variables are still validated and stored in the configuration for monitoring and alerting purposes, but they are not directly applied to the mysql2 pool. If you need these features, consider using a connection pool proxy like ProxySQL or implementing custom connection management logic.
+
 ## Example Configurations
 
 ### Development Environment
@@ -180,10 +198,10 @@ DB_QUERY_TIMEOUT=60000
 
 The application provides monitoring endpoints at:
 
-- `GET /admin/database/pool/status` - Current pool status
-- `GET /admin/database/pool/config` - Pool configuration
-- `GET /admin/database/pool/health-check` - Manual health check
-- `GET /admin/database/pool/alerts` - Alert history
+- `GET /api/v1/admin/database/pool/status` - Current pool status
+- `GET /api/v1/admin/database/pool/config` - Pool configuration
+- `GET /api/v1/admin/database/pool/health-check` - Manual health check
+- `GET /api/v1/admin/database/pool/alerts` - Alert history
 
 ### Alert Thresholds
 

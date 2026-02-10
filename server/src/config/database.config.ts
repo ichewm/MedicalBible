@@ -28,7 +28,7 @@ export interface PoolConfig {
  * 默认连接池配置
  * @description 基于生产环境最佳实践的默认值
  */
-const DEFAULT_POOL_CONFIG: PoolConfig = {
+export const DEFAULT_POOL_CONFIG: PoolConfig = {
   max: 20,
   min: 5,
   acquireTimeoutMillis: 30000,
@@ -37,25 +37,43 @@ const DEFAULT_POOL_CONFIG: PoolConfig = {
 };
 
 /**
+ * 安全解析环境变量为数字
+ * @description 如果解析结果为 NaN 或无效，返回默认值
+ * @param value 环境变量值
+ * @param defaultValue 默认值
+ * @returns 解析后的数字或默认值
+ */
+function safeParseInt(value: string | undefined, defaultValue: number): number {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  const parsed = parseInt(value, 10);
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+  return defaultValue;
+}
+
+/**
  * 数据库配置对象
  * @description 使用 registerAs 注册命名配置，可通过 configService.get('database.xxx') 访问
  */
 export const databaseConfig = registerAs("database", () => {
   // 从环境变量读取连接池配置，使用默认值作为后备
   const poolConfig: PoolConfig = {
-    max: parseInt(process.env.DB_POOL_MAX || String(DEFAULT_POOL_CONFIG.max), 10),
-    min: parseInt(process.env.DB_POOL_MIN || String(DEFAULT_POOL_CONFIG.min), 10),
-    acquireTimeoutMillis: parseInt(
-      process.env.DB_POOL_ACQUIRE_TIMEOUT || String(DEFAULT_POOL_CONFIG.acquireTimeoutMillis),
-      10,
+    max: safeParseInt(process.env.DB_POOL_MAX, DEFAULT_POOL_CONFIG.max),
+    min: safeParseInt(process.env.DB_POOL_MIN, DEFAULT_POOL_CONFIG.min),
+    acquireTimeoutMillis: safeParseInt(
+      process.env.DB_POOL_ACQUIRE_TIMEOUT,
+      DEFAULT_POOL_CONFIG.acquireTimeoutMillis,
     ),
-    idleTimeoutMillis: parseInt(
-      process.env.DB_POOL_IDLE_TIMEOUT || String(DEFAULT_POOL_CONFIG.idleTimeoutMillis),
-      10,
+    idleTimeoutMillis: safeParseInt(
+      process.env.DB_POOL_IDLE_TIMEOUT,
+      DEFAULT_POOL_CONFIG.idleTimeoutMillis,
     ),
-    maxLifetimeMillis: parseInt(
-      process.env.DB_POOL_MAX_LIFETIME || String(DEFAULT_POOL_CONFIG.maxLifetimeMillis),
-      10,
+    maxLifetimeMillis: safeParseInt(
+      process.env.DB_POOL_MAX_LIFETIME,
+      DEFAULT_POOL_CONFIG.maxLifetimeMillis,
     ),
   };
 
