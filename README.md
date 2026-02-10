@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -238,6 +238,7 @@ chmod +x deploy.sh
 - **HTTP**: Axios + 集中式 API 客户端（拦截器、自动 token 管理、错误处理）
 - **PDF**: react-pdf + pdf.js
 - **语音识别**: Web Speech API (实验性功能)
+- **AI症状分析**: 多提供商支持（Infermedica、Azure Health Bot、Mock）
 - **样式**: TailwindCSS
 
 ### 部署技术
@@ -267,6 +268,7 @@ MedicalBible/
 │   │   │   ├── data-export/ # 数据导出模块
 │   │   │   ├── rbac/      # RBAC角色权限模块
 │   │   │   ├── storage/   # 文件存储与CDN模块 (FEAT-004)
+│   │   │   ├── symptom-checker/ # AI症状检查模块 (INNOV-001)
 │   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
 │   │   ├── config/        # 配置文件
@@ -667,6 +669,73 @@ async deleteLecture(key: string) {
 |------|------|------|
 | `CONFIG_ENCRYPTION_KEY` | ✅ | 配置加密密钥（至少32字符） |
 
+## 🤖 AI症状检查 (INNOV-001)
+
+Medical Bible 平台提供 AI 驱动的症状分析功能，帮助用户了解症状并获得就医指导：
+
+### 支持的AI服务提供商
+
+- **Infermedica**: 专业医疗AI症状分析平台
+- **Azure Health Bot**: 微软健康机器人服务
+- **Mock**: 本地模拟分析（开发和测试环境）
+
+### 核心特性
+
+- **多提供商支持**: 可配置不同的AI服务提供商
+- **断路器保护**: 外部AI服务故障时自动降级到Mock分析
+- **免责声明强制**: 用户必须确认免责声明才能使用
+- **完整审计记录**: 记录IP地址、用户代理、会话历史
+- **红旗症状检测**: 自动识别紧急医疗症状
+- **分诊等级分类**: EMERGENCY、URGENT、ROUTINE、SELF_CARE
+- **输入清洗**: 防止XSS攻击和注入
+- **错误消息脱敏**: 保护敏感信息不泄露
+- **历史查询**: 用户可查看历史分析记录
+- **统计数据**: 管理员可查看使用统计
+
+### API端点
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| POST | `/symptom-checker/analyze` | 分析症状（需认证） |
+| GET | `/symptom-checker/disclaimer` | 获取免责声明 |
+| GET | `/symptom-checker/history` | 获取用户历史记录（需认证） |
+| GET | `/symptom-checker/history/:sessionId` | 获取分析详情（需认证） |
+| GET | `/symptom-checker/admin/stats` | 获取统计数据（需管理员权限） |
+| GET | `/symptom-checker/health` | 健康检查 |
+
+### 环境变量
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `SYMPTOM_CHECKER_ENABLED` | 否 | 启用症状检查功能（默认：true） |
+| `SYMPTOM_CHECKER_PROVIDER` | 否 | AI服务提供商（infermedica/azure_health_bot/mock） |
+| `SYMPTOM_CHECKER_API_URL` | 是* | AI服务API地址 |
+| `SYMPTOM_CHECKER_API_KEY` | 是* | AI服务API密钥 |
+| `SYMPTOM_CHECKER_TIMEOUT` | 否 | API请求超时时间（毫秒，默认：30000） |
+| `SYMPTOM_CHECKER_CACHE_ENABLED` | 否 | 启用缓存（默认：true） |
+| `SYMPTOM_CHECKER_CACHE_TTL` | 否 | 缓存TTL（秒，默认：3600） |
+| `SYMPTOM_CHECKER_RETENTION_DAYS` | 否 | 数据保留天数（默认：90） |
+
+*必填项仅当provider不是mock时需要
+
+### 安全与合规
+
+- **输入验证**: 所有用户输入经过清洗和验证
+- **XSS防护**: 移除HTML标签和脚本标签
+- **长度限制**: 症状描述限制2000字符
+- **免责声明**: 用户必须接受免责声明才能使用
+- **审计追踪**: 记录所有分析请求用于合规审计
+- **数据保留**: 可配置数据保留期限，定时清理
+
+### 分诊等级说明
+
+| 等级 | 说明 | 建议时间 |
+|------|------|----------|
+| EMERGENCY | 紧急医疗关注 | 立即就医或拨打急救电话 |
+| URGENT | 尽快医疗关注 | 24小时内就医 |
+| ROUTINE | 建议就医 | 1-3天内就医 |
+| SELF_CARE | 可自我护理 | 如症状加重请及时就医 |
+
 ## 🔌 前端 API 客户端
 
 ### API 客户端特性 (API-002)
@@ -829,6 +898,20 @@ interface ErrorResponse {
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.9.0 (2026-02-10)
+
+- 🤖 **AI症状检查 (INNOV-001)**: AI驱动的症状分析与健康指导
+  - 支持多种AI服务提供商（Infermedica、Azure Health Bot、Mock）
+  - 断路器模式保护外部AI服务调用，自动降级到Mock分析
+  - 强制免责声明确认，确保合规性
+  - 完整的审计日志记录（IP地址、用户代理、会话历史）
+  - 红旗症状检测，识别紧急医疗情况
+  - 分诊等级分类（EMERGENCY、URGENT、ROUTINE、SELF_CARE）
+  - 输入清洗防止XSS攻击，错误消息脱敏保护敏感信息
+  - 用户历史查询和管理员统计数据API
+  - 定时清理旧会话数据（可配置保留天数，默认90天）
+  - 21个单元测试覆盖
 
 ### v1.8.0 (2026-02-10)
 

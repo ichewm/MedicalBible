@@ -41,6 +41,7 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { FhirModule } from "./modules/fhir/fhir.module";
 import { DataExportModule } from "./modules/data-export/data-export.module";
 import { RbacModule } from "./modules/rbac/rbac.module";
+import { SymptomCheckerModule } from "./modules/symptom-checker/symptom-checker.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
@@ -186,6 +187,7 @@ class HealthController {
     FhirModule, // FHIR医疗数据互操作性模块
     DataExportModule, // 数据导出模块
     RbacModule, // RBAC 角色权限模块
+    SymptomCheckerModule, // AI症状检查模块
   ],
   providers: [
     // 全局 JWT 认证守卫
