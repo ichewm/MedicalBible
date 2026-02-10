@@ -800,7 +800,7 @@ describe("AuditInterceptor Unit Tests (SEC-010)", () => {
       // Should not throw
       await expect(
         interceptor.intercept(mockContext, mockNext).toPromise(),
-      ).resolves.toEqual({ id: 456 });
+      ).resolves.toEqual({ data: { id: 456 } });
 
       expect(auditService.createEntry).toHaveBeenCalled();
     });

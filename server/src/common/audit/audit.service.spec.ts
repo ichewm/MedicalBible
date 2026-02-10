@@ -229,8 +229,8 @@ describe("AuditService Unit Tests (SEC-010)", () => {
       mockLog.previousHash = null;
 
       auditRepository.findOne.mockResolvedValue(null);
-      auditRepository.create.mockImplementation((dto) => {
-        mockLog.currentHash = dto.currentHash;
+      auditRepository.create.mockImplementation((dto: any) => {
+        mockLog.currentHash = dto.currentHash as string;
         return mockLog;
       });
       auditRepository.save.mockResolvedValue(mockLog as any);
@@ -268,18 +268,17 @@ describe("AuditService Unit Tests (SEC-010)", () => {
    */
   describe("SPEC: queryLogs - Filtering and pagination", () => {
     it("should query logs with default pagination", async () => {
-      const mockLogs = [
-        { id: 1, userId: 123, action: AuditAction.USER_CREATE },
-        { id: 2, userId: 456, action: AuditAction.USER_DELETE },
+      const mockLogs: AuditLog[] = [
+        createMockAuditLog(1, 123, AuditAction.USER_CREATE),
+        createMockAuditLog(2, 456, AuditAction.USER_DELETE),
       ];
       const mockTotal = 2;
 
       auditRepository.findAndCount.mockResolvedValue([mockLogs, mockTotal]);
 
-      const query: AuditLogQueryDto = {
-        page: 1,
-        pageSize: 20,
-      };
+      const query = new AuditLogQueryDto();
+      query.page = 1;
+      query.pageSize = 20;
 
       const result = await service.queryLogs(query);
 
@@ -292,14 +291,13 @@ describe("AuditService Unit Tests (SEC-010)", () => {
     });
 
     it("should filter by userId", async () => {
-      const mockLogs = [{ id: 1, userId: 123, action: AuditAction.USER_CREATE }];
+      const mockLogs: AuditLog[] = [createMockAuditLog(1, 123, AuditAction.USER_CREATE)];
       auditRepository.findAndCount.mockResolvedValue([mockLogs, 1]);
 
-      const query: AuditLogQueryDto = {
-        userId: 123,
-        page: 1,
-        pageSize: 20,
-      };
+      const query = new AuditLogQueryDto();
+      query.userId = 123;
+      query.page = 1;
+      query.pageSize = 20;
 
       await service.queryLogs(query);
 
@@ -313,14 +311,13 @@ describe("AuditService Unit Tests (SEC-010)", () => {
     });
 
     it("should filter by action", async () => {
-      const mockLogs = [{ id: 1, userId: 123, action: AuditAction.USER_DELETE }];
+      const mockLogs: AuditLog[] = [createMockAuditLog(1, 123, AuditAction.USER_DELETE)];
       auditRepository.findAndCount.mockResolvedValue([mockLogs, 1]);
 
-      const query: AuditLogQueryDto = {
-        action: AuditAction.USER_DELETE,
-        page: 1,
-        pageSize: 20,
-      };
+      const query = new AuditLogQueryDto();
+      query.action = AuditAction.USER_DELETE;
+      query.page = 1;
+      query.pageSize = 20;
 
       await service.queryLogs(query);
 
@@ -336,12 +333,11 @@ describe("AuditService Unit Tests (SEC-010)", () => {
     it("should filter by resourceType and resourceId", async () => {
       auditRepository.findAndCount.mockResolvedValue([[], 0]);
 
-      const query: AuditLogQueryDto = {
-        resourceType: ResourceType.USER,
-        resourceId: 456,
-        page: 1,
-        pageSize: 20,
-      };
+      const query = new AuditLogQueryDto();
+      query.resourceType = ResourceType.USER;
+      query.resourceId = 456;
+      query.page = 1;
+      query.pageSize = 20;
 
       await service.queryLogs(query);
 
@@ -358,12 +354,11 @@ describe("AuditService Unit Tests (SEC-010)", () => {
     it("should filter by date range", async () => {
       auditRepository.findAndCount.mockResolvedValue([[], 0]);
 
-      const query: AuditLogQueryDto = {
-        startDate: "2024-01-01T00:00:00Z",
-        endDate: "2024-12-31T23:59:59Z",
-        page: 1,
-        pageSize: 20,
-      };
+      const query = new AuditLogQueryDto();
+      query.startDate = "2024-01-01T00:00:00Z";
+      query.endDate = "2024-12-31T23:59:59Z";
+      query.page = 1;
+      query.pageSize = 20;
 
       await service.queryLogs(query);
 
@@ -382,11 +377,10 @@ describe("AuditService Unit Tests (SEC-010)", () => {
     it("should filter by ipAddress", async () => {
       auditRepository.findAndCount.mockResolvedValue([[], 0]);
 
-      const query: AuditLogQueryDto = {
-        ipAddress: "192.168.1.100",
-        page: 1,
-        pageSize: 20,
-      };
+      const query = new AuditLogQueryDto();
+      query.ipAddress = "192.168.1.100";
+      query.page = 1;
+      query.pageSize = 20;
 
       await service.queryLogs(query);
 
@@ -400,17 +394,14 @@ describe("AuditService Unit Tests (SEC-010)", () => {
     });
 
     it("should apply pagination correctly", async () => {
-      const mockLogs = Array.from({ length: 20 }, (_, i) => ({
-        id: i + 1,
-        userId: 123,
-        action: AuditAction.USER_CREATE,
-      }));
+      const mockLogs: AuditLog[] = Array.from({ length: 20 }, (_, i) =>
+        createMockAuditLog(i + 1, 123, AuditAction.USER_CREATE),
+      );
       auditRepository.findAndCount.mockResolvedValue([mockLogs, 100]);
 
-      const query: AuditLogQueryDto = {
-        page: 2,
-        pageSize: 20,
-      };
+      const query = new AuditLogQueryDto();
+      query.page = 2;
+      query.pageSize = 20;
 
       const result = await service.queryLogs(query);
 
@@ -428,7 +419,9 @@ describe("AuditService Unit Tests (SEC-010)", () => {
     it("should order by createdAt DESC", async () => {
       auditRepository.findAndCount.mockResolvedValue([[], 0]);
 
-      const query: AuditLogQueryDto = { page: 1, pageSize: 20 };
+      const query = new AuditLogQueryDto();
+      query.page = 1;
+      query.pageSize = 20;
 
       await service.queryLogs(query);
 
@@ -484,19 +477,31 @@ describe("AuditService Unit Tests (SEC-010)", () => {
     it("should detect broken previousHash chain", async () => {
       const log1 = new AuditLog();
       log1.id = 1;
+      log1.userId = 100;
+      log1.action = AuditAction.USER_CREATE;
+      log1.ipAddress = "192.168.1.1";
       log1.currentHash = "hash1";
       log1.previousHash = null;
       log1.createdAt = new Date("2024-01-01");
 
       const log2 = new AuditLog();
       log2.id = 2;
+      log2.userId = 101;
+      log2.action = AuditAction.USER_CREATE;
+      log2.ipAddress = "192.168.1.1";
       log2.currentHash = "hash2";
       log2.previousHash = "wrong_hash"; // Should be "hash1"
       log2.createdAt = new Date("2024-01-02");
 
       auditRepository.count.mockResolvedValue(2);
       auditRepository.find.mockResolvedValue([log1, log2]);
-      jest.spyOn(service as any, "calculateHash").mockReturnValue("hash2");
+
+      // Mock calculateHash to return correct hashes
+      jest.spyOn(service as any, "calculateHash").mockImplementation((_entry: any, prevHash: string) => {
+        if (prevHash === null) return "hash1"; // For log1
+        if (prevHash === "hash1") return "hash2"; // For log2
+        return "unknown";
+      });
 
       const result = await service.verifyIntegrity();
 
@@ -528,8 +533,12 @@ describe("AuditService Unit Tests (SEC-010)", () => {
       auditRepository.count.mockResolvedValue(2);
       auditRepository.find.mockResolvedValue([log1, log2]);
 
-      // Mock calculateHash to return expected hash
-      jest.spyOn(service as any, "calculateHash").mockReturnValue("expected_hash2");
+      // Mock calculateHash to return correct hash for log1, wrong for log2
+      jest.spyOn(service as any, "calculateHash").mockImplementation((_entry: any, prevHash: string) => {
+        if (prevHash === null) return "correct_hash1";
+        if (prevHash === "correct_hash1") return "expected_hash2";
+        return "unknown";
+      });
 
       const result = await service.verifyIntegrity();
 
@@ -551,7 +560,7 @@ describe("AuditService Unit Tests (SEC-010)", () => {
       auditRepository.find.mockResolvedValue(logs);
 
       // Mock calculateHash to return matching hashes
-      jest.spyOn(service as any, "calculateHash").mockImplementation((entry, prevHash) => {
+      jest.spyOn(service as any, "calculateHash").mockImplementation((_entry: any, prevHash: string) => {
         const hashes: Record<string, string> = {
           "": "hash1",
           "hash1": "hash2",
@@ -577,18 +586,27 @@ describe("AuditService Unit Tests (SEC-010)", () => {
    */
   describe("SPEC: Hash calculation - Deterministic behavior", () => {
     it("should generate consistent hash for same input", async () => {
-      const mockLog = new AuditLog();
-      mockLog.id = 1;
-      mockLog.userId = 123;
-      mockLog.action = AuditAction.USER_CREATE;
-      mockLog.ipAddress = "192.168.1.1";
-      mockLog.previousHash = null;
-      mockLog.currentHash = "hash1";
-      mockLog.createdAt = new Date();
+      // Track the created logs
+      let createdLog1: AuditLog | undefined;
+      let createdLog2: AuditLog | undefined;
 
-      auditRepository.findOne.mockResolvedValue(null);
-      auditRepository.create.mockReturnValue(mockLog);
-      auditRepository.save.mockResolvedValue(mockLog as any);
+      auditRepository.findOne
+        .mockResolvedValueOnce(null) // No previous log for first call
+        .mockImplementationOnce(async () => createdLog1 ?? null); // First log for second call (will be set after first create)
+
+      // Mock create to capture and return the log with its hash
+      auditRepository.create.mockImplementation((dto: any) => {
+        const log = new AuditLog();
+        Object.assign(log, dto);
+        if (!createdLog1) {
+          createdLog1 = log;
+        } else {
+          createdLog2 = log;
+        }
+        return log;
+      });
+
+      auditRepository.save.mockResolvedValue(createdLog1 as any);
 
       const entryDto: CreateAuditLogDto = {
         userId: 123,
@@ -598,13 +616,10 @@ describe("AuditService Unit Tests (SEC-010)", () => {
 
       // Create same entry twice
       await service.createEntry(entryDto);
-      const hash1 = mockLog.currentHash;
+      const hash1 = createdLog1?.currentHash;
 
-      auditRepository.findOne.mockResolvedValue(mockLog);
-      mockLog.id = 2;
-      mockLog.previousHash = hash1;
       await service.createEntry(entryDto);
-      const hash2 = mockLog.currentHash;
+      const hash2 = createdLog2?.currentHash;
 
       // Hashes should be different (different previous hash)
       expect(hash1).not.toBe(hash2);
@@ -665,5 +680,24 @@ function createMockLog(
   log.previousHash = previousHash;
   log.currentHash = currentHash;
   log.createdAt = new Date(`2024-01-0${id}`);
+  return log;
+}
+
+/**
+ * Helper: Create mock audit log with proper defaults
+ */
+function createMockAuditLog(
+  id: number,
+  userId: number,
+  action: AuditAction,
+): AuditLog {
+  const log = new AuditLog();
+  log.id = id;
+  log.userId = userId;
+  log.action = action;
+  log.ipAddress = "192.168.1.1";
+  log.currentHash = `hash${id}`;
+  log.previousHash = id > 1 ? `hash${id - 1}` : null;
+  log.createdAt = new Date();
   return log;
 }

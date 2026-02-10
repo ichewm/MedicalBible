@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.10.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -457,6 +457,18 @@ npm run dev
   - 验证码限流（10次/天）
   - 密码重置限流（5次/分钟）
   - 速率限制响应头（X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset）
+- **审计日志 (SEC-010)**: 敏感操作的完整审计追踪，符合 HIPAA/GDPR 合规要求
+  - 审计日志数据模型：用户ID、操作类型、资源类型、资源ID、IP地址、User-Agent
+  - 哈希链完整性验证：使用 SHA-256 哈希链检测篡改
+  - 支持的操作类型：用户管理、数据访问、数据修改、数据删除、认证、权限管理
+  - 非阻塞写入：审计失败不影响主业务流程
+  - 审计日志查询：支持按用户、操作类型、日期范围、IP地址过滤
+  - 审计日志导出：支持 CSV、JSON、XLSX 格式导出（最多10万条记录）
+  - 完整性验证：通过哈希链验证审计日志是否被篡改
+  - 保留策略：默认保留7年（2555天）符合HIPAA要求，定时清理
+  - 敏感字段清洗：自动过滤密码、令牌等敏感数据
+  - `@AuditLog` 装饰器：标记需要审计的控制器方法
+  - 管理员统计API和日志验证API
 - HTTPS 支持
 - **结构化日志**: 使用 Pino 结构化日志 + 关联 ID 追踪（无 console.log，防止敏感信息泄露）
 
@@ -926,6 +938,25 @@ interface ErrorResponse {
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.10.0 (2026-02-11)
+
+- 🔒 **审计日志系统 (SEC-010)**: 敏感操作的完整审计追踪，符合HIPAA/GDPR合规要求
+  - 审计日志实体（user_id, action, resource_type, resource_id, ip_address, user_agent, changes, metadata）
+  - 哈希链完整性验证：使用SHA-256哈希链检测篡改，每条记录包含previousHash和currentHash
+  - 支持的操作类型（AuditAction枚举）：用户管理(user.*)、数据访问(data.*)、数据修改、数据删除、认证(auth.*)、权限管理(role.*)
+  - 支持的资源类型（ResourceType枚举）：user、question、lecture、order、subscription、system_config、role等
+  - `@AuditLog`装饰器：标记需要审计的控制器方法，支持action、resourceType、resourceIdParam、extractChanges配置
+  - AuditInterceptor拦截器：自动处理@AuditLog标记的方法，仅在成功响应(2xx)时创建审计日志
+  - 敏感字段清洗：自动过滤password、token、refreshToken、secret、apiKey、privateKey等敏感数据
+  - 审计日志查询：支持按用户、操作类型、日期范围、IP地址过滤和分页
+  - 审计日志导出：支持CSV、JSON、XLSX格式导出（最多10万条记录），7天下载链接有效期
+  - 完整性验证API：验证所有审计日志的哈希链完整性，检测篡改记录
+  - 单条日志验证API：验证指定ID的审计日志完整性
+  - 保留策略：默认保留7年（2555天）符合HIPAA要求，每天凌晨2点执行清理任务
+  - 管理员统计API：审计日志总数、今日/本周/本月日志数、热门操作统计
+  - 非阻塞写入：审计失败不影响主业务流程，使用fire-and-forget模式
+  - 完整的单元测试覆盖（94个测试）：entity、decorator、interceptor、service
 
 ### v1.9.0 (2026-02-10)
 
