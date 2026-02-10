@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -226,7 +226,7 @@ chmod +x deploy.sh
 - **ORM**: TypeORM
 - **WebSocket**: Socket.io (实时客服消息，支持连接限制、离线消息队列、心跳检测)
 - **文档**: Swagger/OpenAPI
-- **测试**: Jest (1072个测试 + 集成测试)
+- **测试**: Jest（单元测试 + 集成测试）
 
 ### 前端技术
 
