@@ -5,7 +5,10 @@
   "testRegex": ".e2e-spec.ts$",
   "setupFiles": ["<rootDir>/jest-e2e-setup.ts"],
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": ["ts-jest", {
+      "tsconfig": "./test/tsconfig.json",
+      "isolatedModules": true
+    }]
   },
   "setupFiles": ["<rootDir>/setup-e2e.ts"],
   "moduleNameMapper": {

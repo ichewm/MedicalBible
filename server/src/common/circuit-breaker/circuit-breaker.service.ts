@@ -165,8 +165,10 @@ export class CircuitBreakerService implements OnModuleDestroy {
       this.logger.debug(`Request success for ${key}`);
     });
 
-    breaker.on('failure', (error: Error) => {
-      this.logger.debug(`Request failure for ${key}: ${error.message}`);
+    breaker.on('failure', (error: unknown) => {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.debug(`Request failure for ${key}: ${errorMessage}`);
     });
   }
 
