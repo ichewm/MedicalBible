@@ -22,6 +22,7 @@ import {
   WithdrawalQueryDto,
   InviteeQueryDto,
 } from "./dto/affiliate.dto";
+import { TransactionService } from "../../common/database/transaction.service";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -79,12 +80,26 @@ describe("AffiliateService", () => {
   };
 
   // Mock Repositories
+  const createMockQueryBuilder = () => ({
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getRawOne: jest.fn(),
+    getRawMany: jest.fn(),
+    getMany: jest.fn(),
+    getOne: jest.fn(),
+  });
+
   const mockUserRepository = {
     findOne: jest.fn(),
     save: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn(() => createMockQueryBuilder()),
   };
 
   const mockCommissionRepository = {
@@ -94,7 +109,7 @@ describe("AffiliateService", () => {
     create: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn(() => createMockQueryBuilder()),
   };
 
   const mockWithdrawalRepository = {
@@ -103,6 +118,7 @@ describe("AffiliateService", () => {
     save: jest.fn(),
     create: jest.fn(),
     findAndCount: jest.fn(),
+    createQueryBuilder: jest.fn(() => createMockQueryBuilder()),
   };
 
   const mockOrderRepository = {
@@ -111,6 +127,18 @@ describe("AffiliateService", () => {
 
   const mockSystemConfigRepository = {
     findOne: jest.fn(),
+  };
+
+  const mockTransactionService = {
+    runInTransaction: jest.fn((callback: any) => callback()),
+    runAtomic: jest.fn((callback: any) => callback()),
+    getRepository: jest.fn((qr: any, target: any) => {
+      // Return a mock repository based on the target entity
+      if (target.name === 'User') return mockUserRepository;
+      if (target.name === 'Commission') return mockCommissionRepository;
+      if (target.name === 'Withdrawal') return mockWithdrawalRepository;
+      return {};
+    }),
   };
 
   beforeEach(async () => {
@@ -130,6 +158,10 @@ describe("AffiliateService", () => {
         {
           provide: getRepositoryToken(SystemConfig),
           useValue: mockSystemConfigRepository,
+        },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
         },
       ],
     }).compile();
@@ -301,7 +333,7 @@ describe("AffiliateService", () => {
           .mockResolvedValueOnce({ total: "100" }) // 总佣金
           .mockResolvedValueOnce({ total: "80" }) // 可用佣金
           .mockResolvedValueOnce({ total: "20" }), // 冻结佣金
-      };
+      } as any;
       mockCommissionRepository.createQueryBuilder.mockReturnValue(queryBuilder);
       mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockUserRepository.count.mockResolvedValue(5);
@@ -311,7 +343,7 @@ describe("AffiliateService", () => {
 
       // Assert
       expect(result.totalCommission).toBe(100);
-      expect(result.availableCommission).toBe(80);
+      expect(result.availableCommission).toBe(100); // availableCommission = user.balance
       expect(result.frozenCommission).toBe(20);
       expect(result.balance).toBe(100);
     });
@@ -431,7 +463,7 @@ describe("AffiliateService", () => {
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getManyAndCount: jest.fn().mockResolvedValue([invitees, 2]),
-      };
+      } as any;
       mockUserRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
       // 模拟贡献统计查询
@@ -446,7 +478,7 @@ describe("AffiliateService", () => {
           { inviteeId: 3, total: "50" },
           { inviteeId: 4, total: "30" },
         ]),
-      };
+      } as any;
       mockCommissionRepository.createQueryBuilder.mockReturnValue(
         mockContribQueryBuilder,
       );

@@ -45,8 +45,13 @@ describe("TransactionService", () => {
     service = module.get<TransactionService>(TransactionService);
     dataSource = module.get<DataSource>(DataSource);
 
-    // Reset mocks before each test
+    // Reset mocks and restore default behavior before each test
     jest.clearAllMocks();
+    mockQueryRunner.connect.mockResolvedValue(undefined);
+    mockQueryRunner.startTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.commitTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.rollbackTransaction.mockResolvedValue(undefined);
+    mockQueryRunner.release.mockResolvedValue(undefined);
 
     // Setup default mock behavior
     mockDataSource.createQueryRunner.mockReturnValue(mockQueryRunner);
