@@ -214,7 +214,7 @@ export class User {
   devices: UserDevice[];
 
   /** 令牌族列表 */
-  @OneToMany(() => TokenFamily, (tokenFamily) => tokenFamily.user)
+  @OneToMany(() => TokenFamily, (tokenFamily) => tokenFamily.user, { eager: false })
   tokenFamilies: TokenFamily[];
 
   /** 订单列表 */
