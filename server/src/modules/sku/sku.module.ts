@@ -14,6 +14,7 @@ import { Profession } from "../../entities/profession.entity";
 import { Level } from "../../entities/level.entity";
 import { Subject } from "../../entities/subject.entity";
 import { SkuPrice } from "../../entities/sku-price.entity";
+import { Order } from "../../entities/order.entity";
 import { RedisModule } from "../../common/redis/redis.module";
 
 /**
@@ -27,7 +28,7 @@ import { RedisModule } from "../../common/redis/redis.module";
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Profession, Level, Subject, SkuPrice]),
+    TypeOrmModule.forFeature([Profession, Level, Subject, SkuPrice, Order]),
     RedisModule,
   ],
   controllers: [SkuController],

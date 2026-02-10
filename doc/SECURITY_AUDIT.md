@@ -161,7 +161,24 @@ import DOMPurify from "dompurify";
 - [x] 验证码防暴力破解
 - [x] 发送频率限制（60秒间隔）
 - [x] 每日发送次数限制
-- [ ] 登录失败次数限制（建议添加）
+- [x] 登录失败次数限制 **(SEC-001)**
+- [x] 基于Redis的滑动窗口限流 **(SEC-001)**
+- [x] 速率限制响应头（X-RateLimit-*）
+
+**Rate Limiting 实现 (SEC-001)**:
+- 基于 Redis 的滑动窗口限流实现
+- 支持多种限流策略：按IP、按用户、全局限流
+- 预设限流配置：
+  - `strict`: 5次/分钟（注册、重置密码等）
+  - `standard`: 30次/分钟（常规端点）
+  - `relaxed`: 100次/分钟（宽松端点）
+  - `login`: 10次/小时（登录端点）
+  - `verificationCode`: 10次/天（验证码端点）
+- 速率限制响应头：
+  - `X-RateLimit-Limit`: 请求上限
+  - `X-RateLimit-Remaining`: 剩余请求数
+  - `X-RateLimit-Reset`: 重置时间戳
+- 环境变量配置支持（`server/src/config/rate-limit.config.ts`）
 
 ---
 
@@ -198,14 +215,19 @@ import DOMPurify from "dompurify";
 
 ### 4.2 中期优化（1周）
 
-1. **替换 xlsx 库**
-   考虑使用 `exceljs` 替代
+1. ~~**添加登录失败限制**~~ ✅ **已完成 (SEC-001)**
+   - 已实现基于 Redis 的滑动窗口限流
+   - 登录端点：10次/小时
+   - 注册端点：5次/分钟
+   - 验证码端点：10次/天
 
-2. **添加登录失败限制**
-   5次失败锁定15分钟
+2. **替换 xlsx 库**
+   考虑使用 `exceljs` 替代
 
 3. **添加操作日志**
    记录敏感操作（修改密码、订单支付等）
+
+4. **添加 Rate Limiting** ~~✅ **已完成 (SEC-001)**~~
 
 ### 4.3 长期规划
 
@@ -238,6 +260,7 @@ import DOMPurify from "dompurify";
 | 2025-01-XX | 依赖安全检查 | 完成 |
 | 2025-01-XX | 代码安全检查 | 完成 |
 | 2025-01-XX | 认证安全检查 | 完成 |
+| 2025-02-09 | SEC-001 限流守卫实现 | ✅ 完成 - 基于 Redis 的滑动窗口限流 |
 | 2025-01-31 | SEC-009 结构化日志实现 | 完成 - 移除所有 console.log，使用 NestJS Logger |
 | 2025-01-31 | CORS 安全配置 (SEC-002) | ✅ 完成环境级域名白名单 |
 | 2025-01-31 | Helmet 中间件集成 (SEC-002) | ✅ 完成安全头配置 |

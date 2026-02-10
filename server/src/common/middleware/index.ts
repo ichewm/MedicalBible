@@ -6,5 +6,6 @@
  */
 
 export * from "./request-tracking.middleware";
+export * from "./activity-tracking.middleware";
 export * from "./compression.middleware";
 export * from "./sanitization.middleware";

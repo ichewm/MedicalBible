@@ -10,6 +10,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { DatabaseMonitoringService } from "./database-monitoring.service";
 import { DatabaseMonitoringController } from "./database-monitoring.controller";
 import { TransactionService } from "./transaction.service";
+import { QueryOptimizerService } from "./query-optimizer.service";
 
 /**
  * Global database module
@@ -20,7 +21,15 @@ import { TransactionService } from "./transaction.service";
 @Module({
   imports: [TypeOrmModule],
   controllers: [DatabaseMonitoringController],
-  providers: [DatabaseMonitoringService, TransactionService],
-  exports: [DatabaseMonitoringService, TransactionService],
+  providers: [
+    DatabaseMonitoringService,
+    TransactionService,
+    QueryOptimizerService,
+  ],
+  exports: [
+    DatabaseMonitoringService,
+    TransactionService,
+    QueryOptimizerService,
+  ],
 })
 export class DatabaseModule {}

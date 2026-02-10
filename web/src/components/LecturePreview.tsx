@@ -7,6 +7,7 @@ import { Modal, Spin, Empty, Button, Space, Typography, Tag, Tooltip } from 'ant
 import { LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { getTeacherHighlights } from '@/api/lecture'
+import { logger } from '@/utils/logger'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -59,7 +60,7 @@ const LecturePreview = ({ open, onClose, lectureId, title, pdfUrl, pageCount }: 
           const data: any = await getTeacherHighlights(lectureId)
           setHighlights(Array.isArray(data) ? data : data.items || [])
         } catch (error) {
-          logger.error(error)
+          logger.error('获取重点标注失败', error)
         } finally {
           setLoading(false)
         }

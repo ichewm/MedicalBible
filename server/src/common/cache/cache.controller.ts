@@ -6,8 +6,6 @@
  */
 
 import { Controller, Get, Delete, Param, Query, UseGuards, BadRequestException } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { ConfigService } from "@nestjs/config";
 import { CacheService } from "./cache.service";
 import { CacheKeyBuilder } from "./cache.decorator";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
@@ -30,8 +28,6 @@ import { RateLimit } from "../guards/rate-limit.guard";
 export class CacheController {
   constructor(
     private readonly cacheService: CacheService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
   ) {}
 
   /**

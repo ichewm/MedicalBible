@@ -27,6 +27,7 @@ import { AuthService } from "./auth.service";
 import { Public } from "../../common/decorators/public.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { JwtPayload } from "../../common/guards/jwt-auth.guard";
+import { RateLimit, RateLimitPresets } from "../../common/guards/rate-limit.guard";
 import {
   SendVerificationCodeDto,
   SendVerificationCodeResponseDto,
@@ -55,6 +56,7 @@ export class AuthController {
    * @param dto - 发送验证码请求参数
    */
   @Public()
+  @RateLimit(RateLimitPresets.verificationCode)
   @Post("verification-code")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -78,6 +80,7 @@ export class AuthController {
    * @param dto - 登录请求参数
    */
   @Public()
+  @RateLimit(RateLimitPresets.login)
   @Post("login/phone")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -104,6 +107,7 @@ export class AuthController {
    * @param dto - 注册请求参数
    */
   @Public()
+  @RateLimit(RateLimitPresets.strict)
   @Post("register")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -125,6 +129,7 @@ export class AuthController {
    * @param dto - 重置密码请求参数
    */
   @Public()
+  @RateLimit(RateLimitPresets.strict)
   @Post("reset-password")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -148,6 +153,7 @@ export class AuthController {
    * @param dto - 登录请求参数
    */
   @Public()
+  @RateLimit(RateLimitPresets.login)
   @Post("login/password")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -203,6 +209,7 @@ export class AuthController {
    * @param dto - 刷新 Token 请求参数
    */
   @Public()
+  @RateLimit(RateLimitPresets.standard)
   @Post("refresh-token")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -249,6 +256,7 @@ export class AuthController {
    * @param body - 请求参数（选择手机或邮箱）
    */
   @Post("send-change-password-code")
+  @RateLimit(RateLimitPresets.verificationCode)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({
@@ -275,6 +283,7 @@ export class AuthController {
    * @param body - 请求参数
    */
   @Post("change-password-by-code")
+  @RateLimit(RateLimitPresets.strict)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({

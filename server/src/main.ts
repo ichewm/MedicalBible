@@ -16,6 +16,7 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
+import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
 import { CompressionMiddleware } from "./common/middleware/compression.middleware";
 import { SanitizationMiddleware } from "./common/middleware/sanitization.middleware";
 
@@ -81,6 +82,11 @@ async function bootstrap(): Promise<void> {
   // 配置请求追踪中间件
   app.use(
     new RequestTrackingMiddleware().use.bind(new RequestTrackingMiddleware()),
+  );
+
+  // 配置活动追踪中间件
+  app.use(
+    new ActivityTrackingMiddleware().use.bind(new ActivityTrackingMiddleware()),
   );
 
   // 配置全局验证管道

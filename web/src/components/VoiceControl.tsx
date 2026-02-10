@@ -3,7 +3,7 @@
  * @description 浮动语音控制按钮
  */
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { FloatButton, Badge, Tooltip, message } from 'antd'
 import {
   AudioOutlined,
@@ -12,7 +12,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons'
 import { useVoiceStore } from '@/stores/voice'
-import { useVoiceCommands, VoiceRecognitionService } from '@/voice/use-voice-commands'
+import { useVoiceCommands } from '@/voice/use-voice-commands'
 import { navigationCommands, controlCommands, getCommandHelp } from '@/voice/commands'
 import './VoiceControl.css'
 
@@ -44,7 +44,7 @@ export const VoiceControl: React.FC<VoiceControlProps> = ({
   // 默认使用导航命令和控制命令
   const commands = [...navigationCommands, ...controlCommands]
 
-  const { isSupported, start, stop, toggle } = useVoiceCommands({
+  const { isSupported, start, stop } = useVoiceCommands({
     enabled,
     commands,
     debug: false,

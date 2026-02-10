@@ -186,6 +186,17 @@ export const SystemConfigKeys = {
   STORAGE_MINIO_SECRET_KEY: "storage_minio_secret_key",
   STORAGE_MINIO_BUCKET: "storage_minio_bucket",
   STORAGE_MINIO_USE_SSL: "storage_minio_use_ssl",
+  // CDN 缓存失效配置
+  /** 是否启用 CDN 缓存失效 */
+  STORAGE_CACHE_INVALIDATION_ENABLED: "storage_cache_invalidation_enabled",
+  /** CDN 缓存失效服务商 */
+  STORAGE_CACHE_INVALIDATION_PROVIDER: "storage_cache_invalidation_provider",
+  /** CloudFront Distribution ID */
+  STORAGE_CF_DISTRIBUTION_ID: "storage_cf_distribution_id",
+  /** Cloudflare Zone ID */
+  STORAGE_CF_ZONE_ID: "storage_cf_zone_id",
+  /** Cloudflare API Token */
+  STORAGE_CF_API_TOKEN: "storage_cf_api_token",
 
   // ==================== 支付配置 ====================
   // 微信支付
@@ -241,6 +252,8 @@ export const EncryptedConfigKeys = [
   SystemConfigKeys.STORAGE_COS_SECRET_KEY,
   SystemConfigKeys.STORAGE_S3_SECRET_ACCESS_KEY,
   SystemConfigKeys.STORAGE_MINIO_SECRET_KEY,
+  // CDN 缓存失效密钥
+  SystemConfigKeys.STORAGE_CF_API_TOKEN,
   // 支付密钥
   SystemConfigKeys.PAY_WECHAT_API_KEY,
   SystemConfigKeys.PAY_WECHAT_API_V3_KEY,
