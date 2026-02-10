@@ -222,6 +222,7 @@ chmod +x deploy.sh
 - **语言**: TypeScript 5.x
 - **数据库**: MySQL 8.0
 - **缓存**: Redis 6.2 + CacheService (Cache-Aside 模式)
+- **断路器**: opossum (Circuit Breaker 模式保护外部服务调用)
 - **ORM**: TypeORM
 - **文档**: Swagger/OpenAPI
 - **测试**: Jest (299个测试 + 集成测试)
@@ -570,6 +571,14 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.5.0 (2026-02-09)
+
+- ✅ 实现断路器模式（Circuit Breaker）保护外部服务调用
+- ✅ 集成 opossum 断路器库，支持自动熔断和降级策略
+- ✅ 为邮件服务、存储服务、Redis 缓存添加断路器保护
+- ✅ 添加预设配置，支持不同类型外部服务的优化参数
+- ✅ 新增断路器状态监控和统计信息 API
 
 ### v1.4.0 (2026-02-09)
 
