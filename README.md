@@ -235,7 +235,7 @@ chmod +x deploy.sh
 - **UI库**: Ant Design 5.x
 - **状态管理**: Zustand
 - **路由**: React Router 6
-- **HTTP**: Axios
+- **HTTP**: Axios + 集中式 API 客户端（拦截器、自动 token 管理、错误处理）
 - **PDF**: react-pdf + pdf.js
 - **语音识别**: Web Speech API (实验性功能)
 - **样式**: TailwindCSS
@@ -414,6 +414,11 @@ npm run dev
 
 - **CORS 配置**: 环境级域名白名单，生产环境禁止通配符
 - **安全头**: Helmet 中间件防护常见 Web 漏洞
+  - **HSTS** (HTTP Strict Transport Security): 强制 HTTPS 连接
+  - **CSP** (Content Security Policy): 控制资源加载来源，防止 XSS 攻击
+  - **X-Frame-Options**: 防止点击劫持
+  - **X-Content-Type-Options**: 防止 MIME 类型嗅探
+  - **Permissions-Policy**: 控制浏览器功能访问（地理位置、摄像头等）
 - JWT Token 认证
 - 密码 bcrypt 加密
 - SQL 注入防护
@@ -438,6 +443,12 @@ npm run dev
 - 生产环境: 必须通过 `CORS_ORIGIN` 环境变量指定具体域名
 - 支持逗号分隔的多个域名: `https://example.com,https://app.example.com`
 - 生产环境使用通配符 (`*`) 将导致应用拒绝启动
+
+**安全头配置说明**:
+- 可通过环境变量配置各项安全策略（见 `server/.env.example`）
+- HSTS 默认在生产环境启用，最大有效期 365 天
+- CSP 默认启用，可通过 `CSP_*` 环境变量自定义指令
+- 可通过 `SECURITY_ENABLED=false` 临时禁用（不推荐生产环境）
 
 **限流配置说明**:
 - 基于 Redis 的滑动窗口限流实现
@@ -655,6 +666,137 @@ async deleteLecture(key: string) {
 |------|------|------|
 | `CONFIG_ENCRYPTION_KEY` | ✅ | 配置加密密钥（至少32字符） |
 
+## 🔌 前端 API 客户端
+
+### API 客户端特性 (API-002)
+
+Medical Bible 平台提供集中式 API 客户端，统一处理所有 HTTP 请求：
+
+- **请求拦截器**: 自动添加 JWT Token 和关联 ID (X-Request-ID)
+- **响应拦截器**: 统一响应格式处理和错误转换
+- **自动 Token 刷新**: 401 错误时自动刷新 token 并重试请求
+- **错误处理**: 统一的错误类型和用户友好提示
+- **重试机制**: 网络错误和 5xx 错误自动重试（指数退避）
+- **请求追踪**: 开发环境下记录请求耗时
+
+### 核心 API 模块
+
+| 模块 | 文件路径 | 功能描述 |
+|------|---------|---------|
+| API 客户端 | `web/src/utils/request.ts` | Axios 封装，拦截器，token 管理 |
+| 错误处理 | `web/src/utils/errors.ts` | 错误类型守卫，统一错误处理函数 |
+| API 类型 | `web/src/api/types.ts` | TypeScript 类型定义，ApiError 类 |
+| React Hooks | `web/src/utils/hooks.ts` | useApi, useMutation, usePagination 等 |
+
+### 使用示例
+
+#### 1. 基础 API 调用
+
+```typescript
+import request from '@/utils/request';
+
+// GET 请求
+const profile = await request.get('/user/profile');
+
+// POST 请求
+const result = await request.post('/auth/login', { phone, code });
+
+// 带重试的请求
+const data = await request.get('/api/data', { retry: 3 });
+```
+
+#### 2. 使用 React Hooks
+
+```typescript
+import { useApi, useMutation, usePagination } from '@/utils/hooks';
+
+// 自动执行的 API 请求
+const { data, loading, error } = useApi(() => getProfile());
+
+// 手动执行的变异操作
+const { data, loading, execute } = useApiRequest();
+const handleSubmit = () => execute(() => updateProfile(values));
+
+// 分页数据
+const { data, page, nextPage, prevPage } = usePagination(
+  (page, pageSize) => getUsers({ page, pageSize })
+);
+```
+
+#### 3. 错误处理
+
+```typescript
+import { handleApiError, isAuthError, isMembershipError } from '@/utils/errors';
+
+try {
+  await someApiCall();
+} catch (error) {
+  if (isAuthError(error)) {
+    // 认证错误 - 已自动处理
+    return;
+  }
+  if (isMembershipError(error)) {
+    // 会员错误 - 已自动重定向到订阅页
+    return;
+  }
+  handleApiError(error, '操作失败');
+}
+```
+
+### 安全特性
+
+- **Token 存储**: 使用 Zustand persist 中间件存储（localStorage）
+- **自动刷新**: Token 过期时自动刷新并重试原请求
+- **请求去重**: 多个并发 401 请求共享同一个 token 刷新
+- **错误隔离**: 认证错误和会员错误由拦截器统一处理
+- **关联 ID**: 每个请求自动生成唯一 ID 用于追踪
+
+### API 类型定义
+
+完整的 TypeScript 类型支持：
+
+```typescript
+// 标准响应格式
+interface ApiResponse<T> {
+  code: number;
+  message: string;
+  data: T;
+  timestamp: string;
+}
+
+// 分页响应
+interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+// 错误响应
+interface ErrorResponse {
+  code: number;
+  errorCode?: string;
+  message: string;
+  path: string;
+  timestamp: string;
+  requestId?: string;
+  validationErrors?: ValidationError[];
+}
+```
+
+### 错误码枚举
+
+所有业务错误码集中定义（`ErrorCode` 枚举）：
+
+- `ERR_1000-1099`: 通用错误
+- `ERR_1100-1199`: 认证错误
+- `ERR_1200-1299`: 用户错误
+- `ERR_1300-1399`: 订单/支付错误
+- `ERR_1400-1499`: 会员错误
+- `ERR_1500-1599`: 内容错误
+- `ERR_1900-1999`: 系统错误
 ## 📈 性能
 
 - 后端响应时间: < 100ms
@@ -688,6 +830,15 @@ async deleteLecture(key: string) {
 ## 📝 更新日志
 
 ### v1.8.0 (2026-02-10)
+
+- 🔌 **集中式 API 客户端 (API-002)**: 统一前端 HTTP 请求处理
+  - 创建集中式 API 客户端模块 (`web/src/utils/request.ts`)
+  - 实现请求/响应拦截器
+  - 添加自动 token 管理和刷新机制
+  - 标准化错误处理和错误类型定义
+  - 新增 React API hooks (useApi, useMutation, usePagination)
+  - 完整的 TypeScript 类型支持和错误码枚举
+  - 单元测试覆盖（新增 4 个测试文件）
 
 - ✅ **CDN 集成** (FEAT-004): 静态资源 CDN 加速与缓存管理
   - 支持多种存储后端（AWS S3、阿里云 OSS、腾讯云 COS、MinIO）
