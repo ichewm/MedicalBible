@@ -86,10 +86,10 @@ export class Paper {
   subject: Subject;
 
   /** 包含的题目列表 */
-  @OneToMany(() => Question, (question) => question.paper)
+  @OneToMany(() => Question, (question) => question.paper, { eager: false })
   questions: Question[];
 
   /** 考试会话列表 */
-  @OneToMany(() => ExamSession, (session) => session.paper)
+  @OneToMany(() => ExamSession, (session) => session.paper, { eager: false })
   examSessions: ExamSession[];
 }

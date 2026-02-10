@@ -13,6 +13,7 @@ export interface UserProfile {
   inviteCode: string
   balance: number
   currentLevelId?: number
+  role?: string
   status?: number // 0-禁用, 1-正常, 2-注销申请中
   closedAt?: string // 注销申请时间
   createdAt: string

@@ -4,7 +4,7 @@
 
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Card, Button, Radio, Space, Progress, Tag, Result, Typography, Modal, message } from 'antd'
+import { Card, Button, Radio, Space, Progress, Tag, Result, Typography, message } from 'antd'
 import { LeftOutlined, RightOutlined, CheckOutlined } from '@ant-design/icons'
 
 const { Text, Title, Paragraph } = Typography
@@ -23,7 +23,7 @@ interface WrongQuestion {
 const WrongPractice = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  const { questions = [], sessionId, totalCount = 0 } = location.state || {}
+  const { questions = [], sessionId: _sessionId, totalCount: _totalCount } = location.state || {}
 
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<number, string>>({})

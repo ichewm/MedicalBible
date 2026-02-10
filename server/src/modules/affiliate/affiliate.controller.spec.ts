@@ -311,6 +311,7 @@ describe("AffiliateController", () => {
         1,
         true,
         undefined,
+        undefined,
       );
     });
 
@@ -338,6 +339,7 @@ describe("AffiliateController", () => {
         1,
         false,
         "信息不完整",
+        undefined,
       );
     });
   });

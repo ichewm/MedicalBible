@@ -20,6 +20,7 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 import { QuestionType } from "../../../entities/question.entity";
+import { NoScriptTags } from "../../../common/validators";
 
 /**
  * 选项 DTO
@@ -34,6 +35,7 @@ export class OptionDto {
   @ApiProperty({ description: "选项值", example: "选项内容" })
   @IsNotEmpty({ message: "选项值不能为空" })
   @IsString({ message: "选项值必须是字符串" })
+  @NoScriptTags({ message: "选项值不能包含脚本内容" })
   val: string;
 }
 
@@ -52,6 +54,7 @@ export class CreateQuestionBodyDto {
   @ApiProperty({ description: "题干内容" })
   @IsNotEmpty({ message: "题干内容不能为空" })
   @IsString({ message: "题干内容必须是字符串" })
+  @NoScriptTags({ message: "题干内容不能包含脚本内容" })
   content: string;
 
   @ApiProperty({ description: "选项列表", type: [OptionDto] })
@@ -71,6 +74,7 @@ export class CreateQuestionBodyDto {
   @ApiPropertyOptional({ description: "解析" })
   @IsOptional()
   @IsString({ message: "解析必须是字符串" })
+  @NoScriptTags({ message: "解析不能包含脚本内容" })
   analysis?: string;
 
   @ApiPropertyOptional({ description: "排序", example: 1 })
@@ -104,6 +108,7 @@ export class UpdateQuestionDto {
   @ApiPropertyOptional({ description: "题干内容" })
   @IsOptional()
   @IsString({ message: "题干内容必须是字符串" })
+  @NoScriptTags({ message: "题干内容不能包含脚本内容" })
   content?: string;
 
   @ApiPropertyOptional({ description: "选项列表", type: [OptionDto] })
@@ -122,6 +127,7 @@ export class UpdateQuestionDto {
   @ApiPropertyOptional({ description: "解析" })
   @IsOptional()
   @IsString({ message: "解析必须是字符串" })
+  @NoScriptTags({ message: "解析不能包含脚本内容" })
   analysis?: string;
 
   @ApiPropertyOptional({ description: "排序" })

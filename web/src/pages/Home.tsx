@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Row, Col, Card, Statistic, Button, Select, Space, Typography, List, Progress, Grid } from 'antd'
+import { Row, Col, Card, Statistic, Button, Select, Typography, List, Progress, Grid } from 'antd'
 import {
   FileTextOutlined,
   ReadOutlined,
@@ -44,7 +44,7 @@ const Home = () => {
         const data: any = await getCategoryTree()
         setCategoryTree(data || [])
       } catch (error) {
-        logger.error(error)
+        logger.error('获取分类树失败', error)
       }
     }
     fetchData()
