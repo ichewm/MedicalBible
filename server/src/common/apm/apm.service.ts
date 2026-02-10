@@ -592,15 +592,12 @@ export class ApmService implements OnModuleInit, OnModuleDestroy {
     return await tracer.startActiveSpan(name, async (span) => {
       try {
         const result = await fn();
-        span.setStatus({ code: SpanStatusCode.OK });
         return result;
       } catch (error) {
-        span.recordException(error as Error);
-        span.setStatus({ code: SpanStatusCode.ERROR, message: (error as Error).message });
+        // Note: startActiveSpan automatically records exceptions and ends the span
         throw error;
-      } finally {
-        span.end();
       }
+      // Note: span.end() is called automatically by startActiveSpan when the callback completes
     });
   }
 

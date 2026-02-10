@@ -19,6 +19,7 @@ import { Profession } from "../../entities/profession.entity";
 import { VerificationCode } from "../../entities/verification-code.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import { UploadService } from "../upload/upload.service";
+import { SensitiveWordService } from "../../common/filter/sensitive-word.service";
 
 describe("UserService", () => {
   let service: UserService;
@@ -118,6 +119,14 @@ describe("UserService", () => {
     deleteFile: jest.fn(),
   };
 
+  const mockSensitiveWordService = {
+    containsSensitiveWord: jest.fn(),
+    findSensitiveWords: jest.fn(),
+    replaceSensitiveWords: jest.fn(),
+    validateNickname: jest.fn(),
+    addWords: jest.fn(),
+  };
+
   const mockVerificationCodeRepository = {
     findOne: jest.fn(),
     update: jest.fn(),
@@ -158,6 +167,10 @@ describe("UserService", () => {
         {
           provide: UploadService,
           useValue: mockUploadService,
+        },
+        {
+          provide: SensitiveWordService,
+          useValue: mockSensitiveWordService,
         },
       ],
     }).compile();
@@ -216,14 +229,16 @@ describe("UserService", () => {
     it("应该成功更新用户名", async () => {
       // Arrange
       const updatedUser = { ...mockUser, username: "新用户名" };
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockUserRepository.save.mockResolvedValue(updatedUser);
       mockSubscriptionRepository.find.mockResolvedValue([mockSubscription]);
+      mockSensitiveWordService.validateNickname.mockReturnValue({ valid: true });
 
-      // 第二次 findOne 调用（getProfile 中）需要返回更新后的用户
+      // 两次 findOne 调用:
+      // 1. updateProfile 中检查用户是否存在
+      // 2. getProfile 中查找用户（返回更新后的）
       mockUserRepository.findOne
-        .mockResolvedValueOnce(mockUser)
-        .mockResolvedValueOnce(updatedUser);
+        .mockResolvedValueOnce(mockUser)      // updateProfile 中检查用户
+        .mockResolvedValueOnce(updatedUser);  // getProfile 中查找用户
 
       // Act
       const result = await service.updateProfile(1, { username: "新用户名" });
@@ -237,14 +252,15 @@ describe("UserService", () => {
       // Arrange
       const newAvatarUrl = "https://example.com/new-avatar.jpg";
       const updatedUser = { ...mockUser, avatarUrl: newAvatarUrl };
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
       mockUserRepository.save.mockResolvedValue(updatedUser);
       mockSubscriptionRepository.find.mockResolvedValue([mockSubscription]);
 
-      // 两次 findOne 调用
+      // 两次 findOne 调用:
+      // 1. updateProfile 中检查用户是否存在
+      // 2. getProfile 中查找用户（返回更新后的）
       mockUserRepository.findOne
-        .mockResolvedValueOnce(mockUser)
-        .mockResolvedValueOnce(updatedUser);
+        .mockResolvedValueOnce(mockUser)      // updateProfile 中检查用户
+        .mockResolvedValueOnce(updatedUser);  // getProfile 中查找用户
 
       // Act
       const result = await service.updateProfile(1, {
