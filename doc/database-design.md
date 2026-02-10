@@ -280,12 +280,13 @@
 | 字段名 | 类型 | 必填 | 说明 |
 |---|---|---|---|
 | id | BIGINT | YES | 主键，自增 |
-| code | VARCHAR(50) | YES | 模板代码（唯一） |
+| code | VARCHAR(100) | YES | 模板代码（唯一） |
+| name | VARCHAR(255) | YES | 模板名称 |
 | channel | ENUM | YES | 通知渠道：email, sms, in_app |
 | type | ENUM | YES | 通知类型：account, order, subscription, commission, withdrawal, marketing, system |
 | title_template | VARCHAR(255) | YES | 标题模板（支持 `{{变量名}}` 占位符） |
 | content_template | TEXT | YES | 内容模板（支持 `{{变量名}}` 占位符） |
-| description | VARCHAR(200) | NO | 模板说明 |
+| variables | JSON | NO | 模板变量说明，JSON 格式存储 |
 | is_enabled | BOOLEAN | YES | 是否启用 |
 | created_at | DATETIME | YES | 创建时间 |
 | updated_at | DATETIME | YES | 更新时间 |
@@ -337,26 +338,28 @@ erDiagram
     users ||--o{ notifications : "接收通知"
     users ||--o{ notification_preferences : "通知偏好"
     users }o--|| users : "推广关系(parent_id)"
-    
+
     professions ||--o{ levels : "包含"
     levels ||--o{ subjects : "包含"
     levels ||--o{ sku_prices : "定价"
     levels ||--o{ orders : "购买"
     levels ||--o{ subscriptions : "权益"
-    
+
     subjects ||--o{ papers : "包含"
     subjects ||--o{ lectures : "包含"
-    
+
     papers ||--o{ questions : "包含"
     papers ||--o{ exam_sessions : "考试"
-    
+
     questions ||--o{ user_answers : "作答"
     questions ||--o{ user_wrong_books : "错题"
-    
+
     lectures ||--o{ lecture_highlights : "重点"
     lectures ||--o{ reading_progress : "进度"
-    
+
     orders ||--o{ commissions : "产生佣金"
+
+    notification_templates ||--o{ notifications : "使用模板"
 ```
 
 ---
@@ -394,7 +397,8 @@ erDiagram
 | notifications | user_id, channel, type | INDEX | 通知筛选查询 |
 | notifications | status, scheduled_at | INDEX | 计划发送通知查询 |
 | notifications | status, retry_count | INDEX | 失败重试查询 |
-| notification_templates | code, channel | UNIQUE | 模板代码唯一 |
+| notification_templates | code | UNIQUE | 模板代码唯一 |
+| notification_templates | code, channel | INDEX | 模板代码和渠道组合查询 |
 | notification_preferences | user_id | UNIQUE | 用户偏好唯一 |
 
 ### 9.1 索引策略说明
