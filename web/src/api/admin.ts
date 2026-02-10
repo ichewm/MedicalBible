@@ -1,5 +1,180 @@
 import request from '@/utils/request'
 
+// ==================== 系统配置 ====================
+
+// 基础系统配置 (管理员专用)
+// Note: auth.ts exports getSystemConfig for public config (/auth/config)
+// This function is for admin config (/admin/config)
+export function getAdminSystemConfig() {
+  return request.get('/admin/config')
+}
+
+export function updateSystemConfig(data: {
+  registrationEnabled?: boolean
+  maxDevices?: number
+  commissionRate?: number
+  minWithdrawal?: number
+  commissionLockDays?: number
+  testMode?: boolean
+}) {
+  return request.put('/admin/config', data)
+}
+
+// 验证码配置
+export function getCaptchaConfig() {
+  return request.get('/admin/config/captcha')
+}
+
+export function updateCaptchaConfig(data: {
+  codeSendInterval?: number
+  codeErrorLimit?: number
+  emailCodeTemplate?: string
+}) {
+  return request.put('/admin/config/captcha', data)
+}
+
+// 邮件配置
+export function getEmailConfig() {
+  return request.get('/admin/config/email')
+}
+
+export function updateEmailConfig(data: {
+  provider?: string
+  smtpHost?: string
+  smtpPort?: number
+  smtpUser?: string
+  smtpPass?: string
+  fromName?: string
+  useSSL?: boolean
+}) {
+  return request.put('/admin/config/email', data)
+}
+
+// 短信配置
+export function getSmsConfig() {
+  return request.get('/admin/config/sms')
+}
+
+export function updateSmsConfig(data: {
+  provider?: string
+  // 阿里云
+  aliyunAccessKeyId?: string
+  aliyunAccessKeySecret?: string
+  aliyunSignName?: string
+  aliyunTemplateCode?: string
+  // 腾讯云
+  tencentSecretId?: string
+  tencentSecretKey?: string
+  tencentAppId?: string
+  tencentSignName?: string
+  tencentTemplateId?: string
+  // 容联云
+  ronglianAccountSid?: string
+  ronglianAuthToken?: string
+  ronglianAppId?: string
+  ronglianTemplateId?: string
+}) {
+  return request.put('/admin/config/sms', data)
+}
+
+// 支付配置
+export function getPaymentConfig() {
+  return request.get('/admin/config/payment')
+}
+
+export function updatePaymentConfig(data: {
+  // 微信支付
+  wechatEnabled?: boolean
+  wechatAppId?: string
+  wechatMchId?: string
+  wechatApiKey?: string
+  wechatApiV3Key?: string
+  wechatNotifyUrl?: string
+  // 支付宝
+  alipayEnabled?: boolean
+  alipayAppId?: string
+  alipayPrivateKey?: string
+  alipayNotifyUrl?: string
+  alipayReturnUrl?: string
+  // PayPal
+  paypalEnabled?: boolean
+  paypalClientId?: string
+  paypalClientSecret?: string
+  paypalMode?: string
+  // Stripe
+  stripeEnabled?: boolean
+  stripePublishableKey?: string
+  stripeSecretKey?: string
+  stripeMode?: string
+}) {
+  return request.put('/admin/config/payment', data)
+}
+
+// 存储配置
+export function getStorageConfig() {
+  return request.get('/admin/config/storage')
+}
+
+export function updateStorageConfig(data: {
+  storage_provider?: string
+  storage_cdn_domain?: string
+  // 本地
+  storage_local_path?: string
+  storage_local_url?: string
+  // OSS
+  storage_oss_region?: string
+  storage_oss_access_key_id?: string
+  storage_oss_access_key_secret?: string
+  storage_oss_bucket?: string
+  storage_oss_endpoint?: string
+  // COS
+  storage_cos_region?: string
+  storage_cos_secret_id?: string
+  storage_cos_secret_key?: string
+  storage_cos_bucket?: string
+  // S3
+  storage_s3_region?: string
+  storage_s3_access_key_id?: string
+  storage_s3_secret_access_key?: string
+  storage_s3_bucket?: string
+  storage_s3_endpoint?: string
+  // MinIO
+  storage_minio_endpoint?: string
+  storage_minio_port?: string
+  storage_minio_access_key?: string
+  storage_minio_secret_key?: string
+  storage_minio_bucket?: string
+  storage_minio_use_ssl?: string
+}) {
+  return request.put('/admin/config/storage', data)
+}
+
+// 协议管理
+export function getAgreements() {
+  return request.get('/admin/agreements')
+}
+
+export function updateAgreement(type: 'termsOfService' | 'privacyPolicy', content: string) {
+  return request.put(`/admin/agreements/${type}`, { content })
+}
+
+// 测试环境配置
+export function getTestEnvConfig() {
+  return request.get('/admin/config/test-env')
+}
+
+export function updateTestEnvConfig(data: {
+  testModeEnabled?: boolean
+  paymentTestMode?: boolean
+}) {
+  return request.put('/admin/config/test-env', data)
+}
+
+// 清空测试数据
+export function clearTestData(confirmText: string) {
+  return request.post('/admin/test-data/clear', { confirmText })
+}
+
 // ==================== 仪表盘 & 统计 ====================
 
 export function getDashboardStats() {
@@ -30,10 +205,8 @@ export function updateUserStatus(id: number, status: number) {
 }
 
 // ==================== 内容管理 (SKU) ====================
-
-export function getProfessions() {
-  return request.get('/sku/professions')
-}
+// Admin operations for SKU CRUD - use sku.ts for public read operations
+// Import getProfessions, getLevelsByProfession, etc. from @/api/sku for reads
 
 export function createProfession(data: { name: string; description?: string; sortOrder?: number }) {
   return request.post('/sku/professions', data)

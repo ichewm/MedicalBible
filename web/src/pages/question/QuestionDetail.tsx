@@ -237,12 +237,6 @@ const QuestionDetail = () => {
     }
   }
 
-  // 添加 ref
-  void (function () {
-    const touchStartXRef = useRef(0)
-    void touchStartXRef
-  }())
-
   if (loading) return <Card loading />
   if (!currentQuestion) return (
     <Card>

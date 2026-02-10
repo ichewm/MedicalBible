@@ -66,12 +66,6 @@ class MockSpeechRecognition {
   }
 }
 
-// Mock factory function
-void (function () {
-  const _createMockSpeechRecognition = () => new MockSpeechRecognition()
-  void _createMockSpeechRecognition
-}())
-
 describe('VoiceRecognitionService', () => {
   let service: VoiceRecognitionService
   let mockRecognition: MockSpeechRecognition
