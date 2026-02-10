@@ -3,10 +3,9 @@
  * @description 测试主布局组件的 WebSocket 实时未读消息数更新功能 (BUG-001)
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { act, waitFor } from '@testing-library/react'
 import { useAuthStore } from '@/stores/auth'
 import request from '@/utils/request'
-import { logger } from '@/utils'
 
 // Mock socket.io-client
 vi.mock('socket.io-client', () => ({
