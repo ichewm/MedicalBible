@@ -7,7 +7,7 @@
 
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, DataSource } from "typeorm";
 import { RbacService } from "./rbac.service";
 import { Role } from "../../entities/role.entity";
 import { Permission, Resource, Action } from "../../entities/permission.entity";
@@ -124,6 +124,19 @@ describe("RbacService", () => {
     save: jest.fn(),
   };
 
+  const mockDataSource = {
+    transaction: jest.fn().mockImplementation(async (callback) => {
+      // Create a mock EntityManager for transaction callback
+      const mockEntityManager = {
+        count: jest.fn().mockResolvedValue(0),
+        findOne: jest.fn(),
+        create: jest.fn(),
+        save: jest.fn(),
+      };
+      return callback(mockEntityManager);
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -139,6 +152,10 @@ describe("RbacService", () => {
         {
           provide: getRepositoryToken(RolePermission),
           useValue: mockRolePermissionRepository,
+        },
+        {
+          provide: DataSource,
+          useValue: mockDataSource,
         },
       ],
     }).compile();

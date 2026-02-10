@@ -131,13 +131,6 @@ describe("UserService", () => {
     update: jest.fn(),
   };
 
-  const mockSensitiveWordService = {
-    containsSensitiveWord: jest.fn().mockReturnValue(false),
-    findSensitiveWords: jest.fn().mockReturnValue([]),
-    replaceSensitiveWords: jest.fn().mockImplementation((text: string) => text),
-    validateNickname: jest.fn().mockReturnValue({ valid: true }),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [

@@ -7,7 +7,7 @@
 
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, DataSource } from "typeorm";
+import { Repository, DataSource, EntityManager } from "typeorm";
 import { Role } from "../../entities/role.entity";
 import { Permission, Resource, Action } from "../../entities/permission.entity";
 import { RolePermission } from "../../entities/role-permission.entity";
@@ -86,7 +86,7 @@ export class RbacService implements OnModuleInit {
    * @returns 权限映射（按名称索引）
    */
   private async createPermissions(
-    manager: Parameters<DataSource["transaction"]>[0],
+    manager: EntityManager,
   ): Promise<Map<string, Permission>> {
     const permissionMap = new Map<string, Permission>();
 
@@ -187,7 +187,7 @@ export class RbacService implements OnModuleInit {
    * @returns 角色映射（按名称索引）
    */
   private async createRoles(
-    manager: Parameters<DataSource["transaction"]>[0],
+    manager: EntityManager,
   ): Promise<Map<string, Role>> {
     const roleMap = new Map<string, Role>();
 
@@ -251,7 +251,7 @@ export class RbacService implements OnModuleInit {
    * @param permissions 权限映射
    */
   private async assignPermissionsToRoles(
-    manager: Parameters<DataSource["transaction"]>[0],
+    manager: EntityManager,
     roles: Map<string, Role>,
     permissions: Map<string, Permission>,
   ): Promise<void> {

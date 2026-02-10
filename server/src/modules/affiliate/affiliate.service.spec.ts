@@ -23,7 +23,6 @@ import {
   WithdrawalQueryDto,
   InviteeQueryDto,
 } from "./dto/affiliate.dto";
-import { TransactionService } from "../../common/database/transaction.service";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -364,10 +363,10 @@ describe("AffiliateService", () => {
       // Act
       const result = await service.getCommissionStats(1);
 
-      // Assert - availableCommission uses user.balance, not the availableResult query
+      // Assert - availableCommission uses the availableResult query, not user.balance
       expect(result.totalCommission).toBe(100);
-      // 注意：availableCommission 实际上是用户余额，不是可用佣金总和
-      expect(result.availableCommission).toBe(100); // availableCommission = user.balance
+      // availableCommission is the sum of AVAILABLE status commissions, not user balance
+      expect(result.availableCommission).toBe(80); // availableResult query returns 80
       expect(result.frozenCommission).toBe(20);
       expect(result.balance).toBe(100);
       expect(result.minWithdrawal).toBe(10);
