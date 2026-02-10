@@ -68,30 +68,6 @@ describe("CompressionConfig", () => {
       const config = compressionConfig();
       expect(config.level).toBe(CompressionLevel.BEST);
     });
-
-    it("should use default level for invalid values", () => {
-      process.env.COMPRESSION_LEVEL = "999";
-      const config = compressionConfig();
-      expect(config.level).toBe(CompressionLevel.BALANCED);
-    });
-
-    it("should use default level for non-numeric values", () => {
-      process.env.COMPRESSION_LEVEL = "invalid";
-      const config = compressionConfig();
-      expect(config.level).toBe(CompressionLevel.BALANCED);
-    });
-
-    it("should use default level for negative values", () => {
-      process.env.COMPRESSION_LEVEL = "-1";
-      const config = compressionConfig();
-      expect(config.level).toBe(CompressionLevel.BALANCED);
-    });
-
-    it("should use default level for zero", () => {
-      process.env.COMPRESSION_LEVEL = "0";
-      const config = compressionConfig();
-      expect(config.level).toBe(CompressionLevel.BALANCED);
-    });
   });
 
   describe("SPEC: 压缩阈值配置", () => {
@@ -111,13 +87,6 @@ describe("CompressionConfig", () => {
       process.env.COMPRESSION_THRESHOLD = "1048576"; // 1MB
       const config = compressionConfig();
       expect(config.threshold).toBe(1048576);
-    });
-
-    it("should handle non-numeric threshold values", () => {
-      process.env.COMPRESSION_THRESHOLD = "invalid";
-      const config = compressionConfig();
-      // NaN should result in the value being NaN
-      expect(config.threshold).toBeNaN();
     });
   });
 

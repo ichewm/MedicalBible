@@ -6,89 +6,86 @@
  */
 
 import { registerAs } from "@nestjs/config";
+import { rateLimitConfigSchema } from "./config.schema";
 
 /**
  * 限流配置对象
  * @description 基于环境变量的动态限流配置
  */
 export const rateLimitConfig = registerAs("rateLimit", () => {
-  // 从环境变量获取是否启用限流，默认启用
-  const enabled = process.env.RATE_LIMIT_ENABLED !== "false";
+  const rawConfig = {
+    // 是否启用限流
+    enabled: process.env.RATE_LIMIT_ENABLED,
+    // 全局限流配置
+    globalLimit: process.env.RATE_LIMIT_GLOBAL_MAX,
+    globalWindow: process.env.RATE_LIMIT_GLOBAL_WINDOW,
+    // 认证端点限流配置
+    authLimit: process.env.RATE_LIMIT_AUTH_MAX,
+    authWindow: process.env.RATE_LIMIT_AUTH_WINDOW,
+    // 普通端点限流配置
+    standardLimit: process.env.RATE_LIMIT_STANDARD_MAX,
+    standardWindow: process.env.RATE_LIMIT_STANDARD_WINDOW,
+    // 验证码端点限流配置
+    verificationCodeLimit: process.env.RATE_LIMIT_VERIFICATION_MAX,
+    verificationCodeWindow: process.env.RATE_LIMIT_VERIFICATION_WINDOW,
+    // 严格端点限流配置（注册、重置密码等）
+    strictLimit: process.env.RATE_LIMIT_STRICT_MAX,
+    strictWindow: process.env.RATE_LIMIT_STRICT_WINDOW,
+    // 宽松端点限流配置
+    relaxedLimit: process.env.RATE_LIMIT_RELAXED_MAX,
+    relaxedWindow: process.env.RATE_LIMIT_RELAXED_WINDOW,
+    // 限流键前缀
+    keyPrefix: process.env.RATE_LIMIT_KEY_PREFIX,
+    // Redis 不可用时是否跳过限流检查
+    skipOnRedisError: process.env.RATE_LIMIT_SKIP_ON_REDIS_ERROR,
+  };
 
-  // 全局限流配置
-  const globalLimit = parseInt(process.env.RATE_LIMIT_GLOBAL_MAX || "1000", 10);
-  const globalWindow = parseInt(process.env.RATE_LIMIT_GLOBAL_WINDOW || "60", 10);
-
-  // 认证端点限流配置
-  const authLimit = parseInt(process.env.RATE_LIMIT_AUTH_MAX || "10", 10);
-  const authWindow = parseInt(process.env.RATE_LIMIT_AUTH_WINDOW || "3600", 10);
-
-  // 普通端点限流配置
-  const standardLimit = parseInt(process.env.RATE_LIMIT_STANDARD_MAX || "30", 10);
-  const standardWindow = parseInt(process.env.RATE_LIMIT_STANDARD_WINDOW || "60", 10);
-
-  // 验证码端点限流配置
-  const verificationCodeLimit = parseInt(
-    process.env.RATE_LIMIT_VERIFICATION_MAX || "10",
-    10,
-  );
-  const verificationCodeWindow = parseInt(
-    process.env.RATE_LIMIT_VERIFICATION_WINDOW || "86400",
-    10,
-  );
-
-  // 严格端点限流配置（注册、重置密码等）
-  const strictLimit = parseInt(process.env.RATE_LIMIT_STRICT_MAX || "5", 10);
-  const strictWindow = parseInt(process.env.RATE_LIMIT_STRICT_WINDOW || "60", 10);
-
-  // 宽松端点限流配置
-  const relaxedLimit = parseInt(process.env.RATE_LIMIT_RELAXED_MAX || "100", 10);
-  const relaxedWindow = parseInt(process.env.RATE_LIMIT_RELAXED_WINDOW || "60", 10);
+  const validatedConfig = rateLimitConfigSchema.parse(rawConfig);
 
   return {
     /** 是否启用限流 */
-    enabled,
+    enabled: validatedConfig.enabled,
 
     /** 全局限流配置 */
     global: {
-      limit: globalLimit,
-      window: globalWindow,
+      limit: validatedConfig.globalLimit,
+      window: validatedConfig.globalWindow,
     },
 
     /** 认证端点限流配置（登录、刷新令牌等） */
     auth: {
-      limit: authLimit,
-      window: authWindow,
+      limit: validatedConfig.authLimit,
+      window: validatedConfig.authWindow,
     },
 
     /** 普通端点限流配置 */
     standard: {
-      limit: standardLimit,
-      window: standardWindow,
+      limit: validatedConfig.standardLimit,
+      window: validatedConfig.standardWindow,
     },
 
     /** 验证码端点限流配置 */
     verificationCode: {
-      limit: verificationCodeLimit,
-      window: verificationCodeWindow,
+      limit: validatedConfig.verificationCodeLimit,
+      window: validatedConfig.verificationCodeWindow,
     },
 
     /** 严格端点限流配置（注册、重置密码等） */
     strict: {
-      limit: strictLimit,
-      window: strictWindow,
+      limit: validatedConfig.strictLimit,
+      window: validatedConfig.strictWindow,
     },
 
     /** 宽松端点限流配置 */
     relaxed: {
-      limit: relaxedLimit,
-      window: relaxedWindow,
+      limit: validatedConfig.relaxedLimit,
+      window: validatedConfig.relaxedWindow,
     },
 
     /** 限流键前缀 */
-    keyPrefix: process.env.RATE_LIMIT_KEY_PREFIX || "rate_limit",
+    keyPrefix: validatedConfig.keyPrefix,
 
     /** Redis 不可用时是否跳过限流检查 */
-    skipOnRedisError: process.env.RATE_LIMIT_SKIP_ON_REDIS_ERROR === "true",
+    skipOnRedisError: validatedConfig.skipOnRedisError,
   };
 });

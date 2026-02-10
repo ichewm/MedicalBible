@@ -415,6 +415,12 @@ npm run dev
 
 ## 🔐 安全
 
+- **配置验证 (DATA-002)**: 应用启动时自动验证所有环境变量
+  - 在应用启动前验证所有必需的配置项
+  - 提供清晰的错误消息和修复建议
+  - JWT_SECRET 至少需要 32 个字符
+  - 生产环境禁止使用通配符 CORS
+  - 支持按命名空间验证单个配置模块
 - **CORS 配置**: 环境级域名白名单，生产环境禁止通配符
 - **安全头**: Helmet 中间件防护常见 Web 漏洞
 - **安全头配置** (SEC-006):
@@ -950,6 +956,14 @@ interface ErrorResponse {
 - ✅ 完整的 E2E 测试覆盖（输入清洗功能）
 ### v1.8.0 (2026-02-10)
 
+- ✅ **配置验证** (DATA-002): 应用启动时环境变量验证
+  - Zod schema 定义所有配置命名空间
+  - 启动前验证所有必需的配置项
+  - 清晰的错误消息和修复建议
+  - JWT_SECRET 至少 32 个字符
+  - 生产环境禁止通配符 CORS
+  - 支持按命名空间验证单个配置
+  - 完整的单元测试和 E2E 测试覆盖
 - 🔌 **集中式 API 客户端 (API-002)**: 统一前端 HTTP 请求处理
   - 创建集中式 API 客户端模块 (`web/src/utils/request.ts`)
   - 实现请求/响应拦截器
@@ -958,7 +972,6 @@ interface ErrorResponse {
   - 新增 React API hooks (useApi, useMutation, usePagination)
   - 完整的 TypeScript 类型支持和错误码枚举
   - 单元测试覆盖（新增 4 个测试文件）
-
 - ✅ **CDN 集成** (FEAT-004): 静态资源 CDN 加速与缓存管理
   - 支持多种存储后端（AWS S3、阿里云 OSS、腾讯云 COS、MinIO）
   - 支持 CloudFront 和 Cloudflare CDN 缓存失效
