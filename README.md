@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -224,8 +224,9 @@ chmod +x deploy.sh
 - **缓存**: Redis 6.2 + CacheService (Cache-Aside 模式)
 - **断路器**: opossum (Circuit Breaker 模式保护外部服务调用)
 - **ORM**: TypeORM
+- **WebSocket**: Socket.io (实时客服消息，支持连接限制、离线消息队列、心跳检测)
 - **文档**: Swagger/OpenAPI
-- **测试**: Jest (299个测试 + 集成测试)
+- **测试**: Jest（单元测试 + 集成测试）
 
 ### 前端技术
 
@@ -417,6 +418,12 @@ npm run dev
 - SQL 注入防护
 - XSS 防护
 - CSRF 防护
+- **WebSocket 安全 (API-003)**:
+  - JWT Token 认证（连接时验证）
+  - 每用户最大连接数限制（默认3个连接）
+  - 心跳检测和超时断开（25秒心跳，60秒超时）
+  - 消息队列支持离线用户（7天TTL）
+  - 自动重连策略（1秒-30秒指数退避，最多10次尝试）
 - **Rate Limiting (SEC-001)**: 基于 Redis 的滑动窗口限流
   - 认证端点限流（登录：10次/小时，注册：5次/分钟）
   - 验证码限流（10次/天）
@@ -450,6 +457,21 @@ npm run dev
   - `RATE_LIMIT_VERIFICATION_MAX`: 验证码限流次数 (默认: 10)
   - `RATE_LIMIT_VERIFICATION_WINDOW`: 验证码时间窗口秒 (默认: 86400)
 - 速率限制响应头：`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+
+**WebSocket 配置说明 (API-003)**:
+- 基于 Socket.io 的实时客服消息系统
+- 支持每用户多连接管理（默认最多3个同时连接）
+- 心跳检测机制防止僵尸连接（25秒间隔，60秒超时）
+- 离线消息队列存储（Redis，默认7天TTL）
+- 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
+- 可通过环境变量配置：
+  - `WS_MAX_CONNECTIONS_PER_USER`: 每用户最大连接数 (默认: 3)
+  - `WS_HEARTBEAT_INTERVAL`: 心跳间隔毫秒 (默认: 25000)
+  - `WS_CONNECTION_TIMEOUT`: 连接超时毫秒 (默认: 60000)
+  - `WS_MESSAGE_QUEUE_TTL`: 消息队列TTL秒 (默认: 604800)
+  - `WS_RECONNECT_DELAY_MIN`: 重连最小延迟毫秒 (默认: 1000)
+  - `WS_RECONNECT_DELAY_MAX`: 重连最大延迟毫秒 (默认: 30000)
+  - `WS_MAX_RECONNECT_ATTEMPTS`: 最大重连尝试次数 (默认: 10)
 
 ## 🗄️ 缓存管理 API
 
@@ -578,6 +600,15 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.8.0 (2026-02-10)
+
+- 🔌 **WebSocket 连接限制和优化 (API-003)**: 实时客服消息系统增强
+  - 每用户最大连接数限制（默认3个，支持环境变量配置）
+  - 离线消息队列支持（Redis，默认7天TTL）
+  - 连接心跳检测和超时断开（25秒心跳间隔，60秒超时）
+  - 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
+  - 完整的 WebSocket 配置单元测试覆盖
 
 ### v1.7.0 (2026-02-09)
 
