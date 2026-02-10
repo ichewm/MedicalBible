@@ -224,7 +224,304 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 
 ---
 
-## 5. 断路器模式 (Circuit Breaker Pattern)
+## 5. WebSocket 实时通信 (WebSocket)
+
+### 概述
+
+系统使用 Socket.io 提供实时通信能力，主要用于客服聊天功能。WebSocket 实现包含连接限制、离线消息队列、心跳检测和自动重连策略。
+
+**位置**: `server/src/modules/chat/chat.gateway.ts`
+
+**配置**: `server/src/config/websocket.config.ts`
+
+### 连接管理
+
+#### 连接限制
+
+- **每用户最大连接数**: 默认 3 个并发连接（管理员不受限制）
+- **连接计数存储**: Redis 存储用户连接计数，24小时过期
+- **多设备支持**: 用户可同时从多个设备连接（Web、移动端等）
+
+#### 认证与授权
+
+- **JWT Token 验证**: 连接时必须提供有效的 JWT token
+- **Token 来源**: 从 `handshake.auth.token` 或 `Authorization` header 获取
+- **角色验证**: 支持 user 和 admin 两种角色
+
+### 心跳检测
+
+#### 配置参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `WS_HEARTBEAT_INTERVAL` | 25000ms | 心跳检测间隔 |
+| `WS_CONNECTION_TIMEOUT` | 60000ms | 连接超时时间 |
+
+#### 心跳机制
+
+1. **客户端发送心跳**: 定期发送 `heartbeat` 事件，包含时间戳
+2. **服务器响应**: 返回 `heartbeatAck` 事件，包含服务器时间
+3. **超时检测**: 服务器定期检查所有连接，超过超时时间未收到心跳的连接将被断开
+4. **重连提示**: 超时连接会收到 `reconnectRequested` 事件
+
+### 离线消息队列
+
+#### 工作原理
+
+- **消息存储**: 当用户离线时，消息存储在 Redis 队列中
+- **队列 TTL**: 默认 7 天（604800 秒），过期自动清除
+- **消息投递**: 用户重新连接时，自动发送队列中的所有离线消息
+- **队列清理**: 消息投递后自动从队列中删除
+
+#### Redis 键结构
+
+```
+ws:message_queue:{userId}    # 离线消息队列
+ws:connection_count:{userId} # 连接计数
+ws:reconnect_state:{userId}  # 重连状态
+```
+
+### 重连策略
+
+#### 客户端配置
+
+连接成功后，服务器返回以下重连配置：
+
+```json
+{
+  "socketId": "xxx",
+  "reconnectDelayMin": 1000,    // 最小重连延迟
+  "reconnectDelayMax": 30000,   // 最大重连延迟
+  "maxReconnectAttempts": 10    // 最大重连次数
+}
+```
+
+#### 重连过程
+
+1. 连接超时后收到 `reconnectRequested` 事件
+2. 客户端使用指数退避算法计算重连延迟
+3. 达到最大重连次数后停止尝试
+
+### WebSocket 事件
+
+#### 客户端发送事件
+
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `heartbeat` | `{timestamp}` | 心跳检测 |
+| `sendMessage` | `SendMessageDto` | 学员发送消息 |
+| `adminSendMessage` | `{conversationId, content, contentType}` | 管理员发送消息 |
+| `markRead` | - | 学员标记已读 |
+| `adminMarkRead` | `{conversationId}` | 管理员标记已读 |
+| `getReconnectState` | - | 获取重连状态 |
+
+#### 服务器发送事件
+
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `connected` | `{socketId, reconnectDelayMin, ...}` | 连接成功 |
+| `connectionError` | `{code, message}` | 连接错误 |
+| `heartbeatAck` | `{timestamp, serverTime}` | 心跳响应 |
+| `queuedMessages` | `{messages, count}` | 离线消息 |
+| `newMessage` | `{message}` | 新消息通知 |
+| `reconnectRequested` | `{reason, timestamp}` | 请求重连 |
+
+### 环境变量配置
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `WS_MAX_CONNECTIONS_PER_USER` | 3 | 每用户最大连接数 |
+| `WS_HEARTBEAT_INTERVAL` | 25000 | 心跳间隔（毫秒） |
+| `WS_CONNECTION_TIMEOUT` | 60000 | 连接超时（毫秒） |
+| `WS_MESSAGE_QUEUE_TTL` | 604800 | 消息队列 TTL（秒） |
+| `WS_RECONNECT_DELAY_MIN` | 1000 | 最小重连延迟（毫秒） |
+| `WS_RECONNECT_DELAY_MAX` | 30000 | 最大重连延迟（毫秒） |
+| `WS_MAX_RECONNECT_ATTEMPTS` | 10 | 最大重连次数 |
+
+### 公共方法
+
+#### ChatGateway.notifyUserNewMessage()
+
+通知指定用户有新消息。如果用户在线，直接推送；如果离线，加入消息队列。
+
+```typescript
+notifyUserNewMessage(userId: number, message: any): void
+```
+
+#### ChatGateway.notifyAdminsNewMessage()
+
+通知所有管理员有新消息。
+
+```typescript
+notifyAdminsNewMessage(userId: number, message: any): void
+```
+
+### 安全考虑
+
+1. **JWT 验证**: 所有连接必须提供有效的 JWT token
+2. **CORS 配置**: 从环境变量读取允许的源地址
+3. **连接限制**: 防止单个用户占用过多连接资源
+4. **心跳超时**: 自动清理无效连接
+5. **消息队列 TTL**: 防止离线消息无限累积
+
+---
+
+## 6. RBAC 权限架构 (Role-Based Access Control)
+
+### 权限模型 (Permission Model)
+
+**位置**: `server/src/entities/permission.entity.ts`
+
+RBAC 系统采用 "资源:动作" 的权限命名格式，提供精细化的访问控制。
+
+#### 资源类型 (Resource)
+
+| 资源 | 说明 |
+|------|------|
+| `user` | 用户管理 |
+| `role` | 角色管理 |
+| `permission` | 权限管理 |
+| `question` | 题库管理 |
+| `lecture` | 讲义管理 |
+| `order` | 订单管理 |
+| `affiliate` | 分销管理 |
+| `system` | 系统配置 |
+| `content` | 内容管理 |
+
+#### 动作类型 (Action)
+
+| 动作 | 说明 |
+|------|------|
+| `create` | 创建资源 |
+| `read` | 查看资源 |
+| `update` | 更新资源 |
+| `delete` | 删除资源 |
+| `manage` | 完全管理权限 |
+
+### 权限装饰器 (Permission Decorators)
+
+**位置**: `server/src/common/decorators/permissions.decorator.ts`
+
+#### @RequirePermission 装饰器
+
+要求用户拥有指定权限中的至少一个（OR 逻辑）：
+
+```typescript
+@Post('users')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('user:create')
+async createUser() {
+  // 只有拥有 user:create 权限的用户可以访问
+}
+
+// 多权限：满足其一即可
+@Put('questions/:id')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('question:update', 'question:manage')
+async updateQuestion() {
+  // 拥有 question:update 或 question:manage 权限都可访问
+}
+```
+
+#### @RequireAllPermissions 装饰器
+
+要求用户同时拥有所有指定权限（AND 逻辑）：
+
+```typescript
+@Post('users/:id/roles')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequireAllPermissions('user:update', 'role:read')
+async assignUserRole() {
+  // 需要同时拥有 user:update 和 role:read 权限
+}
+```
+
+### 权限守卫 (PermissionsGuard)
+
+**位置**: `server/src/common/guards/permissions.guard.ts`
+
+守卫工作流程：
+
+1. 检查是否为公开接口（跳过权限验证）
+2. 从路由处理器读取所需权限元数据
+3. 获取当前请求用户的角色
+4. 查询用户角色的所有权限
+5. 验证用户权限是否满足要求
+6. 不满足则抛出 `ForbiddenException`
+
+### 预置角色和权限
+
+**位置**: `server/src/modules/rbac/rbac.service.ts`
+
+系统在首次启动时自动创建以下角色和权限：
+
+#### 角色
+
+| 角色 | 显示名 | 描述 |
+|------|--------|------|
+| `admin` | 系统管理员 | 拥有所有权限 |
+| `teacher` | 教师 | 管理题库和讲义内容 |
+| `student` | 学生 | 只能查看内容 |
+| `user` | 普通用户 | 默认角色，基础读取权限 |
+
+#### 权限分配示例
+
+- **admin**: 所有 43 个权限
+- **teacher**: 题库和讲义的完整 CRUD + 内容读取（15 个权限）
+- **student**: 题库、讲义、内容读取权限（3 个权限）
+- **user**: 题库和讲义读取权限（2 个权限）
+
+### RBAC 服务 (RbacService)
+
+**位置**: `server/src/modules/rbac/rbac.service.ts`
+
+提供以下功能：
+
+- `seedInitialData()`: 初始化角色和权限数据（模块启动时自动执行）
+- `getRolePermissions(roleName)`: 获取角色的所有权限
+- `hasPermission(roleName, permissionName)`: 检查角色是否拥有指定权限
+
+### RBAC API (RbacController)
+
+**位置**: `server/src/modules/rbac/rbac.controller.ts`
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/rbac/health` | GET | RBAC 模块健康检查 |
+| `/rbac/roles/:roleName/permissions` | GET | 获取角色的所有权限 |
+
+### 使用示例
+
+```typescript
+// 在 Controller 中使用权限控制
+@Controller('questions')
+export class QuestionController {
+  @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('question:create')
+  async createQuestion() {
+    // 创建题目
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermission('question:delete', 'question:manage')
+  async deleteQuestion() {
+    // 拥有 question:delete 或 question:manage 任一权限即可删除
+  }
+
+  @Patch(':id/publish')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequireAllPermissions('question:update', 'question:manage')
+  async publishQuestion() {
+    // 需要同时拥有 question:update 和 question:manage 权限
+  }
+}
+```
+
+---
+
+## 7. 断路器模式 (Circuit Breaker Pattern)
 
 ### 断路器服务 (CircuitBreakerService)
 
@@ -375,3 +672,4 @@ this.circuitBreakerService.reset(ExternalService.REDIS);
 2. **优雅降级**: fallback 函数应返回可接受的默认值或执行备用逻辑
 3. **监控告警**: 定期检查断路器状态，及时发现服务异常
 4. **避免级联**: 下游服务故障不应影响上游核心业务
+
