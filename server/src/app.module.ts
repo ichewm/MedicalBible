@@ -24,6 +24,7 @@ import { securityConfig } from "./config/security.config";
 import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
 import { retryConfig } from "./config/retry.config";
+import { cookieConfig } from "./config/cookie.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -88,7 +89,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, retryConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, retryConfig, cookieConfig],
       envFilePath: [".env.local", ".env"],
     }),
 

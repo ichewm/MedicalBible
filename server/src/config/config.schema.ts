@@ -597,3 +597,140 @@ export const appConfigSchema = z.object({
 });
 
 export type AppConfig = z.infer<typeof appConfigSchema>;
+
+/**
+ * Cookie security configuration schema
+ * @description Cookie security settings for httpOnly, secure, and SameSite attributes
+ */
+export const cookieConfigSchema = z
+  .object({
+    enabled: z
+      .union([z.boolean(), z.string()])
+      .default('true')
+      .transform((val) => {
+        if (typeof val === 'boolean') return val;
+        if (val === '') return true;
+        const lower = val.toLowerCase();
+        if (lower === 'false' || lower === '0' || lower === 'no') return false;
+        return true;
+      })
+      .pipe(z.boolean()),
+    security: z.object({
+      secure: z
+        .union([z.boolean(), z.string()])
+        .default('true')
+        .transform((val) => {
+          if (typeof val === 'boolean') return val;
+          if (val === '') return true;
+          const lower = val.toLowerCase();
+          if (lower === 'false' || lower === '0' || lower === 'no') return false;
+          return true;
+        })
+        .pipe(z.boolean()),
+      httpOnly: z
+        .union([z.boolean(), z.string()])
+        .default('true')
+        .transform((val) => {
+          if (typeof val === 'boolean') return val;
+          if (val === '') return true;
+          const lower = val.toLowerCase();
+          if (lower === 'false' || lower === '0' || lower === 'no') return false;
+          return true;
+        })
+        .pipe(z.boolean()),
+      sameSite: z
+        .enum(['strict', 'lax', 'none'])
+        .default('lax'),
+      domain: z.string().optional(),
+      path: z.string().default('/'),
+      maxAge: z
+        .string()
+        .optional()
+        .transform((val, ctx) => {
+          if (!val || val === '') return undefined;
+          const num = Number(val);
+          if (isNaN(num)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'COOKIE_MAX_AGE must be a valid number',
+            });
+            return z.NEVER;
+          }
+          if (num < 0) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'COOKIE_MAX_AGE must be non-negative',
+            });
+            return z.NEVER;
+          }
+          return Math.floor(num);
+        })
+        .pipe(z.number().int().nonnegative().optional()),
+      signed: z
+        .union([z.boolean(), z.string()])
+        .default('false')
+        .transform((val) => {
+          if (typeof val === 'boolean') return val;
+          if (val === '') return false;
+          const lower = val.toLowerCase();
+          if (lower === 'true' || lower === '1' || lower === 'yes') return true;
+          return false;
+        })
+        .pipe(z.boolean()),
+      overwrite: z
+        .union([z.boolean(), z.string()])
+        .default('true')
+        .transform((val) => {
+          if (typeof val === 'boolean') return val;
+          if (val === '') return true;
+          const lower = val.toLowerCase();
+          if (lower === 'false' || lower === '0' || lower === 'no') return false;
+          return true;
+        })
+        .pipe(z.boolean()),
+    }),
+    session: z.object({
+      secure: z.boolean().default(true),
+      httpOnly: z.boolean().default(true),
+      sameSite: z.enum(['strict', 'lax', 'none']).default('lax'),
+      maxAge: z.number().int().nonnegative().optional(),
+      path: z.string().default('/'),
+    }),
+    persistent: z.object({
+      secure: z.boolean().default(true),
+      httpOnly: z.boolean().default(true),
+      sameSite: z.enum(['strict', 'lax', 'none']).default('strict'),
+      maxAge: z.number().int().nonnegative().default(7 * 24 * 60 * 60 * 1000),
+      path: z.string().default('/'),
+    }),
+  })
+  .refine(
+    (data) => {
+      // SameSite=None requires secure=true
+      if (
+        data.security.sameSite === 'none' &&
+        !data.security.secure
+      ) {
+        return false;
+      }
+      if (
+        data.session.sameSite === 'none' &&
+        !data.session.secure
+      ) {
+        return false;
+      }
+      if (
+        data.persistent.sameSite === 'none' &&
+        !data.persistent.secure
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'SameSite=None requires secure=true',
+      path: ['security'],
+    },
+  );
+
+export type CookieConfig = z.infer<typeof cookieConfigSchema>;
