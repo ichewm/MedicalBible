@@ -8,7 +8,14 @@ The application uses TypeORM with MySQL. Critical operations that involve multip
 
 ## TransactionService
 
-The `TransactionService` (`src/common/database/transaction.service.ts`) provides a centralized way to manage database transactions with automatic rollback on error.
+The `TransactionService` (`src/common/database/transaction.service.ts`) provides a centralized way to manage database transactions with automatic rollback on error, deadlock detection, and retry logic.
+
+### Features
+
+- **Automatic rollback on error**: Any error thrown within the transaction callback triggers a rollback
+- **Deadlock detection and retry**: Automatically detects MySQL deadlocks (error codes 1205, 1213, 1217) and retries up to 3 times with exponential backoff
+- **Configurable isolation levels**: Supports READ_UNCOMMITTED, READ_COMMITTED (default), REPEATABLE_READ, SERIALIZABLE
+- **Savepoint support**: Create, rollback to, and release savepoints for partial transaction control
 
 ### Basic Usage
 
@@ -49,31 +56,231 @@ await this.transactionService.runInTransaction(
     // operations
   },
   {
-    maxRetries: 3,           // Maximum retry attempts for deadlocks
-    isolationLevel: 'READ_COMMITTED', // Isolation level
+    maxRetries: 3,                      // Maximum retry attempts for deadlocks
+    isolationLevel: IsolationLevel.READ_COMMITTED, // Isolation level
   }
 );
 ```
 
 ## When to Use Transactions
 
-**CRITICAL - Must use transactions:**
+**CRITICAL - Must use transactions (multi-step writes where partial failure = data corruption):**
+- Authentication flows (verification code marking + user creation/update)
+- Account binding operations (verification code marking + user update)
 - Payment processing (order + subscription + commission)
 - Balance operations (deduct + create record)
 - Withdrawal operations (update status + refund balance)
-- Commission unlocking (update status + add balance)
+- Message operations (message save + conversation update)
+- Password reset/change (password update + verification code marking + token revocation)
 
 **MEDIUM - Consider transactions:**
-- Multi-entity updates
+- Multi-entity updates where consistency is important
 - Cascading operations where one failure should roll back all
 
-**LOW - Single operations:**
+**LOW - Single operations (no transaction needed):**
 - Simple CRUD operations on single entities
 - Read-only queries
+- Non-critical updates
 
 ## Implementation Examples
 
-### 1. Payment Callback (Order Service)
+### 1. Phone/Login with Verification Code (AuthService)
+
+The `loginWithPhone` method marks verification code used, creates/updates user, and handles device login:
+
+```typescript
+async loginWithPhone(
+  dto: LoginWithPhoneDto,
+  ipAddress?: string,
+): Promise<LoginResponseDto> {
+  const { phone, email, code, deviceId, deviceName, inviteCode } = dto;
+
+  // Use transaction to ensure atomicity of:
+  // 1. Mark verification code as used
+  // 2. Create or find user
+  // 3. Update user status if needed
+  // 4. Handle device login
+  const { user, isNewUser } = await this.transactionService.runInTransaction(async (qr) => {
+    const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+    const userRepo = this.transactionService.getRepository(qr, User);
+    const userDeviceRepo = this.transactionService.getRepository(qr, UserDevice);
+
+    // Verify and mark verification code as used
+    const verificationCode = await verificationCodeRepo.findOne({
+      where: { code, type: VerificationCodeType.LOGIN, used: 0 },
+    });
+    if (!verificationCode) {
+      throw new BadRequestException("验证码错误");
+    }
+    await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+    // Find or create user
+    let user = await userRepo.findOne({ where: phone ? { phone } : { email } });
+    if (!user) {
+      user = await this.createNewUserWithRepo(userRepo, phone, inviteCode, email);
+    }
+
+    // Handle device login
+    await this.handleDeviceLoginWithRepo(userDeviceRepo, user.id, deviceId, deviceName, ipAddress);
+
+    return { user, isNewUser: !user };
+  });
+
+  // Generate tokens outside transaction (no database state change)
+  const tokens = await this.generateTokens(user, deviceId);
+  return { ...tokens, user: { ... } };
+}
+```
+
+**File**: `server/src/modules/auth/auth.service.ts:234-332`
+
+### 2. Account Binding (UserService)
+
+The `bindPhone` method marks verification code used and updates user phone atomically:
+
+```typescript
+async bindPhone(userId: number, dto: BindPhoneDto): Promise<BindResponseDto> {
+  const { phone, code } = dto;
+
+  // Use transaction to ensure atomicity of:
+  // 1. Mark verification code as used
+  // 2. Update user phone
+  await this.transactionService.runInTransaction(async (qr) => {
+    const userRepo = this.transactionService.getRepository(qr, User);
+    const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+
+    // Find and validate user
+    const user = await userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException("用户不存在");
+    }
+
+    // Verify and mark verification code as used
+    const verificationCode = await verificationCodeRepo.findOne({
+      where: [
+        { phone, code, type: VerificationCodeType.REGISTER, used: 0 },
+        { phone, code, type: VerificationCodeType.LOGIN, used: 0 },
+      ],
+    });
+    if (!verificationCode) {
+      throw new BadRequestException("验证码错误");
+    }
+    await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+    // Bind phone
+    user.phone = phone;
+    await userRepo.save(user);
+  });
+
+  return { success: true, message: "手机号绑定成功" };
+}
+```
+
+**File**: `server/src/modules/user/user.service.ts:403-467`
+
+### 3. Message Sending (ChatService)
+
+The `sendMessage` method saves message and updates conversation state atomically:
+
+```typescript
+async sendMessage(userId: number, dto: SendMessageDto): Promise<MessageDto> {
+  // Use transaction to ensure atomicity of:
+  // 1. Save message
+  // 2. Update conversation state
+  const result = await this.transactionService.runInTransaction(async (qr) => {
+    const messageRepo = this.transactionService.getRepository(qr, Message);
+    const conversationRepo = this.transactionService.getRepository(qr, Conversation);
+
+    // Get or create conversation
+    const conversation = await this.getOrCreateConversationWithRepo(conversationRepo, userId);
+
+    // Create and save message
+    const message = messageRepo.create({
+      conversationId: conversation.id,
+      senderType: SenderType.USER,
+      senderId: userId,
+      contentType: dto.contentType || ContentType.TEXT,
+      content: dto.content,
+    });
+    const savedMessage = await messageRepo.save(message);
+
+    // Update conversation state
+    conversation.lastMessageAt = new Date();
+    conversation.lastMessagePreview = dto.content.substring(0, 50);
+    conversation.unreadCountAdmin += 1;
+    await conversationRepo.save(conversation);
+
+    return { savedMessage };
+  });
+
+  return {
+    id: result.savedMessage.id,
+    senderType: result.savedMessage.senderType,
+    senderId: result.savedMessage.senderId,
+    contentType: result.savedMessage.contentType,
+    content: result.savedMessage.content,
+    createdAt: result.savedMessage.createdAt,
+  };
+}
+```
+
+**File**: `server/src/modules/chat/chat.service.ts:76-116`
+
+### 4. Password Reset (AuthService)
+
+The `resetPassword` method updates password, marks verification code used, and clears device tokens:
+
+```typescript
+async resetPassword(dto: ResetPasswordDto): Promise<ResetPasswordResponseDto> {
+  const { phone, email, code, newPassword } = dto;
+
+  // Use transaction to ensure atomicity of:
+  // 1. Update user password
+  // 2. Mark verification code as used
+  // 3. Clear device token signatures
+  const result = await this.transactionService.runInTransaction(async (qr) => {
+    const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+    const userRepo = this.transactionService.getRepository(qr, User);
+    const userDeviceRepo = this.transactionService.getRepository(qr, UserDevice);
+
+    // Verify and mark verification code as used
+    const verificationCode = await verificationCodeRepo.findOne({
+      where: { code, type: VerificationCodeType.CHANGE_PASSWORD, used: 0 },
+    });
+    if (!verificationCode) {
+      throw new BadRequestException("验证码错误或已过期");
+    }
+
+    // Find user and update password
+    const user = await userRepo.findOne({
+      where: phone ? { phone } : { email },
+    });
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
+    await userRepo.save(user);
+
+    // Mark verification code as used
+    await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+    // Clear all device token signatures (force re-login)
+    await userDeviceRepo.update(
+      { userId: user.id },
+      { tokenSignature: null },
+    );
+
+    return { userId: user.id };
+  });
+
+  // Revoke refresh token families (outside transaction - uses different service)
+  await this.refreshTokenService.revokeAllUserTokens(result.userId);
+
+  return { success: true, message: "密码重置成功，请重新登录" };
+}
+```
+
+**File**: `server/src/modules/auth/auth.service.ts:1092-1165`
+
+### 5. Payment Callback (OrderService)
 
 The `handlePaymentCallback` method updates order status, creates/updates subscription, and processes commission:
 
@@ -107,7 +314,9 @@ async handlePaymentCallback(
 }
 ```
 
-### 2. Withdrawal Creation (Affiliate Service)
+**File**: `server/src/modules/order/order.service.ts:329-431`
+
+### 6. Withdrawal Creation (AffiliateService)
 
 The `createWithdrawal` method deducts balance and creates withdrawal record atomically:
 
@@ -148,54 +357,52 @@ async createWithdrawal(
 }
 ```
 
-### 3. Commission Unlocking (Affiliate Service)
-
-The `unlockCommissions` cron job updates commission status and user balances:
-
-```typescript
-@Cron(CronExpression.EVERY_5_MINUTES)
-async unlockCommissions(): Promise<{ unlocked: number }> {
-  const frozenCommissions = await this.commissionRepository.find({
-    where: {
-      status: CommissionStatus.FROZEN,
-      unlockAt: LessThanOrEqual(new Date()),
-    },
-  });
-
-  if (frozenCommissions.length === 0) {
-    return { unlocked: 0 };
-  }
-
-  // Transaction for atomic commission + balance updates
-  return this.transactionService.runInTransaction(async (qr) => {
-    const commissionRepo = this.transactionService.getRepository(qr, Commission);
-    const userRepo = this.transactionService.getRepository(qr, User);
-
-    // Update commission status
-    for (const c of frozenCommissions) {
-      c.status = CommissionStatus.AVAILABLE;
-    }
-    await commissionRepo.save(frozenCommissions);
-
-    // Update user balances
-    for (const [userId, amount] of Object.entries(userAmounts)) {
-      const user = await userRepo.findOne({ where: { id: Number(userId) } });
-      user.balance = Number(user.balance) + amount;
-      await userRepo.save(user);
-    }
-
-    return { unlocked: frozenCommissions.length };
-  });
-}
-```
+**File**: `server/src/modules/affiliate/affiliate.service.ts:344-401`
 
 ## Best Practices
 
-1. **Keep transactions short**: Only include necessary database operations
-2. **Do pre-checks outside transaction**: Validation and non-critical queries should run before starting the transaction
-3. **Use consistent error handling**: Let errors propagate to trigger automatic rollback
-4. **Avoid external calls in transactions**: Don't call external APIs or services within a transaction
-5. **Use appropriate isolation levels**: Default is `READ_COMMITTED`, use `SERIALIZABLE` only when necessary
+1. **Keep transactions short**: Only include necessary database operations. Longer transactions hold locks longer and increase deadlock risk.
+
+2. **Do pre-checks outside transaction**: Validation and non-critical queries should run before starting the transaction to avoid holding locks unnecessarily.
+
+   ```typescript
+   // Good: Pre-check outside transaction
+   const existingUser = await this.userRepository.findOne({ where: { email } });
+   if (existingUser) {
+     throw new BadRequestException("Email already exists");
+   }
+
+   await this.transactionService.runInTransaction(async (qr) => {
+     // Actual database operations
+   });
+   ```
+
+3. **Use consistent error handling**: Let errors propagate to trigger automatic rollback. Don't catch and suppress errors within the transaction.
+
+4. **Avoid external calls in transactions**: Don't call external APIs, send emails/SMS, or do other I/O operations within a transaction. These should happen after the transaction commits.
+
+5. **Use appropriate isolation levels**:
+   - `READ_COMMITTED` (default): Good for most cases, prevents dirty reads
+   - `REPEATABLE_READ`: Use when you need consistent reads within the transaction
+   - `SERIALIZABLE`: Highest isolation, use sparingly as it impacts performance
+
+6. **Use helper methods for transaction-aware repositories**: When you have existing methods that need to work within transactions, create `*WithRepo` variants that accept repository parameters.
+
+   ```typescript
+   // Original method (non-transaction)
+   private async handleDeviceLogin(userId: number, deviceId: string): Promise<void> {
+     // Uses this.userDeviceRepository
+   }
+
+   // Transaction-aware variant
+   private async handleDeviceLoginWithRepo(
+     userDeviceRepo: Repository<UserDevice>,
+     userId: number,
+     deviceId: string,
+   ): Promise<void> {
+     // Uses passed repository
+   }
+   ```
 
 ## Error Handling
 
@@ -222,21 +429,97 @@ The service automatically retries on deadlock errors (MySQL error codes 1205, 12
 
 - Default max retries: 3
 - Exponential backoff: 100ms, 200ms, 400ms, etc. (max 1s)
+- Logs each retry attempt for debugging
+
+To customize retry behavior:
+
+```typescript
+await this.transactionService.runInTransaction(
+  async (qr) => { /* ... */ },
+  { maxRetries: 5 }  // Custom retry count
+);
+```
+
+## Savepoints
+
+For complex transactions where you want partial rollback capability:
+
+```typescript
+await this.transactionService.runInTransaction(async (qr) => {
+  // First operation
+  await doSomething(qr);
+
+  // Create a savepoint
+  await this.transactionService.createSavepoint(qr, 'after_first_op');
+
+  try {
+    // Risky operation
+    await doSomethingRisky(qr);
+  } catch (error) {
+    // Rollback to savepoint, keep first operation
+    await this.transactionService.rollbackToSavepoint(qr, 'after_first_op');
+  }
+
+  // Continue with transaction
+  await doMoreStuff(qr);
+
+  // Release savepoint when done
+  await this.transactionService.releaseSavepoint(qr, 'after_first_op');
+});
+```
 
 ## Testing
 
-When testing services that use transactions, mock the `TransactionService`:
+When testing services that use transactions, mock the `TransactionService` to execute callbacks directly:
 
 ```typescript
-const mockTransactionService = {
-  runInTransaction: jest.fn((callback) => callback(mockQueryRunner)),
-  getRepository: jest.fn(),
-};
+describe('MyService', () => {
+  let service: MyService;
+  let mockTransactionService: jest.Mocked<TransactionService>;
+
+  beforeEach(async () => {
+    mockTransactionService = {
+      runInTransaction: jest.fn((callback) => callback(mockQueryRunner)),
+      getRepository: jest.fn(),
+    } as any;
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        MyService,
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
+        },
+      ],
+    }).compile();
+
+    service = module.get<MyService>(MyService);
+  });
+
+  it('should handle transaction-wrapped operation', async () => {
+    // Setup mock repositories
+    mockTransactionService.getRepository.mockReturnValue(mockUserRepo);
+
+    // Test that the callback is executed
+    await service.someMethod();
+
+    expect(mockTransactionService.runInTransaction).toHaveBeenCalled();
+  });
+});
 ```
 
 ## Related Files
 
+**Transaction Service:**
 - `src/common/database/transaction.service.ts` - Transaction service implementation
 - `src/common/database/transaction.service.spec.ts` - Unit tests
-- `src/modules/order/order.service.ts` - Payment callback example
-- `src/modules/affiliate/affiliate.service.ts` - Withdrawal and commission examples
+
+**Services Using Transactions (Reference Examples):**
+- `src/modules/auth/auth.service.ts` - Login, register, password reset
+- `src/modules/user/user.service.ts` - Phone/email binding
+- `src/modules/chat/chat.service.ts` - Message operations
+- `src/modules/order/order.service.ts` - Payment callback (handlePaymentCallback)
+- `src/modules/affiliate/affiliate.service.ts` - Withdrawals and commissions
+
+**Documentation:**
+- `.ralph/plans/REL-007.md` - Implementation plan for transaction rollback strategies
