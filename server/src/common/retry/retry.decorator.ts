@@ -136,7 +136,7 @@ export function Retry(options: RetryOptions = {}) {
 
       // 理论上不会到达这里（因为 maxAttempts >= 1 时，要么成功返回，要么在 catch 中抛出）
       // 使用 definite assignment assertion 告诉 TypeScript lastError 已被赋值
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+       
       throw lastError!;
     };
 

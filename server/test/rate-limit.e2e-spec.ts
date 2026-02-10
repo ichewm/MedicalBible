@@ -21,7 +21,7 @@
 
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe, VersioningType } from "@nestjs/common";
-// @ts-ignore - supertest types are in root node_modules
+// @ts-expect-error - supertest types are in root node_modules
 import request from "supertest";
 import { AppModule } from "../src/app.module";
 
@@ -372,8 +372,7 @@ describe("Rate Limiting E2E Tests", () => {
 
       for (const endpoint of endpoints) {
         const uniqueIp = `${TEST_IP}:${Math.random()}`;
-        const response = await request(app.getHttpServer())
-          [endpoint.method as "post"](endpoint.url)
+        const response = await request(app.getHttpServer())[endpoint.method as "post"](endpoint.url)
           .send(endpoint.body)
           .set("X-Forwarded-For", uniqueIp);
 
@@ -574,8 +573,7 @@ describe("Rate Limiting E2E Tests", () => {
       ];
 
       for (const endpoint of endpoints) {
-        const response = await request(app.getHttpServer())
-          [endpoint.method as "post"](endpoint.url)
+        const response = await request(app.getHttpServer())[endpoint.method as "post"](endpoint.url)
           .send(endpoint.body)
           .set("X-Forwarded-For", `${uniqueIp}:${Math.random()}`);
 

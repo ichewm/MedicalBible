@@ -21,10 +21,10 @@
  * @version 1.0.0
  */
 
+import request from "supertest";
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe, UnauthorizedException, BadRequestException, ExecutionContext } from "@nestjs/common";
- 
-const request = require("supertest");
+
 import { AppModule } from "../src/app.module";
 import { DatabaseMonitoringService } from "../src/common/database/database-monitoring.service";
 import { JwtAuthGuard } from "../src/common/guards/jwt-auth.guard";
