@@ -14,33 +14,31 @@ import {
   SafetyOutlined, EyeOutlined, CloudServerOutlined, BugOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import DOMPurify from 'dompurify'
-import request from '@/utils/request'
 import { logger } from '@/utils'
+import {
+  getAdminSystemConfig,
+  updateSystemConfig,
+  getCaptchaConfig,
+  updateCaptchaConfig,
+  getEmailConfig,
+  updateEmailConfig,
+  getSmsConfig,
+  updateSmsConfig,
+  getPaymentConfig,
+  updatePaymentConfig,
+  getStorageConfig,
+  updateStorageConfig,
+  getAgreements,
+  updateAgreement,
+  getTestEnvConfig,
+  updateTestEnvConfig,
+  clearTestData,
+} from '@/api/admin'
 
 const { Title, Text } = Typography
 const { confirm } = Modal
 const { TextArea } = Input
 const { Option } = Select
-
-// API
-const getSystemConfig = () => request.get('/admin/config')
-const updateSystemConfig = (data: any) => request.put('/admin/config', data)
-const getCaptchaConfig = () => request.get('/admin/config/captcha')
-const updateCaptchaConfig = (data: any) => request.put('/admin/config/captcha', data)
-const getEmailConfig = () => request.get('/admin/config/email')
-const updateEmailConfig = (data: any) => request.put('/admin/config/email', data)
-const getSmsConfig = () => request.get('/admin/config/sms')
-const updateSmsConfig = (data: any) => request.put('/admin/config/sms', data)
-const getPaymentConfig = () => request.get('/admin/config/payment')
-const updatePaymentConfig = (data: any) => request.put('/admin/config/payment', data)
-const getStorageConfig = () => request.get('/admin/config/storage')
-const updateStorageConfig = (data: any) => request.put('/admin/config/storage', data)
-const getAgreements = () => request.get('/admin/agreements')
-const updateAgreement = (type: string, content: string) => 
-  request.put(`/admin/agreements/${type}`, { content })
-const getTestEnvConfig = () => request.get('/admin/config/test-env')
-const updateTestEnvConfig = (data: any) => request.put('/admin/config/test-env', data)
-const clearTestData = (confirmText: string) => request.post('/admin/test-data/clear', { confirmText })
 
 const SystemSettings = () => {
   const [basicForm] = Form.useForm()
@@ -72,7 +70,7 @@ const SystemSettings = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const data: any = await getSystemConfig()
+        const data: any = await getAdminSystemConfig()
         setConfig(data)
         basicForm.setFieldsValue({
           registrationEnabled: data.registrationEnabled !== false,
