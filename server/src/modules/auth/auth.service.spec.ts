@@ -115,8 +115,11 @@ describe("AuthService", () => {
     get: jest.fn((key: string) => {
       const config: Record<string, any> = {
         "jwt.secret": "test-secret",
+        "jwt.refreshTokenSecret": "test-refresh-secret",
         "jwt.expiresIn": "7d",
         "jwt.refreshExpiresIn": "30d",
+        "jwt.accessTokenExpires": "15m",
+        "jwt.refreshTokenExpires": "30d",
       };
       return config[key];
     }),
@@ -143,8 +146,11 @@ describe("AuthService", () => {
       expiresIn: 604800,
     }),
     rotateRefreshToken: jest.fn().mockResolvedValue({
+      accessToken: "new-access-token",
       refreshToken: "new-refresh-token",
-      expiresIn: 604800,
+      tokenType: "Bearer",
+      expiresIn: 900,
+      rotated: true,
     }),
     validateRefreshToken: jest.fn(),
     revokeTokenFamily: jest.fn().mockResolvedValue(undefined),
