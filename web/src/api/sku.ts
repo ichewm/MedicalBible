@@ -41,7 +41,7 @@ export interface SkuPrice {
 }
 
 // 获取分类树（职业-等级-科目）
-export function getCategoryTree() {
+export function getCategoryTree(): Promise<Profession[]> {
   return request.get('/sku/tree')
 }
 

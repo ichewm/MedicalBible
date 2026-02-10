@@ -440,12 +440,12 @@ const SystemSettings = () => {
   }
 
   // 切换测试模式（旧版兼容，后续将移除）
-  const _handleTestModeChange = (checked: boolean) => {
+  void (async function _handleTestModeChange(checked: boolean) {
     const title = checked ? '确认开启测试模式？' : '确认关闭测试模式？'
-    const content = checked 
+    const content = checked
       ? '开启测试模式后，学员在订阅支付时可以直接模拟完成支付，无需真实付款。请确保仅在测试环境使用！'
       : '关闭测试模式后，学员需要通过真实支付才能完成订阅。'
-    
+
     confirm({
       title,
       icon: <ExclamationCircleFilled />,
@@ -467,7 +467,7 @@ const SystemSettings = () => {
         }
       },
     })
-  }
+  })
 
   // 基础设置Tab
   const BasicSettingsTab = () => (

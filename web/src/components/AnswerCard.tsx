@@ -23,7 +23,7 @@ export interface AnswerStatus {
 interface AnswerCardProps {
   open: boolean
   onClose: () => void
-  questions: { id: number; type?: string }[]
+  questions: { id: number; type?: number | string }[]
   answerStatus: Record<number, AnswerStatus>
   currentIndex: number
   onJump: (index: number) => void
