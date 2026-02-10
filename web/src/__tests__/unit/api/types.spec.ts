@@ -1,17 +1,9 @@
 /**
  * @file API Type Definitions 单元测试
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { ApiError, ErrorCode } from '@/api/types'
 import type { ApiResponse, ErrorResponse, ValidationError } from '@/api/types'
-import axios from 'axios'
-
-// Mock axios for fromAxiosError test
-vi.mock('axios', () => ({
-  default: {
-    create: vi.fn(),
-  },
-}))
 
 describe('ErrorCode', () => {
   it('应该定义所有错误码', () => {

@@ -1,7 +1,7 @@
 /**
  * @file Error Handler Utilities 单元测试
  */
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   isAuthError,
   isMembershipError,

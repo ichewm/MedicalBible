@@ -208,11 +208,11 @@ export function updateUserStatus(id: number, status: number) {
 // Admin operations for SKU CRUD - use sku.ts for public read operations
 // Import getProfessions, getLevelsByProfession, etc. from @/api/sku for reads
 
-export function createProfession(data: { name: string; description?: string }) {
+export function createProfession(data: { name: string; description?: string; sortOrder?: number }) {
   return request.post('/sku/professions', data)
 }
 
-export function updateProfession(id: number, data: { name?: string; description?: string }) {
+export function updateProfession(id: number, data: { name?: string; description?: string; sortOrder?: number }) {
   return request.put(`/sku/professions/${id}`, data)
 }
 
@@ -220,11 +220,11 @@ export function deleteProfession(id: number) {
   return request.delete(`/sku/professions/${id}`)
 }
 
-export function createLevel(data: { professionId: number; name: string }) {
+export function createLevel(data: { professionId: number; name: string; sortOrder?: number; commissionRate?: number }) {
   return request.post('/sku/levels', data)
 }
 
-export function updateLevel(id: number, data: { name?: string }) {
+export function updateLevel(id: number, data: { name?: string; sortOrder?: number; commissionRate?: number }) {
   return request.put(`/sku/levels/${id}`, data)
 }
 
@@ -232,11 +232,11 @@ export function deleteLevel(id: number) {
   return request.delete(`/sku/levels/${id}`)
 }
 
-export function createSubject(data: { levelId: number; name: string }) {
+export function createSubject(data: { levelId: number; name: string; sortOrder?: number }) {
   return request.post('/sku/subjects', data)
 }
 
-export function updateSubject(id: number, data: { name?: string }) {
+export function updateSubject(id: number, data: { name?: string; sortOrder?: number }) {
   return request.put(`/sku/subjects/${id}`, data)
 }
 
@@ -244,7 +244,7 @@ export function deleteSubject(id: number) {
   return request.delete(`/sku/subjects/${id}`)
 }
 
-export function createSkuPrice(data: { levelId: number; durationMonths: number; price: number; originalPrice?: number }) {
+export function createSkuPrice(data: { levelId: number; name: string; durationMonths: number; price: number; originalPrice?: number }) {
   return request.post('/sku/prices', data)
 }
 
@@ -311,7 +311,7 @@ export function getAdminWithdrawals(params: { page?: number; pageSize?: number; 
 }
 
 // approved: true=通过, false=拒绝
-export function auditWithdrawal(id: number, data: { approved: boolean; rejectReason?: string }) {
+export function auditWithdrawal(id: number, data: { approved: boolean; rejectReason?: string; refundAmount?: number }) {
   return request.put(`/affiliate/admin/withdrawals/${id}`, data)
 }
 

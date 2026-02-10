@@ -429,36 +429,6 @@ const SystemSettings = () => {
     })
   }
 
-  // 切换测试模式（旧版兼容，后续将移除）
-  const _handleTestModeChange = (checked: boolean) => {
-    const title = checked ? '确认开启测试模式？' : '确认关闭测试模式？'
-    const content = checked 
-      ? '开启测试模式后，学员在订阅支付时可以直接模拟完成支付，无需真实付款。请确保仅在测试环境使用！'
-      : '关闭测试模式后，学员需要通过真实支付才能完成订阅。'
-    
-    confirm({
-      title,
-      icon: <ExclamationCircleFilled />,
-      content,
-      okText: checked ? '确认开启' : '确认关闭',
-      okType: checked ? 'danger' : 'primary',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          setTestModeLoading(true)
-          await updateSystemConfig({ testMode: checked })
-          setConfig({ ...config, testMode: checked })
-          message.success(checked ? '测试模式已开启' : '测试模式已关闭')
-        } catch (error) {
-          logger.error('切换测试模式失败', error)
-          message.error('操作失败')
-        } finally {
-          setTestModeLoading(false)
-        }
-      },
-    })
-  }
-
   // 基础设置Tab
   const BasicSettingsTab = () => (
     <Form form={basicForm} layout="vertical" onFinish={handleSaveBasic}>

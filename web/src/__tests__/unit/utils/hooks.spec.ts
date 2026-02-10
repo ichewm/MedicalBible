@@ -103,15 +103,17 @@ describe('useApi', () => {
       expect(result.current.loading).toBe(false)
     })
 
-    expect(result.current.data?.callCount).toBe(1)
+    expect((result.current.data as { callCount: number })?.callCount).toBe(1)
 
     act(() => {
       result.current.refetch()
     })
 
     await waitFor(() => {
-      expect(result.current.data?.callCount).toBe(2)
+      expect(result.current.loading).toBe(false)
     })
+
+    expect((result.current.data as { callCount: number })?.callCount).toBe(2)
   })
 
   it('应该支持禁用自动执行', async () => {
@@ -242,12 +244,10 @@ describe('useApiRequestWithCancel', () => {
   })
 
   it('应该支持取消请求', async () => {
-    let abortController: AbortController | null = null
     const mockFn = vi.fn().mockImplementation(async (signal?: AbortSignal) => {
-      abortController = signal ? { signal } as any : null
-      return new Promise((resolve) => {
+      return new Promise<void>((resolve) => {
         signal?.addEventListener('abort', () => {
-          resolve({ aborted: true })
+          resolve()
         })
       })
     })
@@ -268,7 +268,7 @@ describe('useApiRequestWithCancel', () => {
   it('应该在新请求时自动取消之前的请求', async () => {
     let firstAborted = false
     const mockFn1 = vi.fn().mockImplementation(async (signal?: AbortSignal) => {
-      return new Promise((resolve) => {
+      return new Promise<void>((_resolve) => {
         signal?.addEventListener('abort', () => {
           firstAborted = true
         })
