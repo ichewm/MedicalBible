@@ -21,14 +21,13 @@
  * @version 1.0.0
  */
 
+import request from "supertest";
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { JwtModule } from "@nestjs/jwt";
- 
-const request = require("supertest");
 import { DataSource } from "typeorm";
 import { DatabaseMonitoringService } from "../src/common/database/database-monitoring.service";
 import { DatabaseConnectionService } from "../src/common/database/database-connection.service";
@@ -148,6 +147,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
 
     it("should provide default pool configuration values as per spec", () => {
       // Verify the config export exists and can be required
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const configModule = require("../src/config/database.config");
       expect(configModule.databaseConfig).toBeDefined();
       expect(configModule.DEFAULT_POOL_CONFIG).toBeDefined();
@@ -158,6 +158,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
      * server/docs/DATABASE_CONNECTION_POOL.md Lines 11-18
      */
     it("should have default values matching spec requirements", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const configModule = require("../src/config/database.config");
       const defaults = configModule.DEFAULT_POOL_CONFIG;
 
@@ -350,6 +351,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
      * Timeout: 60000ms
      */
     it("should have default retry configuration matching requirements", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const connectionModule = require("../src/common/database/database-connection.service");
       expect(connectionModule.DEFAULT_OPERATION_OPTIONS).toBeDefined();
 
@@ -366,6 +368,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
      * Should retry on connection, timeout, deadlock errors
      */
     it("should identify retryable error patterns", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const connectionModule = require("../src/common/database/database-connection.service");
       expect(connectionModule.RETRYABLE_ERROR_PATTERNS).toBeDefined();
 
@@ -504,6 +507,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
      * DB_POOL_MAX: 10-20, DB_POOL_MIN: 2-5
      */
     it("should have defaults suitable for small to medium applications", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const configModule = require("../src/config/database.config");
       const defaults = configModule.DEFAULT_POOL_CONFIG;
 
@@ -518,6 +522,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
      * SPEC REQUIREMENT: Timeout values should be within recommended ranges
      */
     it("should have timeout values within recommended ranges", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const configModule = require("../src/config/database.config");
       const defaults = configModule.DEFAULT_POOL_CONFIG;
 
@@ -542,6 +547,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
    */
   describe("Service Availability and Module Exports", () => {
     it("should export DatabaseModule as global module", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const databaseModule = require("../src/common/database/database.module");
       expect(databaseModule.DatabaseModule).toBeDefined();
     });
@@ -555,6 +561,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
     });
 
     it("should export DatabaseMonitoringController", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const controllerModule = require("../src/common/database/database-monitoring.controller");
       expect(controllerModule.DatabaseMonitoringController).toBeDefined();
     });
@@ -581,7 +588,9 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
    */
   describe("Documentation Existence - PRD PERF-006 Item 4", () => {
     it("should have DATABASE_CONNECTION_POOL.md documentation file", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const fs = require("fs");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const path = require("path");
 
       const docPath = path.join(__dirname, "../docs/DATABASE_CONNECTION_POOL.md");
@@ -589,7 +598,9 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
     });
 
     it("should document environment variables in .env.example", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const fs = require("fs");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const path = require("path");
 
       const envExamplePath = path.join(__dirname, "../.env.example");
@@ -647,6 +658,7 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
   describe("Configuration Validation - SPEC database.config.ts Lines 62-75", () => {
     it("should validate DB_POOL_MAX >= DB_POOL_MIN", () => {
       // The config module should throw an error if max < min
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const configModule = require("../src/config/database.config");
 
       // Verify validation logic exists
@@ -654,11 +666,13 @@ describe("Database Connection Pool Conformance E2E Tests (PERF-006)", () => {
     });
 
     it("should validate DB_POOL_MAX > 0", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const configModule = require("../src/config/database.config");
       expect(configModule.databaseConfig).toBeDefined();
     });
 
     it("should validate DB_POOL_MIN >= 0", () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const configModule = require("../src/config/database.config");
       expect(configModule.databaseConfig).toBeDefined();
     });

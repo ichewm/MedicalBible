@@ -17,10 +17,10 @@
  * @version 1.0.0
  */
 
+import request from "supertest";
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
- 
-const request = require("supertest");
+
 import { AppModule } from "../src/app.module";
 import { ConfigService } from "@nestjs/config";
 
