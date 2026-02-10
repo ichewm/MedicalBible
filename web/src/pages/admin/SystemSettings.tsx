@@ -56,6 +56,7 @@ const SystemSettings = () => {
   const [activeTab, setActiveTab] = useState('basic')
   const [smsProvider, setSmsProvider] = useState('')
   const [storageProvider, setStorageProvider] = useState('local')
+  const [cacheInvalidationProvider, setCacheInvalidationProvider] = useState('')
   const [termsContent, setTermsContent] = useState('')
   const [privacyContent, setPrivacyContent] = useState('')
   const [agreementLoading, setAgreementLoading] = useState(false)
@@ -191,9 +192,16 @@ const SystemSettings = () => {
     try {
       const data: any = await getStorageConfig()
       setStorageProvider(data.storage_provider || 'local')
+      setCacheInvalidationProvider(data.storage_cache_invalidation_provider || '')
       storageForm.setFieldsValue({
         provider: data.storage_provider || 'local',
         cdnDomain: data.storage_cdn_domain || '',
+        // CDN 缓存失效
+        cacheInvalidationEnabled: data.storage_cache_invalidation_enabled === 'true',
+        cacheInvalidationProvider: data.storage_cache_invalidation_provider || '',
+        cloudfrontDistributionId: data.storage_cf_distribution_id || '',
+        cloudflareZoneId: data.storage_cf_zone_id || '',
+        cloudflareApiToken: '', // 不显示已存储的 token
         // 本地
         localPath: data.storage_local_path || './uploads',
         localUrl: data.storage_local_url || '/uploads',
@@ -892,6 +900,16 @@ const SystemSettings = () => {
         const data: Record<string, string> = {
           storage_provider: values.provider,
           storage_cdn_domain: values.cdnDomain || '',
+          // CDN 缓存失效配置
+          storage_cache_invalidation_enabled: values.cacheInvalidationEnabled ? 'true' : 'false',
+          storage_cache_invalidation_provider: values.cacheInvalidationProvider || '',
+          storage_cf_distribution_id: values.cloudfrontDistributionId || '',
+          storage_cf_zone_id: values.cloudflareZoneId || '',
+        }
+
+        // Cloudflare API Token（仅在提供时更新）
+        if (values.cloudflareApiToken) {
+          data.storage_cf_api_token = values.cloudflareApiToken
         }
 
         // 根据服务商添加对应配置
@@ -958,8 +976,8 @@ const SystemSettings = () => {
 
         <Card title="存储服务商" size="small" style={{ marginBottom: 16 }}>
           <Form.Item name="provider" label="存储类型" rules={[{ required: true }]}>
-            <Select 
-              style={{ width: 300 }} 
+            <Select
+              style={{ width: 300 }}
               onChange={(v) => setStorageProvider(v)}
             >
               <Option value="local">本地存储</Option>
@@ -969,14 +987,105 @@ const SystemSettings = () => {
               <Option value="minio">MinIO (私有化部署)</Option>
             </Select>
           </Form.Item>
-          <Form.Item 
-            name="cdnDomain" 
-            label="CDN 加速域名" 
+          <Form.Item
+            name="cdnDomain"
+            label="CDN 加速域名"
             tooltip="可选，配置后文件 URL 将使用 CDN 域名"
           >
             <Input placeholder="https://cdn.example.com" style={{ width: 400 }} />
           </Form.Item>
         </Card>
+
+        {/* CDN 缓存失效配置 */}
+        {storageForm.getFieldValue('cdnDomain') && (
+          <Card title="CDN 缓存失效配置" size="small" style={{ marginBottom: 16 }}>
+            <Form.Item
+              name="cacheInvalidationEnabled"
+              label="启用缓存失效"
+              valuePropName="checked"
+              tooltip="删除或更新文件时自动清除 CDN 缓存"
+            >
+              <Switch checkedChildren="是" unCheckedChildren="否" />
+            </Form.Item>
+
+            {storageForm.getFieldValue('cacheInvalidationEnabled') && (
+              <>
+                <Form.Item name="cacheInvalidationProvider" label="CDN 服务商">
+                  <Select
+                    placeholder="选择 CDN 服务商"
+                    style={{ width: 300 }}
+                    onChange={setCacheInvalidationProvider}
+                  >
+                    <Option value="cloudfront">CloudFront (AWS)</Option>
+                    <Option value="cloudflare">Cloudflare</Option>
+                    <Option value="aliyun-oss">阿里云 OSS</Option>
+                    <Option value="tencent-cos">腾讯云 COS</Option>
+                  </Select>
+                </Form.Item>
+
+                {cacheInvalidationProvider === 'cloudfront' && (
+                  <>
+                    <Alert
+                      message="CloudFront 缓存失效"
+                      description="需要提供 CloudFront Distribution ID。系统将使用与 S3 相同的 AWS 凭证。"
+                      type="info"
+                      style={{ marginBottom: 12 }}
+                    />
+                    <Form.Item
+                      name="cloudfrontDistributionId"
+                      label="Distribution ID"
+                      rules={[{ required: true, message: '请输入 Distribution ID' }]}
+                    >
+                      <Input placeholder="E1234ABCDE" style={{ width: 400 }} />
+                    </Form.Item>
+                  </>
+                )}
+
+                {cacheInvalidationProvider === 'cloudflare' && (
+                  <>
+                    <Alert
+                      message="Cloudflare 缓存清除"
+                      description="需要提供 Zone ID 和 API Token。API Token 需要具有 Zone.Cache Purge 权限。"
+                      type="info"
+                      style={{ marginBottom: 12 }}
+                    />
+                    <Form.Item
+                      name="cloudflareZoneId"
+                      label="Zone ID"
+                      rules={[{ required: true, message: '请输入 Zone ID' }]}
+                    >
+                      <Input placeholder="xxxxxxxxxxxxxxxx" style={{ width: 400 }} />
+                    </Form.Item>
+                    <Form.Item
+                      name="cloudflareApiToken"
+                      label="API Token"
+                      rules={[{ required: true, message: '请输入 API Token' }]}
+                      tooltip="留空则不修改现有 Token"
+                    >
+                      <Input.Password placeholder="输入 API Token（留空则不修改）" style={{ width: 400 }} />
+                    </Form.Item>
+                  </>
+                )}
+
+                {cacheInvalidationProvider === 'aliyun-oss' && (
+                  <Alert
+                    message="阿里云 OSS 缓存刷新"
+                    description="阿里云 OSS 缓存刷新将直接使用 OSS 配置，无需额外配置。"
+                    type="info"
+                  />
+                )}
+
+                {cacheInvalidationProvider === 'tencent-cos' && (
+                  <Alert
+                    message="腾讯云 COS 缓存刷新"
+                    description="腾讯云 COS 缓存刷新将直接使用 COS 配置，无需额外配置。"
+                    type="info"
+                  />
+                )}
+              </>
+            )}
+          </Card>
+        )}
 
         {/* 本地存储配置 */}
         {storageProvider === 'local' && (
