@@ -11,6 +11,7 @@ import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import helmet, { HelmetOptions } from "helmet";
 import { Request, Response, NextFunction } from "express";
+import * as cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
@@ -63,6 +64,18 @@ async function bootstrap(): Promise<void> {
 
   // 设置全局 API 前缀
   app.setGlobalPrefix("api");
+
+  // 配置 cookie-parser 中间件
+  // 用于解析 HTTP Cookie 头，填充 req.cookies
+  // secret 参数用于签名 cookie（可选），如果需要签名则使用 COOKIE_SECRET 环境变量
+  const cookieSecret = configService.get<string>("COOKIE_SECRET");
+  if (cookieSecret) {
+    app.use(cookieParser(cookieSecret));
+    logger.log("Cookie parser enabled with secret signing");
+  } else {
+    app.use(cookieParser());
+    logger.log("Cookie parser enabled without secret signing");
+  }
 
   // 配置安全头中间件（Helmet）
   // 从配置服务获取安全设置，实现可配置的 HTTP 安全头
