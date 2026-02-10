@@ -133,6 +133,9 @@ export class IntegrationTestHelper {
    * Call this in beforeEach hook
    */
   async startTransaction(): Promise<void> {
+    if (!this.dbHelper) {
+      throw new Error('Database helper not initialized. Call initialize() first.');
+    }
     await this.dbHelper.startTransaction();
   }
 
@@ -141,7 +144,9 @@ export class IntegrationTestHelper {
    * Call this in afterEach hook
    */
   async rollbackTransaction(): Promise<void> {
-    await this.dbHelper.rollbackTransaction();
+    if (this.dbHelper && this.dbHelper.isTransactionActive()) {
+      await this.dbHelper.rollbackTransaction();
+    }
   }
 
   /**
@@ -149,9 +154,15 @@ export class IntegrationTestHelper {
    * Call this in afterAll hook
    */
   async cleanup(): Promise<void> {
-    await this.dbHelper.release();
-    await this.app.close();
-    await this.module.close();
+    if (this.dbHelper) {
+      await this.dbHelper.release();
+    }
+    if (this.app) {
+      await this.app.close();
+    }
+    if (this.module) {
+      await this.module.close();
+    }
   }
 
   /**
@@ -159,6 +170,9 @@ export class IntegrationTestHelper {
    * Use for tests that span multiple transactions
    */
   async cleanAllTables(): Promise<void> {
+    if (!this.dbHelper) {
+      throw new Error('Database helper not initialized. Call initialize() first.');
+    }
     await this.dbHelper.cleanTables(getTableCleanupOrder());
   }
 
@@ -166,6 +180,9 @@ export class IntegrationTestHelper {
    * Get the entity manager with transaction context
    */
   getEntityManager() {
+    if (!this.dbHelper) {
+      throw new Error('Database helper not initialized. Call initialize() first.');
+    }
     return this.dbHelper.getEntityManager();
   }
 
@@ -173,6 +190,9 @@ export class IntegrationTestHelper {
    * Get repository with transaction context
    */
   getRepository<Entity>(entity: any) {
+    if (!this.dbHelper) {
+      throw new Error('Database helper not initialized. Call initialize() first.');
+    }
     return this.dbHelper.getRepository(entity);
   }
 
@@ -428,6 +448,6 @@ export class IntegrationTestHelper {
    * Check if transaction is active
    */
   isTransactionActive(): boolean {
-    return this.dbHelper.isTransactionActive();
+    return this.dbHelper?.isTransactionActive() ?? false;
   }
 }
