@@ -45,8 +45,8 @@ export function getPapers(params?: { subjectId?: number; type?: string }) {
 }
 
 // 获取试卷详情
-export function getPaperDetail(id: number) {
-  return request.get<PaperDetail>(`/question/papers/${id}`)
+export function getPaperDetail(id: number): Promise<PaperDetail> {
+  return request.get(`/question/papers/${id}`)
 }
 
 // 提交单题答案

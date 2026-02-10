@@ -432,6 +432,7 @@ const SystemSettings = () => {
   }
 
   // 切换测试模式（旧版兼容，后续将移除）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _handleTestModeChange = (checked: boolean) => {
     const title = checked ? '确认开启测试模式？' : '确认关闭测试模式？'
     const content = checked 
