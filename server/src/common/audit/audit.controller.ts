@@ -18,6 +18,7 @@ import {
   StreamableFile,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -131,6 +132,16 @@ export class AuditController {
     @Param("filename") filename: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
+    // Validate filename to prevent path traversal attacks
+    // Only allow alphanumeric characters, underscores, hyphens, and valid export file extensions
+    if (
+      !/^[a-zA-Z0-9_-]+\.json$/.test(filename) &&
+      !/^[a-zA-Z0-9_-]+\.csv$/.test(filename) &&
+      !/^[a-zA-Z0-9_-]+\.xlsx$/.test(filename)
+    ) {
+      throw new BadRequestException("Invalid filename");
+    }
+
     const auditService = this.auditService as any;
     const filePath = join(auditService.exportDir, filename);
 
