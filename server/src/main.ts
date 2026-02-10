@@ -17,6 +17,7 @@ import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
 import { CompressionMiddleware } from "./common/middleware/compression.middleware";
+import { SanitizationMiddleware } from "./common/middleware/sanitization.middleware";
 
 /**
  * 应用程序启动函数
@@ -70,6 +71,12 @@ async function bootstrap(): Promise<void> {
   // 使用 ConfigService 获取压缩配置
   const compressionMiddleware = new CompressionMiddleware(configService);
   app.use(compressionMiddleware.use.bind(compressionMiddleware));
+
+  // 配置输入清洗中间件
+  // 使用 ConfigService 获取清洗配置
+  // 在请求处理前清洗所有输入数据，防止 XSS 和注入攻击
+  const sanitizationMiddleware = new SanitizationMiddleware(configService);
+  app.use(sanitizationMiddleware.use.bind(sanitizationMiddleware));
 
   // 配置请求追踪中间件
   app.use(

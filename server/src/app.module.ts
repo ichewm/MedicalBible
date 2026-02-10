@@ -19,6 +19,7 @@ import { jwtConfig } from "./config/jwt.config";
 import { corsConfig } from "./config/cors.config";
 import { loggerConfig } from "./config/logger.config";
 import { compressionConfig } from "./config/compression.config";
+import { sanitizationConfig } from "./config/sanitization.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -74,7 +75,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, compressionConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, compressionConfig, sanitizationConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
