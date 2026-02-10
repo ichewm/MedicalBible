@@ -263,8 +263,8 @@ export class LectureService {
       where: { userId },
       relations: ["lecture", "lecture.subject"],
       order: { updatedAt: "DESC" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: query.getSkip(),
+      take: query.getTake(),
     });
 
     return {
@@ -283,6 +283,7 @@ export class LectureService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      hasNext: page < Math.ceil(total / pageSize),
     };
   }
 

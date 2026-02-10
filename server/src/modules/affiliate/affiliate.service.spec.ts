@@ -9,13 +9,20 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { plainToInstance } from "class-transformer";
 
 import { AffiliateService } from "./affiliate.service";
+import { TransactionService } from "../../common/database/transaction.service";
 import { User } from "../../entities/user.entity";
 import { Commission, CommissionStatus } from "../../entities/commission.entity";
 import { Withdrawal, WithdrawalStatus } from "../../entities/withdrawal.entity";
 import { Order, OrderStatus } from "../../entities/order.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
+import {
+  CommissionQueryDto,
+  WithdrawalQueryDto,
+  InviteeQueryDto,
+} from "./dto/affiliate.dto";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -107,6 +114,49 @@ describe("AffiliateService", () => {
     findOne: jest.fn(),
   };
 
+  const mockTransactionService = {
+    runInTransaction: jest.fn().mockImplementation(async (callback) => {
+      // Create a mock query runner with getRepository that returns appropriate mock repos
+      const mockQueryRunner = {
+        manager: {
+          getRepository: (entity: any) => {
+            // Match based on entity constructor name or metadata
+            const entityName = entity?.name || entity?.metadata?.name || '';
+            if (entityName === 'User' || entityName === 'users') return mockUserRepository;
+            if (entityName === 'Withdrawal' || entityName === 'withdrawals') return mockWithdrawalRepository;
+            if (entityName === 'Commission' || entityName === 'commissions') return mockCommissionRepository;
+            // Try constructor check
+            if (entity.prototype instanceof User) return mockUserRepository;
+            return {};
+          },
+        },
+      };
+      return callback(mockQueryRunner);
+    }),
+    runAtomic: jest.fn().mockImplementation(async (callback) => {
+      const mockQueryRunner = {
+        manager: {
+          getRepository: (entity: any) => {
+            const entityName = entity?.name || entity?.metadata?.name || '';
+            if (entityName === 'User' || entityName === 'users') return mockUserRepository;
+            if (entityName === 'Withdrawal' || entityName === 'withdrawals') return mockWithdrawalRepository;
+            if (entityName === 'Commission' || entityName === 'commissions') return mockCommissionRepository;
+            if (entity.prototype instanceof User) return mockUserRepository;
+            return {};
+          },
+        },
+      };
+      return callback(mockQueryRunner);
+    }),
+    getRepository: jest.fn().mockImplementation((qr, entity) => {
+      // This method is called directly on transactionService
+      const entityName = entity?.name || '';
+      if (entityName === 'User' || entityName === 'users') return mockUserRepository;
+      if (entityName === 'Withdrawal' || entityName === 'withdrawals') return mockWithdrawalRepository;
+      if (entityName === 'Commission' || entityName === 'commissions') return mockCommissionRepository;
+      return mockUserRepository; // Default fallback
+    }),
+  };
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -124,6 +174,10 @@ describe("AffiliateService", () => {
         {
           provide: getRepositoryToken(SystemConfig),
           useValue: mockSystemConfigRepository,
+        },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
         },
       ],
     }).compile();
@@ -252,7 +306,8 @@ describe("AffiliateService", () => {
       ]);
 
       // Act
-      const result = await service.getCommissions(1, { page: 1, pageSize: 20 });
+      const query = plainToInstance(CommissionQueryDto, { page: 1, pageSize: 20 });
+      const result = await service.getCommissions(1, query);
 
       // Assert
       expect(result.items).toHaveLength(1);
@@ -264,11 +319,12 @@ describe("AffiliateService", () => {
       mockCommissionRepository.findAndCount.mockResolvedValue([[], 0]);
 
       // Act
-      await service.getCommissions(1, {
+      const query = plainToInstance(CommissionQueryDto, {
         page: 1,
         pageSize: 20,
         status: CommissionStatus.AVAILABLE,
       });
+      await service.getCommissions(1, query);
 
       // Assert
       expect(mockCommissionRepository.findAndCount).toHaveBeenCalledWith(
@@ -284,28 +340,36 @@ describe("AffiliateService", () => {
   describe("getCommissionStats - 获取佣金统计", () => {
     it("应该成功获取佣金统计", async () => {
       // Arrange
-      const queryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getRawOne: jest
-          .fn()
-          .mockResolvedValueOnce({ total: "100" }) // 总佣金
-          .mockResolvedValueOnce({ total: "80" }) // 可用佣金
-          .mockResolvedValueOnce({ total: "20" }), // 冻结佣金
-      };
-      mockCommissionRepository.createQueryBuilder.mockReturnValue(queryBuilder);
-      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      let callCount = 0;
+      mockCommissionRepository.createQueryBuilder.mockImplementation(() => {
+        const queryBuilder = {
+          select: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          getRawOne: jest.fn(async () => {
+            callCount++;
+            if (callCount === 1) return { total: "100" }; // 总佣金
+            if (callCount === 2) return { total: "80" }; // 可用佣金 (注意：实际实现中使用的是用户余额)
+            if (callCount === 3) return { total: "20" }; // 冻结佣金
+            return { total: "0" };
+          }),
+        };
+        return queryBuilder;
+      });
+      mockUserRepository.findOne.mockResolvedValue(mockUser); // balance = 100
       mockUserRepository.count.mockResolvedValue(5);
+      mockSystemConfigRepository.findOne.mockResolvedValue({ configValue: "10" });
 
       // Act
       const result = await service.getCommissionStats(1);
 
-      // Assert
+      // Assert - availableCommission uses the availableResult query, not user.balance
       expect(result.totalCommission).toBe(100);
-      expect(result.availableCommission).toBe(80);
+      // availableCommission is the sum of AVAILABLE status commissions, not user balance
+      expect(result.availableCommission).toBe(80); // availableResult query returns 80
       expect(result.frozenCommission).toBe(20);
       expect(result.balance).toBe(100);
+      expect(result.minWithdrawal).toBe(10);
     });
   });
 
@@ -387,7 +451,8 @@ describe("AffiliateService", () => {
       ]);
 
       // Act
-      const result = await service.getWithdrawals(1, { page: 1, pageSize: 20 });
+      const query = plainToInstance(WithdrawalQueryDto, { page: 1, pageSize: 20 });
+      const result = await service.getWithdrawals(1, query);
 
       // Assert
       expect(result.items).toHaveLength(1);
@@ -443,7 +508,8 @@ describe("AffiliateService", () => {
       );
 
       // Act
-      const result = await service.getInvitees(1, { page: 1, pageSize: 20 });
+      const query = plainToInstance(InviteeQueryDto, { page: 1, pageSize: 20 });
+      const result = await service.getInvitees(1, query);
 
       // Assert
       expect(result.items).toHaveLength(2);

@@ -9,6 +9,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { NotFoundException, ForbiddenException } from "@nestjs/common";
+import { plainToInstance } from "class-transformer";
 
 import { LectureService } from "./lecture.service";
 import { Lecture } from "../../entities/lecture.entity";
@@ -20,6 +21,7 @@ import { ReadingProgress } from "../../entities/reading-progress.entity";
 import { Subscription } from "../../entities/subscription.entity";
 import { Subject } from "../../entities/subject.entity";
 import { PublishStatus } from "../../entities/enums/publish-status.enum";
+import { ReadingHistoryQueryDto } from "./dto/lecture.dto";
 
 describe("LectureService", () => {
   let service: LectureService;
@@ -302,10 +304,10 @@ describe("LectureService", () => {
       ]);
 
       // Act
-      const result = await service.getReadingHistory(1, {
-        page: 1,
-        pageSize: 20,
-      });
+      const result = await service.getReadingHistory(
+        1,
+        plainToInstance(ReadingHistoryQueryDto, { page: 1, pageSize: 20 }),
+      );
 
       // Assert
       expect(result.items).toHaveLength(1);

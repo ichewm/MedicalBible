@@ -53,6 +53,7 @@ export interface AccountInfo {
  */
 @Entity("withdrawals")
 @Index("idx_withdrawals_user_status", ["userId", "status"])
+@Index("idx_withdrawals_status_created", ["status", "createdAt"])
 export class Withdrawal {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键" })
