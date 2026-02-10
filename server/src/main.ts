@@ -19,6 +19,7 @@ import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
 import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
 import { CompressionMiddleware } from "./common/middleware/compression.middleware";
+import { validateAllConfigs, ConfigValidationError } from "./config/config.validator";
 import { SanitizationMiddleware } from "./common/middleware/sanitization.middleware";
 
 /**
@@ -26,6 +27,24 @@ import { SanitizationMiddleware } from "./common/middleware/sanitization.middlew
  * @description 初始化 NestJS 应用，配置全局管道、Swagger 文档和 CORS
  */
 async function bootstrap(): Promise<void> {
+  // Initialize logger for bootstrap process
+  const logger = new Logger("Bootstrap");
+
+  // Validate configuration before creating NestJS app
+  // This ensures all required environment variables are present and valid
+  // before any module initialization occurs
+  try {
+    validateAllConfigs();
+    logger.log("Configuration validation passed");
+  } catch (error) {
+    if (error instanceof ConfigValidationError) {
+      logger.error("Configuration validation failed:");
+      logger.error(error.message);
+      process.exit(1);
+    }
+    throw error;
+  }
+
   // 创建 NestJS 应用实例
   const app = await NestFactory.create(AppModule, {
     logger: ["error", "warn", "log", "debug", "verbose"],
@@ -33,7 +52,6 @@ async function bootstrap(): Promise<void> {
 
   // 获取配置服务
   const configService = app.get(ConfigService);
-  const logger = new Logger("Bootstrap");
 
   // 启用 API 版本控制
   // 使用 URI 版本策略: /api/v1/..., /api/v2/...

@@ -6,6 +6,7 @@
  */
 
 import { registerAs } from "@nestjs/config";
+import { compressionConfigSchema } from "./config.schema";
 
 /**
  * 压缩级别枚举
@@ -25,34 +26,19 @@ export enum CompressionLevel {
  * @description 基于环境变量的动态压缩配置
  */
 export const compressionConfig = registerAs("compression", () => {
-  // 从环境变量获取压缩级别，默认为平衡级别
-  const levelEnv = process.env.COMPRESSION_LEVEL;
-  let level = CompressionLevel.BALANCED;
+  const rawConfig = {
+    /** 是否启用压缩 */
+    enabled: process.env.COMPRESSION_ENABLED,
+    /** 压缩级别 (1-9)，越高压缩率越高但 CPU 消耗越大 */
+    level: process.env.COMPRESSION_LEVEL,
+    /** 压缩阈值（字节），小于此大小的响应不压缩 */
+    threshold: process.env.COMPRESSION_THRESHOLD,
+  };
 
-  if (levelEnv) {
-    const parsedLevel = parseInt(levelEnv, 10);
-    if (parsedLevel >= CompressionLevel.FAST && parsedLevel <= CompressionLevel.BEST) {
-      level = parsedLevel;
-    }
-  }
-
-  // 从环境变量获取压缩阈值（字节），默认为 1KB
-  // 小于此大小的响应不会被压缩
-  const thresholdEnv = process.env.COMPRESSION_THRESHOLD;
-  const threshold = thresholdEnv ? parseInt(thresholdEnv, 10) : 1024;
-
-  // 检查是否启用压缩（生产环境默认启用）
-  const enabled = process.env.COMPRESSION_ENABLED !== "false";
+  const validatedConfig = compressionConfigSchema.parse(rawConfig);
 
   return {
-    /** 是否启用压缩 */
-    enabled,
-
-    /** 压缩级别 (1-9)，越高压缩率越高但 CPU 消耗越大 */
-    level,
-
-    /** 压缩阈值（字节），小于此大小的响应不压缩 */
-    threshold,
+    ...validatedConfig,
 
     /** 要压缩的 MIME 类型 */
     filter: (req: any, res: any) => {

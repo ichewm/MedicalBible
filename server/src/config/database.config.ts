@@ -6,6 +6,7 @@
  */
 
 import { registerAs } from "@nestjs/config";
+import { databaseConfigSchema } from "./config.schema";
 
 /**
  * 连接池配置对象
@@ -92,29 +93,24 @@ export const databaseConfig = registerAs("database", () => {
     throw new Error(`DB_POOL_MIN must be a non-negative number, got ${poolConfig.min}`);
   }
 
-  return {
+  const rawConfig = {
     /** 数据库主机地址 */
-    host: process.env.DB_HOST || "localhost",
-
+    host: process.env.DB_HOST,
     /** 数据库端口 */
-    port: parseInt(process.env.DB_PORT || "3306", 10),
-
+    port: process.env.DB_PORT,
     /** 数据库用户名 */
-    username: process.env.DB_USERNAME || "root",
-
+    username: process.env.DB_USERNAME,
     /** 数据库密码 */
-    password: process.env.DB_PASSWORD || "",
-
+    password: process.env.DB_PASSWORD,
     /** 数据库名称 */
-    database: process.env.DB_DATABASE || "medical_bible",
-
+    database: process.env.DB_DATABASE,
     /** 连接池配置 */
     pool: poolConfig,
-
     /** 连接超时时间（毫秒） */
-    connectionTimeout: parseInt(process.env.DB_CONNECTION_TIMEOUT || "60000", 10),
-
+    connectionTimeout: process.env.DB_CONNECTION_TIMEOUT,
     /** 查询超时时间（毫秒） */
-    queryTimeout: parseInt(process.env.DB_QUERY_TIMEOUT || "60000", 10),
+    queryTimeout: process.env.DB_QUERY_TIMEOUT,
   };
+
+  return databaseConfigSchema.parse(rawConfig);
 });
