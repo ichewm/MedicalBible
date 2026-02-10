@@ -292,9 +292,11 @@ const orders = await this.orderRepository
 
 This project was migrated from eager loading to lazy loading for `@OneToMany` relations. The following changes were made:
 
-1. All `@OneToMany` decorators now include `{ eager: false }`
+1. All `@OneToMany` decorators now include `{ eager: false }` (completed in PERF-004)
 2. All existing service queries explicitly specify `relations`
 3. A `QueryOptimizerService` utility was added for consistent query patterns
 4. This documentation was created to guide future development
+
+**Migration completed**: Task PERF-004 finalized the lazy loading migration by adding `{ eager: false }` to the remaining 3 entity relations (User.tokenFamilies, Permission.roles, Role.permissions).
 
 No changes to API contracts or service behavior were made - the migration maintains backward compatibility.

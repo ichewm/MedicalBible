@@ -25,8 +25,10 @@ import { NotificationModule } from "../notification/notification.module";
  * @description 提供用户认证相关功能：
  * - 手机号 + 验证码登录/注册
  * - JWT Token 生成与刷新
+ * - 刷新令牌轮换（Refresh Token Rotation）
  * - 设备管理（最多3台设备同时登录）
  * - Token 黑名单管理
+ * - 令牌族管理和重放攻击检测
  */
 @Module({
   imports: [

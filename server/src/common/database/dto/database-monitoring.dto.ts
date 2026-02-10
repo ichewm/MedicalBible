@@ -120,3 +120,19 @@ export class ExplainQueryDto {
   @Length(1, 5000, { message: "SQL 查询长度必须在1-5000个字符之间" })
   sql: string;
 }
+
+/**
+ * 获取告警历史 DTO
+ */
+export class GetAlertHistoryDto {
+  @ApiPropertyOptional({
+    description: "返回的记录数",
+    example: 10,
+    default: 10,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: "记录数必须是数字" })
+  @Min(1, { message: "记录数最少为1" })
+  @Max(100, { message: "记录数最多为100" })
+  limit?: number;
+}

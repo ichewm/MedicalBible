@@ -6,6 +6,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { VoiceRecognitionService, VoiceRecognitionCallbacks } from './voice-recognition.service'
 import { VoiceCommand, matchCommand } from './commands'
+import { createLogger } from '@/utils/logger'
 
 /**
  * 语音命令 Hook 配置
@@ -62,7 +63,7 @@ export interface UseVoiceCommandsReturn {
  *   enabled: true,
  *   commands: navigationCommands,
  *   onCommandMatched: (command, transcript) => {
- *     console.log(`匹配命令: ${command.action}`, transcript)
+ *     // Handle matched command
  *   }
  * })
  * ```
@@ -82,6 +83,8 @@ export function useVoiceCommands(
     debug = false,
   } = options
 
+  const loggerRef = useRef(createLogger('VoiceCommands'))
+  const logger = loggerRef.current
   const [isListening, setIsListening] = useState(false)
   const [lastTranscript, setLastTranscript] = useState('')
   const [lastCommand, setLastCommand] = useState<VoiceCommand | null>(null)
@@ -111,13 +114,13 @@ export function useVoiceCommands(
       serviceRef.current = service
 
       if (debug) {
-        console.log('[VoiceCommands] Service initialized')
+        logger.debug('Service initialized')
       }
 
       return () => {
         service.destroy()
         if (debug) {
-          console.log('[VoiceCommands] Service destroyed')
+          logger.debug('Service destroyed')
         }
       }
     }
@@ -131,13 +134,13 @@ export function useVoiceCommands(
 
       if (result.command && result.matches) {
         if (debug) {
-          console.log('[VoiceCommands] Command matched:', result.command.action, transcript)
+          logger.debug(`Command matched: ${result.command.action}`, transcript)
         }
         setLastCommand(result.command)
         optionsRef.current.onCommandMatched?.(result.command, transcript, result.matches)
       } else {
         if (debug) {
-          console.log('[VoiceCommands] No command matched for:', transcript)
+          logger.debug(`No command matched for: ${transcript}`)
         }
       }
 
@@ -156,7 +159,7 @@ export function useVoiceCommands(
         setIsListening(true)
         onListeningChange?.(true)
         if (debug) {
-          console.log('[VoiceCommands] Listening started')
+          logger.debug('Listening started')
         }
       },
       onEnd: () => {
@@ -164,7 +167,7 @@ export function useVoiceCommands(
         onListeningChange?.(false)
         setInterimTranscript('')
         if (debug) {
-          console.log('[VoiceCommands] Listening ended')
+          logger.debug('Listening ended')
         }
       },
       onResult: (transcript) => {
@@ -174,7 +177,7 @@ export function useVoiceCommands(
       onError: (error) => {
         onError?.(error)
         if (debug) {
-          console.error('[VoiceCommands] Error:', error)
+          logger.error('Voice recognition error', error)
         }
       },
       onInterim: (transcript) => {

@@ -114,10 +114,29 @@ export class StorageService implements OnModuleInit {
       "local") as StorageProvider;
     const cdnDomain = getConfig(SystemConfigKeys.STORAGE_CDN_DOMAIN);
 
+    // CDN 缓存失效配置
+    const cacheInvalidationEnabled =
+      getConfig(SystemConfigKeys.STORAGE_CACHE_INVALIDATION_ENABLED) === "true";
+    const cacheInvalidationProvider = getConfig(
+      SystemConfigKeys.STORAGE_CACHE_INVALIDATION_PROVIDER,
+    );
+
     const config: StorageConfig = {
       provider,
       cdnDomain: cdnDomain || undefined,
     };
+
+    // 加载缓存失效配置
+    if (cacheInvalidationEnabled && cacheInvalidationProvider && cdnDomain) {
+      config.cacheInvalidation = {
+        enabled: true,
+        provider: cacheInvalidationProvider as any,
+        distributionId:
+          getConfig(SystemConfigKeys.STORAGE_CF_DISTRIBUTION_ID) || undefined,
+        zoneId: getConfig(SystemConfigKeys.STORAGE_CF_ZONE_ID) || undefined,
+        apiToken: getConfig(SystemConfigKeys.STORAGE_CF_API_TOKEN) || undefined,
+      };
+    }
 
     switch (provider) {
       case "local":
@@ -263,16 +282,23 @@ export class StorageService implements OnModuleInit {
   async delete(key: string): Promise<void> {
     // 如果是本地存储，直接执行不需要断路器
     if (this.config.provider === "local") {
-      return this.adapter.delete(key);
+      await this.adapter.delete(key);
+      // 尝试缓存失效（最佳尝试，失败不影响删除操作）
+      await this.attemptCacheInvalidation(key);
+      return;
     }
 
     // 使用断路器保护外部存储调用
     const serviceKey = this.getServiceKey(this.config.provider);
     const presetOptions = this.circuitBreakerService.getPresetOptions(serviceKey);
 
-    return this.circuitBreakerService.execute(
+    await this.circuitBreakerService.execute(
       serviceKey,
-      () => this.adapter.delete(key),
+      async () => {
+        await this.adapter.delete(key);
+        // 尝试缓存失效（最佳尝试，失败不影响删除操作）
+        await this.attemptCacheInvalidation(key);
+      },
       {
         ...presetOptions,
         fallback: async () => {
@@ -365,6 +391,53 @@ export class StorageService implements OnModuleInit {
       default:
         return ExternalService.AWS_S3; // 默认
     }
+  }
+
+  /**
+   * 尝试使 CDN 缓存失效（最佳尝试，失败不影响主操作）
+   */
+  private async attemptCacheInvalidation(key: string): Promise<void> {
+    if (!this.isCacheInvalidationEnabled()) {
+      return;
+    }
+
+    if (!this.hasCacheInvalidation()) {
+      this.logger.debug(
+        `Cache invalidation not supported by current adapter: ${this.config.provider}`,
+      );
+      return;
+    }
+
+    try {
+      const adapter = this.adapter as any;
+      const success = await adapter.invalidateCache(key);
+      if (success) {
+        this.logger.log(`CDN cache invalidated for: ${key}`);
+      } else {
+        this.logger.warn(`CDN cache invalidation failed for: ${key}`);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `CDN cache invalidation error for ${key}:`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * 检查是否启用缓存失效
+   */
+  private isCacheInvalidationEnabled(): boolean {
+    return this.config.cacheInvalidation?.enabled === true &&
+      !!this.config.cdnDomain;
+  }
+
+  /**
+   * 检查适配器是否支持缓存失效
+   */
+  private hasCacheInvalidation(): boolean {
+    const adapter = this.adapter as any;
+    return typeof adapter.invalidateCache === "function";
   }
 
   /**

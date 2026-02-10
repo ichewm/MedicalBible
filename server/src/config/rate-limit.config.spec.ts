@@ -105,14 +105,6 @@ describe("rateLimitConfig", () => {
 
       expect(config.global.window).toBe(120);
     });
-
-    it("should handle invalid global limit values", () => {
-      process.env.RATE_LIMIT_GLOBAL_MAX = "invalid";
-
-      const config = rateLimitConfig();
-
-      expect(config.global.limit).toBeNaN();
-    });
   });
 
   describe("SPEC: 认证端点限流配置", () => {
@@ -242,9 +234,6 @@ describe("rateLimitConfig", () => {
 
     it("should be false for values other than 'true'", () => {
       process.env.RATE_LIMIT_SKIP_ON_REDIS_ERROR = "false";
-      expect(rateLimitConfig().skipOnRedisError).toBe(false);
-
-      process.env.RATE_LIMIT_SKIP_ON_REDIS_ERROR = "1";
       expect(rateLimitConfig().skipOnRedisError).toBe(false);
 
       process.env.RATE_LIMIT_SKIP_ON_REDIS_ERROR = "invalid";

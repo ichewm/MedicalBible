@@ -456,11 +456,7 @@ const Login = () => {
           <p style={{ marginBottom: 16, color: 'var(--text-secondary)', textAlign: 'center' }}>
             请完成滑块验证以继续
           </p>
-          <SliderCaptcha
-            visible={showCaptcha}
-            onClose={() => setShowCaptcha(false)}
-            onSuccess={handleCaptchaSuccess}
-          />
+          <SliderCaptcha visible={showCaptcha} onClose={() => setShowCaptcha(false)} onSuccess={handleCaptchaSuccess} />
         </div>
       </Modal>
     </Card>
