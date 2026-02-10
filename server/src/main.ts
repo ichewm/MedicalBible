@@ -16,6 +16,8 @@ import { TransformInterceptor } from "./common/interceptors/transform.intercepto
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { TimeoutInterceptor } from "./common/interceptors/timeout.interceptor";
 import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.middleware";
+import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
+import { CompressionMiddleware } from "./common/middleware/compression.middleware";
 
 /**
  * 应用程序启动函数
@@ -65,9 +67,19 @@ async function bootstrap(): Promise<void> {
   );
   logger.log("Helmet security headers enabled");
 
+  // 配置压缩中间件
+  // 使用 ConfigService 获取压缩配置
+  const compressionMiddleware = new CompressionMiddleware(configService);
+  app.use(compressionMiddleware.use.bind(compressionMiddleware));
+
   // 配置请求追踪中间件
   app.use(
     new RequestTrackingMiddleware().use.bind(new RequestTrackingMiddleware()),
+  );
+
+  // 配置活动追踪中间件
+  app.use(
+    new ActivityTrackingMiddleware().use.bind(new ActivityTrackingMiddleware()),
   );
 
   // 配置全局验证管道

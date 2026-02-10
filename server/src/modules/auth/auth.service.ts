@@ -531,7 +531,7 @@ export class AuthService {
    * 刷新 Token
    * @param refreshToken - 当前的刷新令牌
    * @returns 新的 Token
-   * @throws UnauthorizedException 当 Token 无效或检测到重放攻击时
+   * @throws UnauthorizedException 当 Token 无效、过期或检测到重放攻击时
    */
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponseDto> {
     try {
@@ -546,6 +546,7 @@ export class AuthService {
         ignoreExpiration: true,
       });
 
+      // 获取用户信息
       const user = await this.userRepository.findOne({
         where: { id: payload.sub },
       });
@@ -770,7 +771,8 @@ export class AuthService {
   }
 
   /**
-   * 生成 JWT Token
+   * 生成 JWT Token（登录时调用）
+   * @description 生成 Access Token 和 Refresh Token
    */
   private async generateTokens(
     user: User,
@@ -781,23 +783,11 @@ export class AuthService {
     tokenType: string;
     expiresIn: number;
   }> {
-    const payload = {
-      sub: user.id,
-      userId: user.id,
-      id: user.id,
-      phone: user.phone,
-      role: user.role || "user",
-      deviceId,
-    };
+    // 生成 Access Token（短期，15分钟）
+    const accessToken = await this.generateAccessToken(user, deviceId);
 
-    // 生成访问令牌（15分钟过期）
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.get<string>("jwt.secret"),
-      expiresIn: this.configService.get<string>("jwt.accessTokenExpires") || "15m",
-    });
-
-    // 使用 RefreshTokenService 生成刷新令牌（支持令牌族和轮换）
-    const { token: refreshToken } = await this.refreshTokenService.generateRefreshToken(
+    // 使用 RefreshTokenService 生成 Refresh Token（带轮换支持）
+    const refreshMetadata = await this.refreshTokenService.generateRefreshToken(
       user.id,
       deviceId,
     );
@@ -809,12 +799,68 @@ export class AuthService {
       { tokenSignature, lastLoginAt: new Date() },
     );
 
+    // 计算过期时间（秒）
+    const expiresIn = this.parseExpiresToSeconds(
+      this.configService.get<string>("jwt.accessTokenExpires") || "15m",
+    );
+
     return {
       accessToken,
-      refreshToken,
+      refreshToken: refreshMetadata.token,
       tokenType: "Bearer",
-      expiresIn: 15 * 60, // 15分钟（秒）
+      expiresIn,
     };
+  }
+
+  /**
+   * 生成 Access Token（短期，15分钟）
+   * @description 仅生成 Access Token，用于刷新时
+   */
+  private async generateAccessToken(
+    user: User,
+    deviceId: string,
+  ): Promise<string> {
+    const payload = {
+      sub: user.id,
+      userId: user.id,
+      id: user.id,
+      phone: user.phone,
+      role: user.role || "user",
+      deviceId,
+    };
+
+    return this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>("jwt.secret"),
+      expiresIn: this.configService.get<string>("jwt.accessTokenExpires") || "15m",
+    });
+  }
+
+  /**
+   * 解析过期时间配置为秒数
+   * @param expires - 过期时间字符串（如 "7d", "15m", "1h"）
+   * @returns 秒数
+   */
+  private parseExpiresToSeconds(expires: string): number {
+    const match = expires.match(/^(\d+)([smhd])$/);
+    if (!match) {
+      throw new Error(`Invalid expires format: ${expires}`);
+    }
+
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+
+    switch (unit) {
+      case "s":
+        return value;
+      case "m":
+        return value * 60;
+      case "h":
+        return value * 3600;
+      case "d":
+        return value * 86400;
+      default:
+        throw new Error(`Invalid expires unit: ${unit}`);
+    }
   }
 
   /**
@@ -898,7 +944,10 @@ export class AuthService {
       used: 1,
     });
 
-    // 清除该用户所有设备的 Token（强制重新登录）
+    // 撤销该用户所有 Refresh Token Families（强制重新登录）
+    await this.refreshTokenService.revokeAllUserTokens(user.id);
+
+    // 清除该用户所有设备的 Token 签名（强制重新登录）
     await this.userDeviceRepository.update(
       { userId: user.id },
       { tokenSignature: null },
@@ -973,7 +1022,10 @@ export class AuthService {
       used: 1,
     });
 
-    // 清除该用户所有设备的 Token（强制重新登录）
+    // 撤销该用户所有 Refresh Token Families（强制重新登录）
+    await this.refreshTokenService.revokeAllUserTokens(user.id);
+
+    // 清除该用户所有设备的 Token 签名（强制重新登录）
     await this.userDeviceRepository.update(
       { userId: user.id },
       { tokenSignature: null },

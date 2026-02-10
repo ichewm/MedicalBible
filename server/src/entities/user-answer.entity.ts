@@ -37,6 +37,7 @@ export enum AnswerMode {
 @Entity("user_answers")
 @Index("idx_user_answers_user_paper", ["userId", "paperId"])
 @Index("idx_user_answers_session_user", ["sessionId", "userId"])
+@Index("idx_user_answers_user_created", ["userId", "createdAt"])
 export class UserAnswer {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键" })

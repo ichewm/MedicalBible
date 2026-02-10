@@ -15,7 +15,6 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as express from 'express';
 import { AppModule } from '../src/app.module';
 import { GlobalExceptionFilter } from '../src/common/filters/http-exception.filter';
 
@@ -28,7 +27,7 @@ describe('Error Response Standardization (REL-001)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication(express());
+    app = moduleFixture.createNestApplication();
 
     // Configure the app the same way as main.ts
     app.setGlobalPrefix('api/v1');

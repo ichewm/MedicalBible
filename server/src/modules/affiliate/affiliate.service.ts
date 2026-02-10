@@ -323,7 +323,7 @@ export class AffiliateService {
 
     return {
       totalCommission: Number(totalResult?.total || 0),
-      availableCommission: Number(user?.balance || 0), // 可提现=账户余额
+      availableCommission: Number(availableResult?.total || 0),
       frozenCommission: Number(frozenResult?.total || 0),
       balance: Number(user?.balance || 0),
       inviteeCount,

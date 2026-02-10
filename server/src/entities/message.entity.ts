@@ -44,6 +44,7 @@ export enum ContentType {
  */
 @Entity("messages")
 @Index("idx_messages_conversation", ["conversationId", "createdAt"])
+@Index("idx_messages_created_cleanup", ["createdAt"])
 export class Message {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ type: "bigint", comment: "主键" })

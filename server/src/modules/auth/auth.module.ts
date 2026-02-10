@@ -40,7 +40,7 @@ import { NotificationModule } from "../notification/notification.module";
       SystemConfig,
       TokenFamily,
     ]),
-    // JWT 模块配置
+    // JWT 模块配置 - 使用新的 accessTokenExpires 配置
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -72,9 +72,9 @@ export function useVoiceCommands(
 ): UseVoiceCommandsReturn {
   const {
     enabled = false,
-    commands,
-    onCommandMatched,
-    onResult,
+    commands: _commands,
+    onCommandMatched: _onCommandMatched,
+    onResult: _onResult,
     onError,
     onListeningChange,
     onInterim,

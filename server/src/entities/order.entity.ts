@@ -130,6 +130,6 @@ export class Order {
   level: Level;
 
   /** 产生的佣金 */
-  @OneToMany(() => Commission, (commission) => commission.sourceOrder)
+  @OneToMany(() => Commission, (commission) => commission.sourceOrder, { eager: false })
   commissions: Commission[];
 }

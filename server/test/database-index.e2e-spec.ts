@@ -269,7 +269,7 @@ describe("Database Index Conformance E2E Tests (PERF-002)", () => {
      * Phase 1: 5 critical indexes on high-traffic tables
      */
     it("should have all 5 Phase 1 critical indexes implemented (SPEC Lines 372-398)", () => {
-      const phase1Entities = {
+      const phase1Entities: Record<string, { indexes: string[] }> = {
         ExamSession: { indexes: ["idx_exam_sessions_user_deleted_time", "idx_exam_sessions_id_user"] },
         UserAnswer: { indexes: ["idx_user_answers_session_user"] },
         Question: { indexes: ["idx_questions_paper_order"] },
@@ -278,7 +278,7 @@ describe("Database Index Conformance E2E Tests (PERF-002)", () => {
       };
 
       // Verify all Phase 1 entities exist
-      Object.keys(phase1Entities).forEach(entityName => {
+      (Object.keys(phase1Entities) as Array<keyof typeof phase1Entities>).forEach(entityName => {
         expect(phase1Entities[entityName]).toBeDefined();
       });
 
@@ -299,7 +299,7 @@ describe("Database Index Conformance E2E Tests (PERF-002)", () => {
      * Phase 2: 3 indexes on catalog tables
      */
     it("should have all 3 Phase 2 medium priority indexes implemented (SPEC Lines 406-418)", () => {
-      const phase2Entities = {
+      const phase2Entities: Record<string, { indexes: string[] }> = {
         Paper: { indexes: ["idx_papers_subject_status", "idx_papers_year_type"] },
         Lecture: { indexes: ["idx_lectures_subject_active"] },
       };
@@ -368,7 +368,7 @@ describe("Database Index Conformance E2E Tests (PERF-002)", () => {
   describe("Entity Import Verification", () => {
     it("should successfully import all PERF-002 related entities", () => {
       // These imports verify that the entity files exist and are properly structured
-      const entities = {
+      const entities: Record<string, any> = {
         ExamSession,
         UserAnswer,
         Question,
