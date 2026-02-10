@@ -69,6 +69,13 @@ jest.mock("@opentelemetry/api", () => ({
     OK: 0,
     ERROR: 1,
   },
+  SpanKind: {
+    INTERNAL: 0,
+    SERVER: 2,
+    CLIENT: 3,
+    PRODUCER: 4,
+    CONSUMER: 5,
+  },
 }));
 
 jest.mock("@opentelemetry/sdk-node", () => ({

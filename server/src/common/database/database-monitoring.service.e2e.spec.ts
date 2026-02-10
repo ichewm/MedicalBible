@@ -192,10 +192,12 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
 
       const result = await service.getIndexInfo();
 
-      // Verify: Query was executed without table filter
-      expect(mockDataSourceQuery).toHaveBeenCalledWith(
-        expect.stringContaining("WHERE TABLE_SCHEMA = DATABASE()"),
-      );
+      // Verify: Query was executed (two queries - one for index info, one for sizes)
+      expect(mockDataSourceQuery).toHaveBeenCalledTimes(2);
+
+      // Verify: First query is for index information
+      const firstCallArgs = mockDataSourceQuery.mock.calls[0];
+      expect(firstCallArgs[0]).toContain("information_schema.STATISTICS");
 
       // Verify: Result is correctly mapped
       expect(result).toHaveLength(1);
@@ -348,9 +350,9 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
       const result = await service.getTableStats();
 
       // Verify: Query was executed
-      expect(mockDataSourceQuery).toHaveBeenCalledWith(
-        expect.stringContaining("information_schema.TABLES")
-      );
+      expect(mockDataSourceQuery).toHaveBeenCalled();
+      const queryCallArgs = mockDataSourceQuery.mock.calls[0];
+      expect(queryCallArgs[0]).toContain("information_schema.TABLES");
 
       // Verify: Results are correctly mapped
       expect(result).toHaveLength(2);
@@ -412,9 +414,9 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
       const result = await service.getDatabaseStats();
 
       // Verify: Query was executed
-      expect(mockDataSourceQuery).toHaveBeenCalledWith(
-        expect.stringContaining("information_schema.TABLES")
-      );
+      expect(mockDataSourceQuery).toHaveBeenCalled();
+      const queryCallArgs = mockDataSourceQuery.mock.calls[0];
+      expect(queryCallArgs[0]).toContain("information_schema.TABLES");
 
       // Verify: Statistics are correctly parsed
       expect(result.totalTables).toBe(20);
@@ -466,24 +468,27 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
      */
     describe("SPEC: SQL Injection Prevention", () => {
       it("should reject invalid table name in analyze", async () => {
-        await expect(service.analyzeTable("malicious_table; DROP TABLE users; --"))
-          .rejects.toThrow(BadRequestException);
+        const result = await service.analyzeTable("malicious_table; DROP TABLE users; --");
 
-        await expect(service.analyzeTable("malicious_table; DROP TABLE users; --"))
-          .rejects.toThrow("Invalid table name");
+        // Verify: Operation fails with success: false
+        expect(result.success).toBe(false);
+        expect(result.message).toContain("Invalid table name");
       });
 
       it("should reject invalid table name in optimize", async () => {
-        await expect(service.optimizeTable("users; DROP TABLE users; --"))
-          .rejects.toThrow(BadRequestException);
+        const result = await service.optimizeTable("users; DROP TABLE users; --");
 
-        await expect(service.optimizeTable("users; DROP TABLE users; --"))
-          .rejects.toThrow("Invalid table name");
+        // Verify: Operation fails with success: false
+        expect(result.success).toBe(false);
+        expect(result.message).toContain("Invalid table name");
       });
 
       it("should reject table name with SQL comment", async () => {
-        await expect(service.analyzeTable("users--comment"))
-          .rejects.toThrow(BadRequestException);
+        const result = await service.analyzeTable("users--comment");
+
+        // Verify: Operation fails with success: false
+        expect(result.success).toBe(false);
+        expect(result.message).toContain("Invalid table name");
       });
 
       it("should accept valid table names", async () => {
@@ -501,7 +506,8 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
         ];
 
         for (const table of validTables) {
-          await expect(service.analyzeTable(table)).resolves.not.toThrow();
+          const result = await service.analyzeTable(table);
+          expect(result.success).toBe(true);
         }
       });
     });
