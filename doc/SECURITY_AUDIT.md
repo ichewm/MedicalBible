@@ -60,7 +60,41 @@ this.userRepository.find({ where: { phone } });
 .where("user.id = :id", { id })  // 参数化
 ```
 
-### 2.2 XSS 防护 ⚠️
+### 2.2 文件上传安全 ✅ **(SEC-008)**
+
+**已实现的安全功能**：
+- 文件大小限制（按分类配置：头像5MB、PDF 50MB、图片10MB、文档20MB）
+- MIME 类型白名单验证
+- 文件扩展名验证
+- 严格模式（MIME 类型与扩展名匹配验证）
+- 路径遍历攻击防护（文件名净化，过滤 `..`, `~`, `\`, `/` 等危险字符）
+- 病毒扫描集成（ClamAV，支持 TCP/Unix Socket）
+- 随机文件名生成（防止猜测和覆盖）
+- 安全存储（可配置存储目录，支持不在 web root）
+
+**API 端点**：
+- `POST /api/v1/upload/pdf` - 上传 PDF 文件（管理员/教师）
+- `POST /api/v1/upload/pdf/parse` - 解析 PDF 页数（管理员/教师）
+- `POST /api/v1/upload/avatar` - 上传头像（自动压缩为200x200）
+- `POST /api/v1/upload/image` - 上传通用图片
+
+**环境变量配置**：
+```bash
+# 全局上传配置
+UPLOAD_MAX_SIZE=52428800        # 50MB 默认
+UPLOAD_STRICT_MODE=true         # 严格 MIME/扩展名验证
+
+# 病毒扫描配置
+UPLOAD_VIRUS_SCAN_ENABLED=true
+UPLOAD_VIRUS_SCAN_PROVIDER=clamav
+UPLOAD_VIRUS_SCAN_CLAMAV_HOST=localhost
+UPLOAD_VIRUS_SCAN_CLAMAV_PORT=3310
+UPLOAD_VIRUS_SCAN_TIMEOUT=30000
+UPLOAD_VIRUS_SCAN_MAX_FILE_SIZE=104857600  # 100MB
+UPLOAD_VIRUS_SCAN_FAIL_OPEN=true           # 扫描失败时是否允许
+```
+
+### 2.3 XSS 防护 ⚠️
 
 **发现风险点**：
 前端有 4 处使用 `dangerouslySetInnerHTML`：
@@ -157,13 +191,19 @@ import DOMPurify from "dompurify";
    - 实现了环境级域名白名单
    - 生产环境强制验证，禁止通配符
 
-3. **XSS 防护增强**
+3. ~~**文件上传安全验证**~~ ✅ **已完成 (SEC-008)**
+   - 文件大小限制和类型验证
+   - 病毒扫描集成（ClamAV）
+   - 文件名净化和路径遍历防护
+   - 安全存储配置
+
+4. **XSS 防护增强**
    ```bash
    cd web && npm install dompurify @types/dompurify
    ```
    为所有 `dangerouslySetInnerHTML` 添加净化
 
-4. **前端依赖更新**
+5. **前端依赖更新**
    ```bash
    cd web && npm audit fix
    ```
@@ -213,3 +253,4 @@ import DOMPurify from "dompurify";
 | 2025-01-31 | SEC-009 结构化日志实现 | 完成 - 移除所有 console.log，使用 NestJS Logger |
 | 2025-01-31 | CORS 安全配置 (SEC-002) | ✅ 完成环境级域名白名单 |
 | 2025-01-31 | Helmet 中间件集成 (SEC-002) | ✅ 完成安全头配置 |
+| 2026-02-10 | SEC-008 文件上传安全验证 | ✅ 完成文件大小限制、类型验证、病毒扫描、路径遍历防护 |
