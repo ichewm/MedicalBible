@@ -40,3 +40,9 @@ export * from "./withdrawal.entity";
 // ==================== 客服系统 ====================
 export * from "./conversation.entity";
 export * from "./message.entity";
+
+// ==================== AI症状检查 ====================
+export * from "./symptom-session.entity";
+
+// ==================== 分析追踪 ====================
+export * from "./user-activity.entity";

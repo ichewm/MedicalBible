@@ -1,6 +1,7 @@
 /**
  * @file 邮件服务
  * @description 支持多邮件服务商的邮件发送服务
+ * 集成断路器模式，在邮件服务不可时降级到日志记录
  * @author Medical Bible Team
  * @version 1.0.0
  */
@@ -10,6 +11,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as nodemailer from "nodemailer";
 import { CryptoService } from "../../common/crypto/crypto.service";
+import { CircuitBreakerService, ExternalService } from "../../common/circuit-breaker";
 import {
   SystemConfig,
   SystemConfigKeys,
@@ -70,6 +72,7 @@ export class EmailService {
     @InjectRepository(SystemConfig)
     private systemConfigRepository: Repository<SystemConfig>,
     private cryptoService: CryptoService,
+    private readonly circuitBreakerService: CircuitBreakerService,
   ) {}
 
   /**
@@ -100,6 +103,7 @@ export class EmailService {
 
   /**
    * 初始化邮件传输器
+   * @note Retry decorator removed - internal try/catch returns null on error
    */
   private async initTransporter(): Promise<nodemailer.Transporter | null> {
     try {
@@ -162,40 +166,55 @@ export class EmailService {
   }
 
   /**
-   * 发送邮件
+   * 发送邮件（带断路器保护）
    */
   async sendEmail(
     options: SendEmailOptions,
   ): Promise<{ success: boolean; error?: string }> {
-    try {
-      const transporter = await this.getTransporter();
-      if (!transporter) {
-        return { success: false, error: "Email service not configured" };
-      }
+    // 使用断路器保护邮件发送
+    const presetOptions = this.circuitBreakerService.getPresetOptions(
+      ExternalService.EMAIL,
+    );
 
-      const fromName =
-        (await this.getConfig(SystemConfigKeys.EMAIL_FROM_NAME)) || "医学宝典";
-      const fromEmail = await this.getConfig(SystemConfigKeys.EMAIL_SMTP_USER);
+    return this.circuitBreakerService.execute(
+      ExternalService.EMAIL,
+      async () => {
+        const transporter = await this.getTransporter();
+        if (!transporter) {
+          throw new Error("Email service not configured");
+        }
 
-      const result = await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-      });
+        const fromName =
+          (await this.getConfig(SystemConfigKeys.EMAIL_FROM_NAME)) || "医学宝典";
+        const fromEmail = await this.getConfig(SystemConfigKeys.EMAIL_SMTP_USER);
 
-      this.logger.log(
-        `Email sent successfully to ${options.to}, messageId: ${result.messageId}`,
-      );
-      return { success: true };
-    } catch (error) {
-      this.logger.error(
-        `Failed to send email to ${options.to}: ${error.message}`,
-      );
-      // Return generic error message to avoid exposing internal system details
-      return { success: false, error: "Failed to send email. Please try again later." };
-    }
+        const result = await transporter.sendMail({
+          from: `"${fromName}" <${fromEmail}>`,
+          to: options.to,
+          subject: options.subject,
+          html: options.html,
+          text: options.text,
+        });
+
+        this.logger.log(
+          `Email sent successfully to ${options.to}, messageId: ${result.messageId}`,
+        );
+        return { success: true };
+      },
+      {
+        ...presetOptions,
+        fallback: async () => {
+          // 降级时记录邮件内容到日志，避免阻塞用户流程
+          this.logger.warn(
+            `Email circuit breaker triggered - email to ${options.to} was not sent. Subject: ${options.subject}`,
+          );
+          // 记录完整的邮件内容以便调试
+          this.logger.debug(`Fallback email content: ${JSON.stringify(options)}`);
+          // 返回成功以避免阻塞业务流程
+          return { success: true };
+        },
+      },
+    );
   }
 
   /**

@@ -58,6 +58,7 @@ docker compose ps
 | 后端 API | http://localhost:3000 |
 | API 文档 | http://localhost:3000/api-docs |
 | 健康检查 | http://localhost:3000/api/v1/health |
+| 数据库池状态（需管理员权限） | http://localhost:3000/api/v1/admin/database/pool/status |
 
 ### 2.3 默认账号
 
@@ -134,6 +135,11 @@ ENCRYPTION_KEY=your_32_character_encryption_key
 
 # 域名配置
 CORS_ORIGIN=https://your-domain.com
+
+# 数据库连接池配置（根据负载调整，详见 server/docs/DATABASE_CONNECTION_POOL.md）
+# 中等流量生产环境推荐值：
+# DB_POOL_MAX=30
+# DB_POOL_MIN=5
 ```
 
 > 生成随机密钥：`openssl rand -base64 32`
