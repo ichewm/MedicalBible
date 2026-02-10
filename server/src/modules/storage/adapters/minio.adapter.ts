@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Logger } from "@nestjs/common";
 import {
   IStorageAdapter,
+  ICacheInvalidationAdapter,
   UploadOptions,
   UploadResult,
   StorageProvider,
@@ -24,7 +25,7 @@ export interface MinioStorageConfig {
   cdnDomain?: string;
 }
 
-export class MinioStorageAdapter implements IStorageAdapter {
+export class MinioStorageAdapter implements IStorageAdapter, ICacheInvalidationAdapter {
   private readonly logger = new Logger(MinioStorageAdapter.name);
 
   private client: Minio.Client;
@@ -157,5 +158,21 @@ export class MinioStorageAdapter implements IStorageAdapter {
       ".svg": "image/svg+xml",
     };
     return mimeTypes[ext.toLowerCase()] || "application/octet-stream";
+  }
+
+  /**
+   * 使单个文件缓存失效（MinIO 通常无 CDN 缓存需要失效）
+   */
+  async invalidateCache(_key: string): Promise<boolean> {
+    // MinIO 是私有化部署，通常没有 CDN 缓存需要失效
+    return false;
+  }
+
+  /**
+   * 使目录下所有文件缓存失效（MinIO 通常无 CDN 缓存需要失效）
+   */
+  async invalidateDirectory(_directory: string): Promise<boolean> {
+    // MinIO 是私有化部署，通常没有 CDN 缓存需要失效
+    return false;
   }
 }

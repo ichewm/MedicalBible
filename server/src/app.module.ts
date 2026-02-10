@@ -18,8 +18,10 @@ import { redisConfig } from "./config/redis.config";
 import { jwtConfig } from "./config/jwt.config";
 import { corsConfig } from "./config/cors.config";
 import { loggerConfig } from "./config/logger.config";
+import { websocketConfig } from "./config/websocket.config";
 import { compressionConfig } from "./config/compression.config";
 import { securityConfig } from "./config/security.config";
+import { rateLimitConfig } from "./config/rate-limit.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -35,6 +37,10 @@ import { NotificationModule } from "./modules/notification/notification.module";
 import { PaymentModule } from "./modules/payment/payment.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { ChatModule } from "./modules/chat/chat.module";
+import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { FhirModule } from "./modules/fhir/fhir.module";
+import { DataExportModule } from "./modules/data-export/data-export.module";
+import { RbacModule } from "./modules/rbac/rbac.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
@@ -42,9 +48,12 @@ import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
 import { DatabaseModule } from "./common/database/database.module";
 import { LoggerModule } from "./common/logger";
+import { CircuitBreakerModule } from "./common/circuit-breaker";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
+import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 
 /**
  * 健康检查控制器
@@ -75,7 +84,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, compressionConfig, securityConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, rateLimitConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -114,6 +123,9 @@ class HealthController {
     // 结构化日志模块（全局）
     LoggerModule,
 
+    // 断路器模块（全局）
+    CircuitBreakerModule,
+
     // 静态文件服务（上传文件访问）
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, "..", "uploads"),
@@ -137,12 +149,21 @@ class HealthController {
     NotificationModule, // 通知模块（邮件/短信）
     PaymentModule, // 支付模块
     ChatModule, // 客服模块
+    AnalyticsModule, // 分析模块
+    FhirModule, // FHIR医疗数据互操作性模块
+    DataExportModule, // 数据导出模块
+    RbacModule, // RBAC 角色权限模块
   ],
   providers: [
     // 全局 JWT 认证守卫
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // 全局活动追踪拦截器
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityTrackingInterceptor,
     },
   ],
 })

@@ -8,6 +8,7 @@
 import { Global, Module } from "@nestjs/common";
 import { CacheService } from "./cache.service";
 import { CacheController } from "./cache.controller";
+import { AuthModule } from "../../modules/auth/auth.module";
 
 /**
  * 缓存模块
@@ -15,6 +16,7 @@ import { CacheController } from "./cache.controller";
  */
 @Global()
 @Module({
+  imports: [AuthModule],
   providers: [CacheService],
   controllers: [CacheController],
   exports: [CacheService],

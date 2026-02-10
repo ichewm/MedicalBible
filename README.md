@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -80,6 +80,7 @@ chmod +x deploy.sh
 - 账号注销（7天冷静期）
 - 密码修改
 - 等级切换
+- 数据导出（JSON/CSV/Excel，GDPR 合规）
 
 </td>
 <td>
@@ -191,6 +192,16 @@ chmod +x deploy.sh
 - 推广效果分析
 - 报表导出
 
+**数据库监控** (PERF-002)
+- 索引使用情况统计
+- 未使用索引检测
+- 慢查询日志管理
+- 表统计信息
+- 索引碎片化分析
+- 性能摘要报告
+- 查询执行计划分析 (EXPLAIN)
+- 自动化表维护 (ANALYZE/OPTIMIZE)
+
 </td>
 </tr>
 </table>
@@ -211,9 +222,11 @@ chmod +x deploy.sh
 - **语言**: TypeScript 5.x
 - **数据库**: MySQL 8.0
 - **缓存**: Redis 6.2 + CacheService (Cache-Aside 模式)
+- **断路器**: opossum (Circuit Breaker 模式保护外部服务调用)
 - **ORM**: TypeORM
+- **WebSocket**: Socket.io (实时客服消息，支持连接限制、离线消息队列、心跳检测)
 - **文档**: Swagger/OpenAPI
-- **测试**: Jest (299个测试 + 集成测试)
+- **测试**: Jest（单元测试 + 集成测试）
 
 ### 前端技术
 
@@ -249,7 +262,12 @@ MedicalBible/
 │   │   │   ├── lecture/   # 讲义模块
 │   │   │   ├── order/     # 订单模块
 │   │   │   ├── affiliate/ # 分销模块
-│   │   │   └── admin/     # 管理模块
+│   │   │   ├── analytics/ # 分析模块
+│   │   │   ├── admin/     # 管理模块
+│   │   │   ├── data-export/ # 数据导出模块
+│   │   │   ├── rbac/      # RBAC角色权限模块
+│   │   │   ├── storage/   # 文件存储与CDN模块 (FEAT-004)
+│   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
 │   │   ├── config/        # 配置文件
 │   │   └── entities/      # 数据库实体
@@ -288,13 +306,18 @@ MedicalBible/
 - [API 响应格式文档](./server/docs/error-handling.md) - 成功响应、分页和错误响应格式
 - [错误码参考](./server/docs/error-codes.md) - 完整的业务错误码列表
 - [事务模式文档](./docs/TRANSACTION_PATTERNS.md) - 数据库事务使用指南
+- [数据加载策略](./docs/data-loading-strategies.md) - TypeORM 懒加载与优化指南
 - [数据库设计](./doc/database-design.md) - ER图与表结构
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
+- [缓存管理 API](#-缓存管理-api) - 缓存监控与管理接口
 - [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
+- [FHIR标准研究](./docs/fhir-research.md) - FHIR R4标准与CMS互操作性要求
+- [FHIR服务器评估](./docs/fhir-server-evaluation.md) - FHIR服务器选项对比
+- [FHIR资源映射](./docs/fhir-resource-mappings.md) - 数据模型到FHIR资源的映射
 
 ## 🧪 测试
 
@@ -313,7 +336,7 @@ npm run test:cov
 npm run test:e2e
 ```
 
-**测试结果**: ✅ 312/312 测试通过 (含 E2E 测试)
+**测试结果**: ✅ 359/359 测试通过 (含 E2E 测试 + CDN 存储测试)
 
 ### 前端测试
 
@@ -401,7 +424,17 @@ npm run dev
 - SQL 注入防护
 - XSS 防护
 - CSRF 防护
-- Rate Limiting
+- **WebSocket 安全 (API-003)**:
+  - JWT Token 认证（连接时验证）
+  - 每用户最大连接数限制（默认3个连接）
+  - 心跳检测和超时断开（25秒心跳，60秒超时）
+  - 消息队列支持离线用户（7天TTL）
+  - 自动重连策略（1秒-30秒指数退避，最多10次尝试）
+- **Rate Limiting (SEC-001)**: 基于 Redis 的滑动窗口限流
+  - 认证端点限流（登录：10次/小时，注册：5次/分钟）
+  - 验证码限流（10次/天）
+  - 密码重置限流（5次/分钟）
+  - 速率限制响应头（X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset）
 - HTTPS 支持
 - **结构化日志**: 使用 Pino 结构化日志 + 关联 ID 追踪（无 console.log，防止敏感信息泄露）
 
@@ -416,6 +449,222 @@ npm run dev
 - HSTS 默认在生产环境启用，最大有效期 365 天
 - CSP 默认启用，可通过 `CSP_*` 环境变量自定义指令
 - 可通过 `SECURITY_ENABLED=false` 临时禁用（不推荐生产环境）
+
+**限流配置说明**:
+- 基于 Redis 的滑动窗口限流实现
+- 支持多种限流策略：按IP、按用户、全局限流
+- 预设限流配置：
+  - `strict`: 5次/分钟（注册、重置密码等）
+  - `standard`: 30次/分钟（常规端点）
+  - `relaxed`: 100次/分钟（宽松端点）
+  - `login`: 10次/小时（登录端点）
+  - `verificationCode`: 10次/天（验证码端点）
+- 可通过环境变量配置：
+  - `RATE_LIMIT_ENABLED`: 启用/禁用限流 (默认: true)
+  - `RATE_LIMIT_AUTH_MAX`: 认证端点限流次数 (默认: 10)
+  - `RATE_LIMIT_AUTH_WINDOW`: 认证端点时间窗口秒 (默认: 3600)
+  - `RATE_LIMIT_STANDARD_MAX`: 标准端点限流次数 (默认: 30)
+  - `RATE_LIMIT_STANDARD_WINDOW`: 标准端点时间窗口秒 (默认: 60)
+  - `RATE_LIMIT_STRICT_MAX`: 严格端点限流次数 (默认: 5)
+  - `RATE_LIMIT_VERIFICATION_MAX`: 验证码限流次数 (默认: 10)
+  - `RATE_LIMIT_VERIFICATION_WINDOW`: 验证码时间窗口秒 (默认: 86400)
+- 速率限制响应头：`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+
+**WebSocket 配置说明 (API-003)**:
+- 基于 Socket.io 的实时客服消息系统
+- 支持每用户多连接管理（默认最多3个同时连接）
+- 心跳检测机制防止僵尸连接（25秒间隔，60秒超时）
+- 离线消息队列存储（Redis，默认7天TTL）
+- 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
+- 可通过环境变量配置：
+  - `WS_MAX_CONNECTIONS_PER_USER`: 每用户最大连接数 (默认: 3)
+  - `WS_HEARTBEAT_INTERVAL`: 心跳间隔毫秒 (默认: 25000)
+  - `WS_CONNECTION_TIMEOUT`: 连接超时毫秒 (默认: 60000)
+  - `WS_MESSAGE_QUEUE_TTL`: 消息队列TTL秒 (默认: 604800)
+  - `WS_RECONNECT_DELAY_MIN`: 重连最小延迟毫秒 (默认: 1000)
+  - `WS_RECONNECT_DELAY_MAX`: 重连最大延迟毫秒 (默认: 30000)
+  - `WS_MAX_RECONNECT_ATTEMPTS`: 最大重连尝试次数 (默认: 10)
+
+## 🗄️ 缓存管理 API
+
+### 缓存服务特性
+
+Medical Bible 平台使用 Redis 作为缓存层，提供完整的缓存管理功能：
+
+- **Cache-Aside 模式**: 自动缓存未命中时的数据加载
+- **指标追踪**: 实时缓存命中率/未命中率统计
+- **批量操作**: 支持批量获取和设置缓存
+- **模式删除**: 基于通配符的批量缓存清除
+- **装饰器支持**: 方法级别的缓存声明式管理
+
+### 管理接口 (需要管理员权限)
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| GET | `/cache/metrics` | 获取缓存命中率统计 |
+| DELETE | `/cache/metrics` | 重置缓存指标计数器 |
+| GET | `/cache/keys?pattern=*` | 查询缓存键及 TTL 信息 |
+| GET | `/cache/keys/examples` | 获取缓存键构建示例 |
+| DELETE | `/cache/:key` | 删除指定缓存键 |
+| DELETE | `/cache/pattern/:pattern` | 按模式批量删除缓存 (限流) |
+
+### 使用示例
+
+#### 1. 使用 CacheService (服务层)
+
+```typescript
+import { CacheService } from '@/common/cache';
+
+constructor(private readonly cacheService: CacheService) {}
+
+async getUserProfile(userId: number) {
+  // 注意: findOne 返回 null 时不会被缓存（null 作为"缓存未命中"的哨兵值）
+  // 如需缓存 null 结果，可用包装值或改用 findOneOrFail 并处理异常
+  return this.cacheService.getOrSet(
+    { key: `user:${userId}:profile`, ttl: 300 },
+    () => this.userRepository.findOne({ where: { id: userId } })
+  );
+}
+```
+
+#### 2. 使用 @Cacheable 装饰器
+
+```typescript
+import { Cacheable, CacheClear } from '@/common/cache';
+
+@Cacheable({ ttl: 600, useArgs: true })
+async getPaperDetail(paperId: number) {
+  return this.paperRepository.findOne({ where: { id: paperId } });
+}
+
+@CacheClear('paper:*')
+async updatePaper(paperId: number, data: UpdatePaperDto) {
+  // 更新逻辑 - 执行后自动清除所有 paper 缓存
+}
+```
+
+### 缓存键命名规范
+
+使用 `CacheKeyBuilder` 生成标准化的缓存键：
+
+```typescript
+import { CacheKeyBuilder } from '@/common/cache';
+
+// 用户相关: user:123:profile
+CacheKeyBuilder.user(userId, 'profile')
+
+// SKU相关: sku:professions
+CacheKeyBuilder.sku('professions')
+
+// 试卷相关: paper:detail:1
+CacheKeyBuilder.paper('detail', paperId)
+
+// 讲义相关: lecture:subject:1
+CacheKeyBuilder.lecture('subject', subjectId)
+
+// 系统配置: system:config:REGISTER_ENABLED
+CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
+```
+
+### 安全特性
+
+- **原型污染防护**: JSON 解析自动过滤 `__proto__`、`constructor` 和 `prototype`
+- **键名验证**: 缓存模式仅允许字母数字、冒号、星号、下划线
+- **日志脱敏**: 敏感信息在日志中自动截断
+- **访问控制**: 所有管理接口需要 JWT + 管理员角色
+- **速率限制**: 批量删除操作限流 (10次/分钟)
+
+**TTL 推荐值**:
+- 系统配置: 5 分钟
+- 用户数据: 5 分钟
+- SKU 目录: 30 分钟
+- 试卷/讲义: 10 分钟
+- 题目数据: 1 小时
+
+## 🌐 文件存储与 CDN (FEAT-004)
+
+Medical Bible 平台提供统一的文件存储服务，支持多种存储后端和 CDN 加速：
+
+### 支持的存储提供商
+
+- **本地存储** (local): 文件系统存储，适用于开发环境
+- **AWS S3** (aws-s3): Amazon S3 对象存储
+- **阿里云 OSS** (aliyun-oss): 阿里云对象存储服务
+- **腾讯云 COS** (tencent-cos): 腾讯云对象存储服务
+- **MinIO** (minio): S3 兼容的自托管对象存储
+
+### CDN 缓存失效支持
+
+- **AWS CloudFront**: 支持单文件和目录级缓存失效
+- **Cloudflare**: 支持单文件和目录前缀清除
+
+### 核心特性
+
+- **统一接口**: `IStorageAdapter` 提供一致的存储操作 API
+- **断路器保护**: 外部存储服务故障时自动降级到本地存储
+- **配置热切换**: 可在运行时动态切换存储提供商
+- **敏感数据加密**: 存储密钥和 CDN Token 使用 AES-256-CBC 加密
+- **CDN URL 自动生成**: 上传后自动返回 CDN 加速 URL
+
+### 配置示例
+
+系统配置通过数据库 `system_configs` 表管理：
+
+| 配置键 | 说明 | 加密 |
+|--------|------|------|
+| `storage_provider` | 存储服务商 | 否 |
+| `storage_cdn_domain` | CDN 加速域名 | 否 |
+| `storage_s3_region` | AWS S3 区域 | 否 |
+| `storage_s3_access_key_id` | S3 访问密钥 ID | 否 |
+| `storage_s3_secret_access_key` | S3 访问密钥 | ✅ 是 |
+| `storage_s3_bucket` | S3 存储桶名称 | 否 |
+| `storage_cache_invalidation_enabled` | 启用 CDN 缓存失效 | 否 |
+| `storage_cache_invalidation_provider` | CDN 服务商 (cloudfront/cloudflare) | 否 |
+| `storage_cf_distribution_id` | CloudFront 分发 ID | 否 |
+| `storage_cf_zone_id` | Cloudflare 区域 ID | 否 |
+| `storage_cf_api_token` | Cloudflare API Token | ✅ 是 |
+
+### 使用示例
+
+```typescript
+import { StorageService } from '@/modules/storage';
+
+constructor(private readonly storageService: StorageService) {}
+
+async uploadLecture(file: Buffer, filename: string) {
+  const result = await this.storageService.upload(
+    file,
+    filename,
+    {
+      directory: 'lectures',
+      contentType: 'application/pdf',
+      isPublic: true,
+    }
+  );
+
+  // result.url: "https://cdn.example.com/lectures/123-abc.pdf"
+  // result.key: "lectures/123-abc.pdf"
+  return result.url;
+}
+
+async deleteLecture(key: string) {
+  await this.storageService.delete(key);
+  // CDN 缓存失效会自动尝试（如果已配置）
+}
+```
+
+### 安全特性
+
+- **配置加密**: 所有敏感配置使用 AES-256-CBC 加密存储
+- **加密密钥**: 必须通过 `CONFIG_ENCRYPTION_KEY` 环境变量提供
+- **断路器降级**: 外部服务不可用时自动使用本地存储
+- **日志脱敏**: 敏感信息在日志中自动截断
+
+### 环境变量
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `CONFIG_ENCRYPTION_KEY` | ✅ | 配置加密密钥（至少32字符） |
 
 ## 📈 性能
 
@@ -449,8 +698,59 @@ npm run dev
 
 ## 📝 更新日志
 
-### v1.3.0 (2026-02-09)
+### v1.8.0 (2026-02-10)
 
+- ✅ **CDN 集成** (FEAT-004): 静态资源 CDN 加速与缓存管理
+  - 支持多种存储后端（AWS S3、阿里云 OSS、腾讯云 COS、MinIO）
+  - 支持 CloudFront 和 Cloudflare CDN 缓存失效
+  - 断路器模式保护外部存储调用
+  - 自动降级到本地存储
+  - 敏感配置加密存储
+  - 统一存储接口，支持热切换存储提供商
+  - 47 个单元测试覆盖
+
+- 🔌 **WebSocket 连接限制和优化 (API-003)**: 实时客服消息系统增强
+  - 每用户最大连接数限制（默认3个，支持环境变量配置）
+  - 离线消息队列支持（Redis，默认7天TTL）
+  - 连接心跳检测和超时断开（25秒心跳间隔，60秒超时）
+  - 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
+  - 完整的 WebSocket 配置单元测试覆盖
+### v1.7.0 (2026-02-09)
+
+- ✅ 实现用户活动追踪和分析系统
+- ✅ 支持追踪登录、内容访问、购买等关键用户行为
+- ✅ 添加活动追踪中间件和拦截器
+- ✅ 提供管理员统计 API 和用户个人统计 API
+- ✅ 支持数据导出（CSV/JSON 格式）
+- ✅ 新增 user_activities 表及相关索引优化
+
+### v1.6.0 (2026-02-09)
+
+- ✅ 实现断路器模式（Circuit Breaker）保护外部服务调用
+- ✅ 集成 opossum 断路器库，支持自动熔断和降级策略
+- ✅ 为邮件服务、存储服务、Redis 缓存添加断路器保护
+- ✅ 添加预设配置，支持不同类型外部服务的优化参数
+- ✅ 新增断路器状态监控和统计信息 API
+
+### v1.5.0 (2026-02-09)
+
+- 🔐 **RBAC 权限系统**: 实现基于角色的访问控制
+  - 角色-权限数据模型（admin, teacher, student, user）
+  - `@RequirePermission` 和 `@RequireAllPermissions` 装饰器
+  - `PermissionsGuard` 守卫支持精细权限控制
+  - 预置 43 个权限覆盖 9 个资源模块
+  - 初始角色和权限自动种子数据
+  - 完整的 RBAC 相关单元测试覆盖
+
+### v1.4.0 (2026-02-09)
+
+- 🔒 **限流守卫 (SEC-001)**: 基于 Redis 的滑动窗口限流
+  - 认证端点限流（登录：10次/小时，注册：5次/分钟）
+  - 验证码限流（10次/天）
+  - 密码重置限流（5次/分钟）
+  - 速率限制响应头（X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset）
+  - 支持按IP、按用户、全局限流策略
+  - 可通过环境变量配置
 - 🎤 **语音控制原型**: 基于 Web Speech API 的语音命令系统
   - 导航命令（首页、题库、讲义、错题本等）
   - 答题命令（选择答案、上下翻题、标记、提交）
@@ -460,11 +760,34 @@ npm run dev
   - 语音控制浮动组件
   - 可访问性评估与 WCAG 2.1 合规性分析
   - 完整的单元测试覆盖（65个测试）
+- ✅ 实现数据导出功能（GDPR 数据可移植性合规）
+- ✅ 支持多种导出格式（JSON、CSV、Excel）
+- ✅ 后台异步处理大型数据导出
+- ✅ 邮件通知用户导出完成
+- ✅ 7天下载链接有效期
+- ✅ 自动清理过期导出文件
 - ✅ 实现 HTTP 响应压缩中间件（基于 compression）
 - ✅ 支持可配置压缩级别 (1-9)
 - ✅ 支持可配置压缩阈值
 - ✅ 添加压缩指标收集（压缩率、节省字节数）
 - ✅ 智能过滤：仅压缩文本类型内容
+- 🗄️ **数据库索引优化** (PERF-002)
+  - 新增 16 个复合索引优化高频查询
+  - 新增数据库监控服务 (`DatabaseMonitoringService`)
+  - 新增管理后台数据库监控 API (`/admin/database/*`)
+  - 支持索引使用情况统计和未使用索引检测
+  - 支持慢查询日志管理和查询执行计划分析
+  - 支持表统计信息和索引碎片化分析
+  - 支持自动周度表维护 (ANALYZE TABLE)
+  - 新增数据库索引策略文档 (`docs/database-index-strategy.md`)
+
+### v1.3.0 (2026-02-08)
+
+- ✅ 实现FHIR R4标准API端点（医疗数据互操作性）
+- ✅ 支持Patient、Observation、Condition、DocumentReference、Encounter、Coverage、Organization资源
+- ✅ 添加FHIR元数据端点（Capability Statement）
+- ✅ 实现FHIR资源搜索和读取操作
+- ✅ 添加FHIR集成测试
 ### v1.2.0 (2026-02-01)
 
 - ✅ 实现结构化日志系统（基于 Pino）

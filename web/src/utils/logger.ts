@@ -94,6 +94,17 @@ class Logger {
   }
 
   /**
+   * 输出 log 日志（通用日志方法，等同于 info）
+   */
+  log(message: string, ...args: unknown[]): void {
+    if (this.shouldLog(LogLevel.INFO)) {
+      const formatted = this.formatMessage(LogLevel.INFO, message)
+      // eslint-disable-next-line no-console
+      console.log(formatted, ...args)
+    }
+  }
+
+  /**
    * 输出 debug 日志
    */
   debug(message: string, ...args: unknown[]): void {

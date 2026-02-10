@@ -98,10 +98,10 @@ export class Lecture {
   subject: Subject;
 
   /** 重点标注列表 */
-  @OneToMany(() => LectureHighlight, (highlight) => highlight.lecture)
+  @OneToMany(() => LectureHighlight, (highlight) => highlight.lecture, { eager: false })
   highlights: LectureHighlight[];
 
   /** 阅读进度列表 */
-  @OneToMany(() => ReadingProgress, (progress) => progress.lecture)
+  @OneToMany(() => ReadingProgress, (progress) => progress.lecture, { eager: false })
   readingProgress: ReadingProgress[];
 }

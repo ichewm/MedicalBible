@@ -216,8 +216,7 @@ export const handlers = [
   }),
 
   // 提交答案
-  http.post(`${API_BASE}/questions/:id/submit`, async ({ request }) => {
-    const body = await request.json() as { answer: string }
+  http.post(`${API_BASE}/questions/:id/submit`, async () => {
     const isCorrect = Math.random() > 0.3 // 70% 正确率
 
     return HttpResponse.json({

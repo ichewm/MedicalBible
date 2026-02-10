@@ -11,7 +11,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useThemeStore, ThemeMode } from '@/stores/theme'
 import { useVoiceStore, ListeningMode } from '@/stores/voice'
 import { updateProfile, getProfile, getDevices, removeDevice, closeAccount, cancelCloseAccount, setCurrentLevel, getSubscriptions, bindPhone, bindEmail } from '@/api/user'
-import { sendVerificationCode, VerificationCodeType, resetPasswordByCode, sendChangePasswordCode, changePasswordByCode } from '@/api/auth'
+import { sendVerificationCode, VerificationCodeType, sendChangePasswordCode, changePasswordByCode } from '@/api/auth'
 import { MobileOutlined, MailOutlined } from '@ant-design/icons'
 import { logger } from '@/utils'
 
@@ -25,12 +25,11 @@ const Profile = () => {
     enabled: voiceEnabled,
     toggleEnabled: toggleVoiceEnabled,
     textToSpeechEnabled,
-    toggleTextToSpeech,
     setTextToSpeechEnabled,
     listeningMode,
     setListeningMode,
-    volume,
-    setVolume,
+    volume: _volume,
+    setVolume: _setVolume,
   } = useVoiceStore()
   const screens = useBreakpoint()
   const isMobile = !screens.md
@@ -136,11 +135,9 @@ const Profile = () => {
       setAvatarLoading(false)
       const response = info.file.response
       if (response?.data?.url) {
-        // 保存旧头像URL用于删除
-        const oldAvatarUrl = user?.avatarUrl
         // 更新用户头像
         try {
-          await updateProfile({ avatarUrl: response.data.url, oldAvatarUrl })
+          await updateProfile({ avatarUrl: response.data.url })
           setUser({ ...user!, avatarUrl: response.data.url })
           message.success('头像更新成功')
         } catch (error) {
@@ -393,7 +390,7 @@ const Profile = () => {
     setIsDragging(true)
   }
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = (_e: React.TouchEvent) => {
     if (sliderVerified) return
     setIsDragging(true)
   }

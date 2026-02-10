@@ -7,3 +7,5 @@ export * from "./oss.adapter";
 export * from "./cos.adapter";
 export * from "./s3.adapter";
 export * from "./minio.adapter";
+export * from "./cloudfront-invalidation.adapter";
+export * from "./cloudflare-purge.adapter";

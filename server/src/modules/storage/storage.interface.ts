@@ -50,11 +50,40 @@ export type StorageProvider =
   | "minio";
 
 /**
+ * CDN 缓存失效提供商类型
+ */
+export type CacheInvalidationProvider =
+  | "cloudfront"
+  | "cloudflare"
+  | "aliyun-oss"
+  | "tencent-cos";
+
+/**
+ * CDN 缓存失效配置
+ */
+export interface CacheInvalidationConfig {
+  /** 是否启用缓存失效 */
+  enabled: boolean;
+  /** CDN 服务商 */
+  provider?: CacheInvalidationProvider;
+  /** CloudFront Distribution ID */
+  distributionId?: string;
+  /** Cloudflare Zone ID */
+  zoneId?: string;
+  /** Cloudflare API Token */
+  apiToken?: string;
+  /** 阿里云 OSS 是否刷新目录（默认只刷新文件） */
+  refreshDir?: boolean;
+}
+
+/**
  * 存储服务配置
  */
 export interface StorageConfig {
   provider: StorageProvider;
   cdnDomain?: string;
+  /** CDN 缓存失效配置 */
+  cacheInvalidation?: CacheInvalidationConfig;
 
   // 本地存储
   local?: {
@@ -138,4 +167,24 @@ export interface IStorageAdapter {
    * 获取提供商名称
    */
   getProvider(): StorageProvider;
+}
+
+/**
+ * CDN 缓存失效适配器接口
+ * @description 存储适配器可选择实现此接口以支持 CDN 缓存失效
+ */
+export interface ICacheInvalidationAdapter {
+  /**
+   * 使单个文件缓存失效
+   * @param key - 文件路径/Key
+   * @returns Promise<boolean> - true if successful, false otherwise
+   */
+  invalidateCache(key: string): Promise<boolean>;
+
+  /**
+   * 使目录下所有文件缓存失效
+   * @param directory - 目录路径
+   * @returns Promise<boolean> - true if successful, false otherwise
+   */
+  invalidateDirectory(directory: string): Promise<boolean>;
 }

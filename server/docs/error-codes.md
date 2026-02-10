@@ -294,6 +294,32 @@ ERR_1000
 
 ---
 
+### ERR_1108 - Replay Attack Detected
+
+**Description**: A replay attack was detected using an old refresh token. The entire token family has been revoked.
+
+**HTTP Status**: 401
+
+**Exception Class**: `UnauthorizedException`
+
+**Example Response**:
+```json
+{
+  "code": 401,
+  "errorCode": "ERR_1108",
+  "message": "检测到重放攻击，令牌族已被撤销，请重新登录",
+  "path": "/api/auth/refresh-token",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Notes**:
+- This error occurs when an old refresh token is reused after token rotation
+- All tokens in the token family are immediately revoked
+- User must re-authenticate to obtain a new token pair
+
+---
+
 ## User Errors (1200-1299)
 
 ### ERR_1200 - User Not Found
