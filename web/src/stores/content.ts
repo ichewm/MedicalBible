@@ -24,11 +24,11 @@ interface ContentState {
 
   /** 讲义按科目 ID 缓存 */
   lecturesBySubject: Record<number, Lecture[]>
-  lecturesLoadedAt: Record<number, number>
+  lecturesLoadedAt: Partial<Record<number, number>>
 
   /** 试卷按科目 ID 缓存 */
   papersBySubject: Record<number, Paper[]>
-  papersLoadedAt: Record<number, number>
+  papersLoadedAt: Partial<Record<number, number>>
 
   /** 加载状态 */
   loading: Record<string, boolean>
@@ -167,6 +167,7 @@ export const useContentStore = create<ContentState>()(
           set({ categoryTree: null, categoryTreeLoadedAt: null })
         } else if (key.startsWith('lectures-')) {
           const subjectId = Number(key.replace('lectures-', ''))
+          if (!Number.isFinite(subjectId)) return
           const newLecturesBySubject = { ...get().lecturesBySubject }
           const newLecturesLoadedAt = { ...get().lecturesLoadedAt }
           delete newLecturesBySubject[subjectId]
@@ -174,6 +175,7 @@ export const useContentStore = create<ContentState>()(
           set({ lecturesBySubject: newLecturesBySubject, lecturesLoadedAt: newLecturesLoadedAt })
         } else if (key.startsWith('papers-')) {
           const subjectId = Number(key.replace('papers-', ''))
+          if (!Number.isFinite(subjectId)) return
           const newPapersBySubject = { ...get().papersBySubject }
           const newPapersLoadedAt = { ...get().papersLoadedAt }
           delete newPapersBySubject[subjectId]

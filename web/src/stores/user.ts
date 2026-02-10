@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { getSubscriptions } from '@/api/user'
-import { getUserPracticeStats, UserPracticeStats } from '@/api/question'
+import { getUserPracticeStats, type UserPracticeStats } from '@/api/question'
 import { getReadingHistory } from '@/api/lecture'
 import { logger } from '@/utils'
 import type { Lecture } from '@/api/lecture'
@@ -61,8 +61,8 @@ export const useUserStore = create<UserState>()(
         const now = Date.now()
         const cachedAt = get().subscriptionsLoadedAt
 
-        // 检查缓存是否有效
-        if (get().subscriptions.length > 0 && cachedAt && now - cachedAt < CACHE_TTL.SUBSCRIPTIONS) {
+        // 检查缓存是否在 TTL 内（包括空数组的情况）
+        if (cachedAt && now - cachedAt < CACHE_TTL.SUBSCRIPTIONS) {
           return get().subscriptions
         }
 
