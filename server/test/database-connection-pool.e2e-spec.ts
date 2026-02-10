@@ -27,7 +27,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { JwtModule } from "@nestjs/jwt";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const request = require("supertest");
 import { DataSource } from "typeorm";
 import { DatabaseMonitoringService } from "../src/common/database/database-monitoring.service";
