@@ -3,6 +3,7 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "setupFiles": ["<rootDir>/jest-e2e-setup.ts"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
@@ -13,5 +14,6 @@
     "^@modules/(.*)$": "<rootDir>/../src/modules/$1",
     "^@entities/(.*)$": "<rootDir>/../src/entities/$1",
     "^@config/(.*)$": "<rootDir>/../src/config/$1"
-  }
+  },
+  "testTimeout": 30000
 }

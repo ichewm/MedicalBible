@@ -23,6 +23,7 @@ import { Paper } from "../../entities/paper.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import { CryptoService } from "../../common/crypto/crypto.service";
+import { TransactionService } from "../../common/database/transaction.service";
 import { UserListQueryDto } from "./dto/admin.dto";
 
 describe("AdminService", () => {
@@ -171,6 +172,10 @@ describe("AdminService", () => {
     hashPassword: jest.fn(),
   };
 
+  const mockTransactionService = {
+    runInTransaction: jest.fn().mockImplementation((callback) => callback()),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -221,6 +226,10 @@ describe("AdminService", () => {
           provide: CryptoService,
           useValue: mockCryptoService,
         },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
+        },
       ],
     }).compile();
 
@@ -249,6 +258,21 @@ describe("AdminService", () => {
   // ==================== 用户管理 ====================
 
   describe("getUserList - 获取用户列表", () => {
+    let mockOrderQueryBuilder: any;
+
+    beforeEach(() => {
+      // Set up order query builder mock for spent amount queries
+      mockOrderQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([]),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(mockOrderQueryBuilder);
+    });
+
     it("应该成功获取用户列表", async () => {
       // Arrange
       mockUserRepository.findAndCount.mockResolvedValue([[mockUser], 1]);
@@ -331,6 +355,19 @@ describe("AdminService", () => {
   });
 
   describe("getUserDetail - 获取用户详情", () => {
+    let mockOrderQueryBuilder: any;
+
+    beforeEach(() => {
+      // Set up order query builder mock for totalSpent queries
+      mockOrderQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ totalSpent: "1000" }),
+      };
+      mockOrderRepository.createQueryBuilder.mockReturnValue(mockOrderQueryBuilder);
+    });
+
     it("应该成功获取用户详情", async () => {
       // Arrange
       mockUserRepository.findOne.mockResolvedValue(mockUser);
@@ -433,16 +470,21 @@ describe("AdminService", () => {
         subscriptionQueryBuilder,
       );
 
-      // 收入查询
-      const revenueQueryBuilder = {
+      // 收入查询 - needs two query builders (totalRevenue and todayRevenue)
+      const revenueQueryBuilder1 = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({ total: "50000" }),
+      };
+      const revenueQueryBuilder2 = {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn().mockResolvedValue({ total: "50000" }),
+        getRawOne: jest.fn().mockResolvedValue({ total: "1000" }),
       };
-      mockOrderRepository.createQueryBuilder.mockReturnValue(
-        revenueQueryBuilder,
-      );
+      mockOrderRepository.createQueryBuilder
+        .mockReturnValueOnce(revenueQueryBuilder1)
+        .mockReturnValueOnce(revenueQueryBuilder2);
 
       // 佣金查询 - 需要两个不同的查询构建器
       const commissionQueryBuilder = {
