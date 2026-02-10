@@ -17,6 +17,7 @@ import {
   GetTableStatsDto,
   TableNameParamDto,
   ExplainQueryDto,
+  GetAlertHistoryDto,
 } from "./dto/database-monitoring.dto";
 
 /**
@@ -205,6 +206,81 @@ export class DatabaseMonitoringController {
     return {
       success: true,
       data: result,
+    };
+  }
+
+  // ==================== 连接池监控接口 ====================
+
+  /**
+   * 获取连接池状态
+   * GET /admin/database/pool/status
+   */
+  @Get("pool/status")
+  async getPoolStatus() {
+    const status = await this.databaseMonitoringService.getConnectionPoolStatus();
+    return {
+      success: true,
+      data: status,
+    };
+  }
+
+  /**
+   * 获取连接池配置
+   * GET /admin/database/pool/config
+   */
+  @Get("pool/config")
+  async getPoolConfig() {
+    const config = this.databaseMonitoringService.getConnectionPoolConfig();
+    return {
+      success: true,
+      data: config,
+    };
+  }
+
+  /**
+   * 手动检查连接池健康状态
+   * GET /admin/database/pool/health-check
+   */
+  @Get("pool/health-check")
+  async poolHealthCheck() {
+    const alert = await this.databaseMonitoringService.checkPoolHealth();
+    return {
+      success: true,
+      data: {
+        alert,
+        message: alert ? "检测到连接池告警" : "连接池状态正常",
+      },
+    };
+  }
+
+  /**
+   * 获取告警历史
+   * GET /admin/database/pool/alerts
+   */
+  @Get("pool/alerts")
+  async getAlertHistory(@Query() queryDto: GetAlertHistoryDto) {
+    const limit = queryDto.limit ?? 10;
+    const alerts = this.databaseMonitoringService.getAlertHistory(limit);
+    return {
+      success: true,
+      data: alerts,
+      meta: {
+        total: alerts.length,
+        limit,
+      },
+    };
+  }
+
+  /**
+   * 清空告警历史
+   * DELETE /admin/database/pool/alerts
+   */
+  @Delete("pool/alerts")
+  async clearAlertHistory() {
+    this.databaseMonitoringService.clearAlertHistory();
+    return {
+      success: true,
+      message: "告警历史已清空",
     };
   }
 }
