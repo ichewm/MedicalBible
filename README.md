@@ -80,6 +80,7 @@ chmod +x deploy.sh
 - 账号注销（7天冷静期）
 - 密码修改
 - 等级切换
+- 数据导出（JSON/CSV/Excel，GDPR 合规）
 
 </td>
 <td>
@@ -598,6 +599,12 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
   - 语音控制浮动组件
   - 可访问性评估与 WCAG 2.1 合规性分析
   - 完整的单元测试覆盖（65个测试）
+- ✅ 实现数据导出功能（GDPR 数据可移植性合规）
+- ✅ 支持多种导出格式（JSON、CSV、Excel）
+- ✅ 后台异步处理大型数据导出
+- ✅ 邮件通知用户导出完成
+- ✅ 7天下载链接有效期
+- ✅ 自动清理过期导出文件
 - ✅ 实现 HTTP 响应压缩中间件（基于 compression）
 - ✅ 支持可配置压缩级别 (1-9)
 - ✅ 支持可配置压缩阈值
@@ -612,7 +619,6 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
   - 支持表统计信息和索引碎片化分析
   - 支持自动周度表维护 (ANALYZE TABLE)
   - 新增数据库索引策略文档 (`docs/database-index-strategy.md`)
-
 ### v1.2.0 (2026-02-01)
 
 - ✅ 实现结构化日志系统（基于 Pino）

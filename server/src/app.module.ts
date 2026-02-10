@@ -35,6 +35,7 @@ import { NotificationModule } from "./modules/notification/notification.module";
 import { PaymentModule } from "./modules/payment/payment.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { ChatModule } from "./modules/chat/chat.module";
+import { DataExportModule } from "./modules/data-export/data-export.module";
 import { RbacModule } from "./modules/rbac/rbac.module";
 
 // 公共模块导入
@@ -138,6 +139,7 @@ class HealthController {
     NotificationModule, // 通知模块（邮件/短信）
     PaymentModule, // 支付模块
     ChatModule, // 客服模块
+    DataExportModule, // 数据导出模块
     RbacModule, // RBAC 角色权限模块
   ],
   providers: [
