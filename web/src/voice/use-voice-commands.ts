@@ -83,7 +83,8 @@ export function useVoiceCommands(
     debug = false,
   } = options
 
-  const logger = createLogger('VoiceCommands')
+  const loggerRef = useRef(createLogger('VoiceCommands'))
+  const logger = loggerRef.current
   const [isListening, setIsListening] = useState(false)
   const [lastTranscript, setLastTranscript] = useState('')
   const [lastCommand, setLastCommand] = useState<VoiceCommand | null>(null)
@@ -145,7 +146,7 @@ export function useVoiceCommands(
 
       optionsRef.current.onResult?.(transcript)
     },
-    [debug, logger]
+    [debug]
   )
 
   // 设置回调
@@ -190,7 +191,7 @@ export function useVoiceCommands(
     return () => {
       service.removeAllCallbacks()
     }
-  }, [handleCommandMatch, onError, onListeningChange, onInterim, debug, logger])
+  }, [handleCommandMatch, onError, onListeningChange, onInterim, debug])
 
   // 处理启用状态变化
   useEffect(() => {

@@ -2,6 +2,14 @@
  * @file Logger Utility Unit Tests
  * @description Tests for the logger utility that replaced console.log statements
  * @spec SEC-009: Remove all console.log statements from production code
+ *
+ * The logger utility is a lightweight wrapper around console methods that provides:
+ * - Log level filtering (DEBUG, INFO, WARN, ERROR, SILENT)
+ * - Module-specific loggers with prefixes for better traceability
+ * - Centralized logging configuration
+ *
+ * This implementation provides the benefits of structured logging (level-based filtering,
+ * module prefixes) while maintaining the simplicity of console-based logging.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -97,24 +105,132 @@ describe('Logger Utility', () => {
       expect(() => testLogger.error('test')).not.toThrow()
     })
 
-    it('should handle error logging without error object', () => {
+    it('should output to correct console methods with DEBUG level', () => {
+      const mockDebug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+      const mockLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+      const mockInfo = vi.spyOn(console, 'info').mockImplementation(() => {})
+      const mockWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const mockError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
       const testLogger = createLogger('TestModule')
 
-      expect(() => testLogger.error('Error without object')).not.toThrow()
+      testLogger.debug('debug message')
+      testLogger.log('log message')
+      testLogger.info('info message')
+      testLogger.warn('warn message')
+      testLogger.error('error message')
+
+      expect(mockDebug).toHaveBeenCalledWith(expect.stringContaining('[TestModule]'), 'debug message')
+      expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('[TestModule]'), 'log message')
+      expect(mockInfo).toHaveBeenCalledWith(expect.stringContaining('[TestModule]'), 'info message')
+      expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('[TestModule]'), 'warn message')
+      expect(mockError).toHaveBeenCalledWith(expect.stringContaining('[TestModule]'), 'error message')
+
+      mockDebug.mockRestore()
+      mockLog.mockRestore()
+      mockInfo.mockRestore()
+      mockWarn.mockRestore()
+      mockError.mockRestore()
+    })
+
+    it('should filter logs by level - INFO level suppresses DEBUG', () => {
+      const mockDebug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+      const mockInfo = vi.spyOn(console, 'info').mockImplementation(() => {})
+      const mockWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const testLogger = createLogger('TestModule')
+
+      setGlobalLogLevel(LogLevel.INFO)
+      testLogger.debug('should not appear')
+      testLogger.info('should appear')
+      testLogger.warn('should appear')
+
+      expect(mockDebug).not.toHaveBeenCalled()
+      expect(mockInfo).toHaveBeenCalled()
+      expect(mockWarn).toHaveBeenCalled()
+
+      setGlobalLogLevel(LogLevel.DEBUG)
+      mockDebug.mockRestore()
+      mockInfo.mockRestore()
+      mockWarn.mockRestore()
+    })
+
+    it('should filter logs by level - WARN level suppresses DEBUG and INFO', () => {
+      const mockDebug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+      const mockInfo = vi.spyOn(console, 'info').mockImplementation(() => {})
+      const mockWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const testLogger = createLogger('TestModule')
+
+      setGlobalLogLevel(LogLevel.WARN)
+      testLogger.debug('should not appear')
+      testLogger.info('should not appear')
+      testLogger.warn('should appear')
+
+      expect(mockDebug).not.toHaveBeenCalled()
+      expect(mockInfo).not.toHaveBeenCalled()
+      expect(mockWarn).toHaveBeenCalled()
+
+      setGlobalLogLevel(LogLevel.DEBUG)
+      mockDebug.mockRestore()
+      mockInfo.mockRestore()
+      mockWarn.mockRestore()
+    })
+
+    it('should handle error logging without error object', () => {
+      const mockError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const testLogger = createLogger('TestModule')
+
+      testLogger.error('Error without object')
+
+      expect(mockError).toHaveBeenCalledWith(expect.stringContaining('[TestModule]'), 'Error without object')
+
+      mockError.mockRestore()
     })
 
     it('should handle logging with additional arguments', () => {
-      const testLogger = createLogger('TestModule')
+      const mockWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const mockError = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-      expect(() => testLogger.warn('Message', { data: 'value' })).not.toThrow()
-      expect(() => testLogger.error('Error', new Error('test'))).not.toThrow()
+      const testLogger = createLogger('TestModule')
+      const testObj = { data: 'value' }
+      const testError = new Error('test error')
+
+      testLogger.warn('Message', testObj)
+      testLogger.error('Error', testError)
+
+      expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('[TestModule]'), 'Message', testObj)
+      expect(mockError).toHaveBeenCalledWith(expect.stringContaining('[TestModule]'), 'Error', testError)
+
+      mockWarn.mockRestore()
+      mockError.mockRestore()
+    })
+
+    it('should include module prefix in all log messages', () => {
+      const mockLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      const authLogger = createLogger('Auth')
+      const voiceLogger = createLogger('VoiceCommands')
+
+      authLogger.log('User logged in')
+      voiceLogger.log('Command recognized')
+
+      expect(mockLog).toHaveBeenNthCalledWith(1, expect.stringContaining('[Auth]'), 'User logged in')
+      expect(mockLog).toHaveBeenNthCalledWith(2, expect.stringContaining('[VoiceCommands]'), 'Command recognized')
+
+      mockLog.mockRestore()
     })
   })
 
   describe('SEC-009: Security Compliance', () => {
     it('should provide structured logging API', () => {
-      // Spec: "Replace with structured logging using Winston or similar"
-      // The logger provides a structured logging interface
+      // The logger provides a structured logging interface with:
+      // - Log level filtering
+      // - Module-specific prefixes for traceability
+      // - Centralized configuration
+      //
+      // This replaces direct console.log usage with a controlled logging mechanism
+      // that can be configured per environment.
 
       const testLogger = createLogger('TestModule')
 
