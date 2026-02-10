@@ -6,24 +6,23 @@
  */
 
 import { registerAs } from "@nestjs/config";
+import { redisConfigSchema } from "./config.schema";
 
 /**
  * Redis 配置对象
  * @description 用于缓存、Session 管理和 Token 黑名单
  */
-export const redisConfig = registerAs("redis", () => ({
-  /** Redis 主机地址 */
-  host: process.env.REDIS_HOST || "localhost",
+export const redisConfig = registerAs("redis", () => {
+  const rawConfig = {
+    /** Redis 主机地址 */
+    host: process.env.REDIS_HOST,
+    /** Redis 端口 */
+    port: process.env.REDIS_PORT,
+    /** Redis 密码（可选） */
+    password: process.env.REDIS_PASSWORD,
+    /** 默认数据库索引 */
+    db: process.env.REDIS_DB,
+  };
 
-  /** Redis 端口 */
-  port: parseInt(process.env.REDIS_PORT || "6379", 10),
-
-  /** Redis 密码（可选） */
-  password: process.env.REDIS_PASSWORD || undefined,
-
-  /** 默认数据库索引 */
-  db: parseInt(process.env.REDIS_DB || "0", 10),
-
-  /** 键名前缀，用于区分不同应用 */
-  keyPrefix: "medical_bible:",
-}));
+  return redisConfigSchema.parse(rawConfig);
+});

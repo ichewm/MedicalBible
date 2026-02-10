@@ -33,6 +33,15 @@ export class RefreshTokenResponseDto {
   @ApiProperty({ description: "令牌类型", example: "Bearer" })
   tokenType: string;
 
-  @ApiProperty({ description: "访问令牌过期时间（秒）", example: 604800 })
+  @ApiProperty({
+    description: "访问令牌过期时间（秒）",
+    example: 900,
+  })
   expiresIn: number;
+
+  @ApiProperty({
+    description: "是否发生了令牌轮换",
+    example: true,
+  })
+  rotated: boolean;
 }

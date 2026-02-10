@@ -46,6 +46,7 @@ export interface LoginResponse {
     balance: number
     currentLevelId?: number
     isNewUser?: boolean
+    role?: string
   }
 }
 
@@ -71,15 +72,15 @@ export const sendVerificationCode = (
 }
 
 export const loginByPhone = (data: LoginParams) => {
-  return request.post<any, LoginResponse>('/auth/login/phone', data)
+  return request.post<LoginResponse>('/auth/login/phone', data)
 }
 
 export const register = (data: RegisterParams) => {
-  return request.post<any, LoginResponse>('/auth/register', data)
+  return request.post<LoginResponse>('/auth/register', data)
 }
 
 export const loginByPassword = (data: LoginByPasswordParams) => {
-  return request.post<any, LoginResponse>('/auth/login/password', data)
+  return request.post<LoginResponse>('/auth/login/password', data)
 }
 
 export const refreshToken = (refreshToken: string) => {

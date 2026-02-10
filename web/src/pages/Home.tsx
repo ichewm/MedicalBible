@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Row, Col, Card, Statistic, Button, Select, Space, Typography, List, Progress, Grid } from 'antd'
+import { Row, Col, Card, Statistic, Button, Select, Typography, List, Progress, Grid } from 'antd'
 import {
   FileTextOutlined,
   ReadOutlined,
@@ -13,9 +13,12 @@ import {
   RightOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/auth'
+import { useVoiceStore } from '@/stores/voice'
 import { getCategoryTree } from '@/api/sku'
 import { getSubscriptions, setCurrentLevel as setCurrentLevelApi } from '@/api/user'
 import { getUserPracticeStats, UserPracticeStats } from '@/api/question'
+import { useVoiceCommandHandler } from '@/voice/use-voice-commands'
+import { navigationCommands } from '@/voice/commands'
 import './Home.css'
 import { logger } from '@/utils'
 
@@ -25,6 +28,7 @@ const { useBreakpoint } = Grid
 const Home = () => {
   const navigate = useNavigate()
   const { user, setCurrentLevel } = useAuthStore()
+  const { enabled: voiceEnabled } = useVoiceStore()
   const screens = useBreakpoint()
   const isMobile = !screens.md
   const [categoryTree, setCategoryTree] = useState<any[]>([])
@@ -40,7 +44,7 @@ const Home = () => {
         const data: any = await getCategoryTree()
         setCategoryTree(data || [])
       } catch (error) {
-        logger.error(error)
+        logger.error('获取分类树失败', error)
       }
     }
     fetchData()
@@ -173,6 +177,24 @@ const Home = () => {
       path: '/questions?tab=history',
     },
   ]
+
+  // 语音命令处理
+  useVoiceCommandHandler(
+    {
+      'navigate-home': () => navigate('/'),
+      'navigate-questions': () => navigate('/questions'),
+      'navigate-lectures': () => navigate('/lectures'),
+      'navigate-wrong': () => navigate('/questions?tab=wrong'),
+      'navigate-history': () => navigate('/questions?tab=history'),
+      'navigate-profile': () => navigate('/profile'),
+      'navigate-subscription': () => navigate('/subscription'),
+      'go-back': () => navigate(-1),
+    },
+    {
+      enabled: voiceEnabled,
+      commands: navigationCommands,
+    }
+  )
 
   return (
     <div className="home">

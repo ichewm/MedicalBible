@@ -3,14 +3,15 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Card, Descriptions, Avatar, Button, Form, Input, Modal, message, List, Space, Typography, Alert, Select, Tag, Upload, Radio, Tooltip, Grid } from 'antd'
-import { UserOutlined, EditOutlined, LockOutlined, ExclamationCircleOutlined, SwapOutlined, CameraOutlined, LoadingOutlined, BulbOutlined, BulbFilled, DesktopOutlined, CheckCircleFilled, ClockCircleOutlined } from '@ant-design/icons'
+import { Card, Descriptions, Avatar, Button, Form, Input, Modal, message, List, Space, Typography, Alert, Select, Upload, Radio, Tooltip, Grid } from 'antd'
+import { UserOutlined, EditOutlined, LockOutlined, ExclamationCircleOutlined, SwapOutlined, CameraOutlined, LoadingOutlined, BulbOutlined, BulbFilled, DesktopOutlined, CheckCircleFilled, ClockCircleOutlined, AudioOutlined, AudioMutedOutlined } from '@ant-design/icons'
 import type { UploadChangeParam, RcFile, UploadFile } from 'antd/es/upload'
 import ImgCrop from 'antd-img-crop'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore, ThemeMode } from '@/stores/theme'
+import { useVoiceStore, ListeningMode } from '@/stores/voice'
 import { updateProfile, getProfile, getDevices, removeDevice, closeAccount, cancelCloseAccount, setCurrentLevel, getSubscriptions, bindPhone, bindEmail } from '@/api/user'
-import { sendVerificationCode, VerificationCodeType, resetPasswordByCode, sendChangePasswordCode, changePasswordByCode } from '@/api/auth'
+import { sendVerificationCode, VerificationCodeType, sendChangePasswordCode, changePasswordByCode } from '@/api/auth'
 import { MobileOutlined, MailOutlined } from '@ant-design/icons'
 import { logger } from '@/utils'
 
@@ -20,6 +21,16 @@ const { useBreakpoint } = Grid
 const Profile = () => {
   const { user, setUser, logout } = useAuthStore()
   const { mode, setMode, resolvedTheme } = useThemeStore()
+  const {
+    enabled: voiceEnabled,
+    toggleEnabled: toggleVoiceEnabled,
+    textToSpeechEnabled,
+    setTextToSpeechEnabled,
+    listeningMode,
+    setListeningMode,
+    volume: _volume,
+    setVolume: _setVolume,
+  } = useVoiceStore()
   const screens = useBreakpoint()
   const isMobile = !screens.md
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -124,11 +135,9 @@ const Profile = () => {
       setAvatarLoading(false)
       const response = info.file.response
       if (response?.data?.url) {
-        // 保存旧头像URL用于删除
-        const oldAvatarUrl = user?.avatarUrl
         // 更新用户头像
         try {
-          await updateProfile({ avatarUrl: response.data.url, oldAvatarUrl })
+          await updateProfile({ avatarUrl: response.data.url })
           setUser({ ...user!, avatarUrl: response.data.url })
           message.success('头像更新成功')
         } catch (error) {
@@ -381,7 +390,7 @@ const Profile = () => {
     setIsDragging(true)
   }
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = (_e: React.TouchEvent) => {
     if (sliderVerified) return
     setIsDragging(true)
   }
@@ -678,6 +687,95 @@ const Profile = () => {
           )}
           locale={{ emptyText: '暂无设备' }}
         />
+      </Card>
+
+      {/* 语音控制设置 */}
+      <Card title="语音控制设置" style={{ marginBottom: 24 }}>
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          {/* 语音功能开关 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ minWidth: isMobile ? '100%' : 'auto' }}>
+              <Text strong>语音控制</Text>
+              <br />
+              <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
+                启用后可通过语音指令操作应用
+              </Text>
+            </div>
+            <Button
+              type={voiceEnabled ? 'primary' : 'default'}
+              icon={voiceEnabled ? <AudioOutlined /> : <AudioMutedOutlined />}
+              onClick={toggleVoiceEnabled}
+            >
+              {voiceEnabled ? '已开启' : '已关闭'}
+            </Button>
+          </div>
+
+          {/* 语音反馈开关 */}
+          {voiceEnabled && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ minWidth: isMobile ? '100%' : 'auto' }}>
+                <Text strong>语音反馈</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
+                  识别成功后播放语音提示
+                </Text>
+              </div>
+              <Radio.Group
+                value={textToSpeechEnabled}
+                onChange={(e) => setTextToSpeechEnabled(e.target.value)}
+                optionType="button"
+                buttonStyle="solid"
+                size="small"
+              >
+                <Radio.Button value={true}>开启</Radio.Button>
+                <Radio.Button value={false}>关闭</Radio.Button>
+              </Radio.Group>
+            </div>
+          )}
+
+          {/* 监听模式 */}
+          {voiceEnabled && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ minWidth: isMobile ? '100%' : 'auto' }}>
+                <Text strong>监听模式</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
+                  按住说话或连续监听
+                </Text>
+              </div>
+              <Radio.Group
+                value={listeningMode}
+                onChange={(e) => setListeningMode(e.target.value as ListeningMode)}
+                optionType="button"
+                buttonStyle="solid"
+                size="small"
+              >
+                <Tooltip title="点击麦克风按钮开始说话">
+                  <Radio.Button value="push-to-talk">按住说话</Radio.Button>
+                </Tooltip>
+                <Tooltip title="持续监听语音指令">
+                  <Radio.Button value="continuous">连续监听</Radio.Button>
+                </Tooltip>
+              </Radio.Group>
+            </div>
+          )}
+
+          {/* 使用提示 */}
+          {voiceEnabled && (
+            <Alert
+              message="语音指令示例"
+              description={
+                <ul style={{ margin: '8px 0 0 0', paddingLeft: 20 }}>
+                  <li>导航：说"首页"、"题库"、"讲义"、"错题本"</li>
+                  <li>控制：说"返回"、"刷新"</li>
+                  <li>点击右下角麦克风图标开始说话</li>
+                </ul>
+              }
+              type="info"
+              showIcon
+            />
+          )}
+        </Space>
       </Card>
 
       {/* 外观设置 */}

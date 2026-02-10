@@ -18,6 +18,12 @@ import { redisConfig } from "./config/redis.config";
 import { jwtConfig } from "./config/jwt.config";
 import { corsConfig } from "./config/cors.config";
 import { loggerConfig } from "./config/logger.config";
+import { websocketConfig } from "./config/websocket.config";
+import { compressionConfig } from "./config/compression.config";
+import { securityConfig } from "./config/security.config";
+import { sanitizationConfig } from "./config/sanitization.config";
+import { rateLimitConfig } from "./config/rate-limit.config";
+import { retryConfig } from "./config/retry.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -33,6 +39,11 @@ import { NotificationModule } from "./modules/notification/notification.module";
 import { PaymentModule } from "./modules/payment/payment.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { ChatModule } from "./modules/chat/chat.module";
+import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { FhirModule } from "./modules/fhir/fhir.module";
+import { DataExportModule } from "./modules/data-export/data-export.module";
+import { RbacModule } from "./modules/rbac/rbac.module";
+import { SymptomCheckerModule } from "./modules/symptom-checker/symptom-checker.module";
 import { WearableModule } from "./modules/wearable/wearable.module";
 
 // 公共模块导入
@@ -41,9 +52,13 @@ import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
 import { DatabaseModule } from "./common/database/database.module";
 import { LoggerModule } from "./common/logger";
+import { CircuitBreakerModule } from "./common/circuit-breaker";
+import { RetryModule } from "./common/retry";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
+import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 
 /**
  * 健康检查控制器
@@ -74,28 +89,61 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, retryConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
     // TypeORM 数据库模块
     // - 使用异步配置，从 ConfigService 获取数据库配置
+    // - 配置连接池以防止高负载下连接耗尽
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: "mysql",
-        host: configService.get<string>("database.host"),
-        port: configService.get<number>("database.port"),
-        username: configService.get<string>("database.username"),
-        password: configService.get<string>("database.password"),
-        database: configService.get<string>("database.database"),
-        entities: [__dirname + "/entities/**/*.entity{.ts,.js}"],
-        synchronize: configService.get<string>("NODE_ENV") !== "production",
-        logging: configService.get<string>("NODE_ENV") === "development",
-        charset: "utf8mb4",
-        timezone: "+08:00", // 北京时间
-      }),
+      useFactory: (configService: ConfigService) => {
+        const pool = configService.get<any>("database.pool");
+        const connectionTimeout = configService.get<number>("database.connectionTimeout");
+        const queryTimeout = configService.get<number>("database.queryTimeout");
+
+        return {
+          type: "mysql",
+          host: configService.get<string>("database.host"),
+          port: configService.get<number>("database.port"),
+          username: configService.get<string>("database.username"),
+          password: configService.get<string>("database.password"),
+          database: configService.get<string>("database.database"),
+          entities: [__dirname + "/entities/**/*.entity{.ts,.js}"],
+          synchronize: configService.get<string>("NODE_ENV") !== "production",
+          logging: configService.get<string>("NODE_ENV") === "development",
+          charset: "utf8mb4",
+          timezone: "+08:00", // 北京时间
+
+          // 连接池配置 - 使用 extra 传递给底层 mysql2 驱动
+          extra: {
+            // 连接池大小
+            connectionLimit: pool?.max || 20,
+
+            // 启用连接池的 keepAlive 功能
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 0,
+
+            // 连接建立超时时间（毫秒）
+            connectTimeout: connectionTimeout || 60000,
+
+            // 查询超时时间
+            timeout: queryTimeout || 60000,
+
+            // 连接获取超时时间（通过 acquireTimeout 配置）
+            acquireTimeout: pool?.acquireTimeoutMillis || 30000,
+          } as {
+            connectionLimit: number;
+            enableKeepAlive: boolean;
+            keepAliveInitialDelay: number;
+            connectTimeout: number;
+            timeout: number;
+            acquireTimeout: number;
+          },
+        };
+      },
     }),
 
     // Redis 缓存模块
@@ -112,6 +160,12 @@ class HealthController {
 
     // 结构化日志模块（全局）
     LoggerModule,
+
+    // 断路器模块（全局）
+    CircuitBreakerModule,
+
+    // 重试模块（全局）
+    RetryModule,
 
     // 静态文件服务（上传文件访问）
     ServeStaticModule.forRoot({
@@ -136,6 +190,11 @@ class HealthController {
     NotificationModule, // 通知模块（邮件/短信）
     PaymentModule, // 支付模块
     ChatModule, // 客服模块
+    AnalyticsModule, // 分析模块
+    FhirModule, // FHIR医疗数据互操作性模块
+    DataExportModule, // 数据导出模块
+    RbacModule, // RBAC 角色权限模块
+    SymptomCheckerModule, // AI症状检查模块
     WearableModule, // 可穿戴设备集成模块
   ],
   providers: [
@@ -143,6 +202,11 @@ class HealthController {
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // 全局活动追踪拦截器
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActivityTrackingInterceptor,
     },
   ],
 })

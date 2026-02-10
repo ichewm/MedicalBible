@@ -7,6 +7,7 @@
 
 import { IsString, IsOptional, MaxLength, Matches } from "class-validator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { NoHtmlTags, NoScriptTags, SafeUrl } from "../../../common/validators";
 
 /**
  * 更新用户信息请求 DTO
@@ -20,6 +21,8 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString({ message: "用户名必须是字符串" })
   @MaxLength(50, { message: "用户名最多50个字符" })
+  @NoHtmlTags({ message: "用户名不能包含HTML标签" })
+  @NoScriptTags({ message: "用户名不能包含脚本内容" })
   username?: string;
 
   @ApiPropertyOptional({
@@ -29,6 +32,7 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString({ message: "头像URL必须是字符串" })
   @Matches(/^(https?:\/\/|\/uploads\/)/, { message: "请输入正确的头像URL" })
+  @SafeUrl({ message: "头像URL包含不安全的协议" })
   avatarUrl?: string;
 
   @ApiPropertyOptional({
@@ -37,5 +41,6 @@ export class UpdateProfileDto {
   })
   @IsOptional()
   @IsString({ message: "旧头像URL必须是字符串" })
+  @SafeUrl({ message: "旧头像URL包含不安全的协议" })
   oldAvatarUrl?: string;
 }

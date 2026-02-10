@@ -1,6 +1,6 @@
 /**
  * @file AWS S3 存储适配器
- * @description 文件存储到 AWS S3 或 S3 兼容存储
+ * @description 文件存储到 AWS S3 或 S3 兼容存储，支持 CDN 缓存失效
  */
 
 import {
@@ -15,10 +15,14 @@ import * as path from "path";
 import { v4 as uuidv4 } from "uuid";
 import {
   IStorageAdapter,
+  ICacheInvalidationAdapter,
   UploadOptions,
   UploadResult,
   StorageProvider,
+  CacheInvalidationConfig,
 } from "../storage.interface";
+import { CloudFrontInvalidationAdapter } from "./cloudfront-invalidation.adapter";
+import { CloudflarePurgeAdapter } from "./cloudflare-purge.adapter";
 
 export interface S3StorageConfig {
   region: string;
@@ -27,14 +31,19 @@ export interface S3StorageConfig {
   bucket: string;
   endpoint?: string;
   cdnDomain?: string;
+  /** CDN 缓存失效配置 */
+  cacheInvalidation?: CacheInvalidationConfig;
 }
 
-export class S3StorageAdapter implements IStorageAdapter {
+export class S3StorageAdapter implements IStorageAdapter, ICacheInvalidationAdapter {
   private client: S3Client;
   private bucket: string;
   private region: string;
   private cdnDomain?: string;
   private endpoint?: string;
+  private cacheInvalidationConfig?: CacheInvalidationConfig;
+  private cloudfrontInvalidator?: CloudFrontInvalidationAdapter;
+  private cloudflarePurger?: CloudflarePurgeAdapter;
 
   constructor(config: S3StorageConfig) {
     const clientConfig: any = {
@@ -55,6 +64,32 @@ export class S3StorageAdapter implements IStorageAdapter {
     this.region = config.region;
     this.cdnDomain = config.cdnDomain;
     this.endpoint = config.endpoint;
+    this.cacheInvalidationConfig = config.cacheInvalidation;
+
+    // 初始化缓存失效适配器
+    if (config.cacheInvalidation?.enabled) {
+      this.initCacheInvalidation(config.cacheInvalidation);
+    }
+  }
+
+  /**
+   * 初始化缓存失效适配器
+   */
+  private initCacheInvalidation(config: CacheInvalidationConfig): void {
+    if (config.provider === "cloudfront" && config.distributionId) {
+      this.cloudfrontInvalidator = new CloudFrontInvalidationAdapter({
+        distributionId: config.distributionId,
+        region: this.region,
+        accessKeyId: "", // 使用 S3 的凭证
+        secretAccessKey: "",
+      });
+    } else if (config.provider === "cloudflare" && config.zoneId && config.apiToken) {
+      this.cloudflarePurger = new CloudflarePurgeAdapter({
+        zoneId: config.zoneId,
+        apiToken: config.apiToken,
+        cdnDomain: this.cdnDomain,
+      });
+    }
   }
 
   async upload(
@@ -165,5 +200,43 @@ export class S3StorageAdapter implements IStorageAdapter {
       ".svg": "image/svg+xml",
     };
     return mimeTypes[ext.toLowerCase()] || "application/octet-stream";
+  }
+
+  /**
+   * 使单个文件缓存失效
+   */
+  async invalidateCache(key: string): Promise<boolean> {
+    if (!this.cacheInvalidationConfig?.enabled || !this.cdnDomain) {
+      return false;
+    }
+
+    if (this.cloudfrontInvalidator) {
+      return this.cloudfrontInvalidator.invalidateCache(key);
+    }
+
+    if (this.cloudflarePurger) {
+      return this.cloudflarePurger.invalidateCache(key);
+    }
+
+    return false;
+  }
+
+  /**
+   * 使目录下所有文件缓存失效
+   */
+  async invalidateDirectory(directory: string): Promise<boolean> {
+    if (!this.cacheInvalidationConfig?.enabled || !this.cdnDomain) {
+      return false;
+    }
+
+    if (this.cloudfrontInvalidator) {
+      return this.cloudfrontInvalidator.invalidateDirectory(directory);
+    }
+
+    if (this.cloudflarePurger) {
+      return this.cloudflarePurger.invalidateDirectory(directory);
+    }
+
+    return false;
   }
 }

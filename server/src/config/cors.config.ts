@@ -6,6 +6,7 @@
  */
 
 import { registerAs } from "@nestjs/config";
+import { corsConfigSchema } from "./config.schema";
 
 /**
  * 解析 CORS_ORIGIN 环境变量为域名数组
@@ -52,15 +53,11 @@ export function parseCorsOrigins(
  */
 export const corsConfig = registerAs("cors", () => {
   const originString = process.env.CORS_ORIGIN;
+  const origin = parseCorsOrigins(originString);
 
-  return {
-    /** 允许的源地址（域名白名单） */
-    origin: parseCorsOrigins(originString),
-
-    /** 允许的 HTTP 方法 */
+  const rawConfig = {
+    origin,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-
-    /** 允许的请求头 */
     allowedHeaders: [
       "Content-Type",
       "Authorization",
@@ -68,17 +65,11 @@ export const corsConfig = registerAs("cors", () => {
       "Accept",
       "Origin",
     ],
-
-    /** 暴露给客户端的响应头 */
     exposedHeaders: ["X-Request-ID"],
-
-    /** 允许发送凭证（Cookie、Authorization 等） */
     credentials: true,
-
-    /** 预检请求缓存时间（秒） */
-    maxAge: 86400, // 24 小时
-
-    /** 预检请求是否成功（204 状态码） */
+    maxAge: 86400,
     optionsSuccessStatus: 204,
   };
+
+  return corsConfigSchema.parse(rawConfig);
 });

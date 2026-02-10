@@ -9,6 +9,8 @@ import { registerAs } from "@nestjs/config";
 import pino from "pino";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
+import { loggerConfigSchema } from "./config.schema";
 
 /**
  * 日志级别枚举
@@ -37,7 +39,21 @@ export enum LogLevel {
  */
 export const loggerConfig = registerAs("logger", () => {
   const isProduction = process.env.NODE_ENV === "production";
-  const logDir = process.env.LOG_DIR || "logs";
+  const rawConfig = {
+    /** 日志级别 */
+    level: process.env.LOG_LEVEL,
+    /** 日志目录 */
+    dir: process.env.LOG_DIR,
+    /** 日志文件最大大小 */
+    maxSize: process.env.LOG_MAX_SIZE,
+    /** 日志文件保留数量 */
+    maxFiles: process.env.LOG_MAX_FILES,
+    /** 日志文件保留天数 */
+    retentionDays: process.env.LOG_RETENTION_DAYS,
+  };
+
+  const validatedConfig = loggerConfigSchema.parse(rawConfig);
+  const logDir = validatedConfig.dir;
 
   // 确保日志目录存在
   if (!fs.existsSync(logDir)) {
@@ -46,22 +62,22 @@ export const loggerConfig = registerAs("logger", () => {
 
   return {
     /** 日志级别：开发环境使用 debug，生产环境使用 info */
-    level: process.env.LOG_LEVEL || (isProduction ? "info" : "debug"),
+    level: validatedConfig.level,
 
     /** 日志目录 */
-    dir: logDir,
+    dir: validatedConfig.dir,
 
     /** 是否在开发环境使用美观输出 */
-    prettyPrint: !isProduction,
+    prettyPrint: validatedConfig.prettyPrint,
 
     /** 日志文件最大大小（默认 100MB） */
-    maxSize: process.env.LOG_MAX_SIZE || "100M",
+    maxSize: validatedConfig.maxSize,
 
     /** 日志文件保留数量（默认 10 个） */
-    maxFiles: parseInt(process.env.LOG_MAX_FILES || "10", 10),
+    maxFiles: validatedConfig.maxFiles,
 
     /** 日志文件保留天数（默认 30 天） */
-    retentionDays: parseInt(process.env.LOG_RETENTION_DAYS || "30", 10),
+    retentionDays: validatedConfig.retentionDays,
   };
 });
 
@@ -161,7 +177,7 @@ export function createPinoLogger(baseOptions?: {
     // 基础上下文
     base: {
       pid: process.pid,
-      hostname: require("os").hostname(),
+      hostname: os.hostname(),
       environment: process.env.NODE_ENV || "development",
     },
     // 时间戳格式

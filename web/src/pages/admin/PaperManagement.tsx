@@ -9,8 +9,8 @@ import {
   Popconfirm, Drawer, Typography, Empty, Divider, InputNumber, Breadcrumb,
   Tooltip, Badge, Radio, Checkbox
 } from 'antd'
-import { 
-  PlusOutlined, UploadOutlined, FileExcelOutlined, EditOutlined, 
+import {
+  PlusOutlined, UploadOutlined, EditOutlined,
   DeleteOutlined, EyeOutlined, ArrowLeftOutlined, QuestionCircleOutlined,
   MinusCircleOutlined
 } from '@ant-design/icons'
@@ -792,7 +792,7 @@ const PaperManagement = () => {
                   <Text strong>选项列表</Text>
                   <Text type="secondary" style={{ marginLeft: 8 }}>（至少2个选项）</Text>
                 </div>
-                {fields.map((field, index) => (
+                {fields.map((field) => (
                   <Space key={field.key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
                     <Form.Item
                       {...field}

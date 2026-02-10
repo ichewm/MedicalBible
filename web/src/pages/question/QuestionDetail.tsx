@@ -16,7 +16,10 @@ import {
   FlagFilled,
   HomeOutlined,
 } from '@ant-design/icons'
-import { getPaperDetail, submitAnswer, startExam, submitExam, getExamProgress, type Question } from '@/api/question'
+import { getPaperDetail, submitAnswer, startExam, submitExam, getExamProgress, type Question, type PaperDetail } from '@/api/question'
+import { useVoiceStore } from '@/stores/voice'
+import { useVoiceCommandHandler } from '@/voice/use-voice-commands'
+import { questionCommands } from '@/voice/commands'
 import AnswerCard, { type AnswerStatus } from '@/components/AnswerCard'
 import { logger } from '@/utils'
 import './QuestionDetail.css'
@@ -30,6 +33,7 @@ const QuestionDetail = () => {
   const navigate = useNavigate()
   const screens = useBreakpoint()
   const isMobile = !screens.md
+  const { enabled: voiceEnabled } = useVoiceStore()
   const mode = (searchParams.get('mode') || 'practice') as 'practice' | 'exam'
   const resumeSessionId = searchParams.get('sessionId') // 恢复考试的 sessionId
 
@@ -49,7 +53,7 @@ const QuestionDetail = () => {
       if (!id) return
       setLoading(true)
       try {
-        const detail = await getPaperDetail(Number(id))
+        const detail = await getPaperDetail(Number(id)) as unknown as PaperDetail
         setQuestions(detail.questions || [])
         setCurrentIndex(0)
         
@@ -190,6 +194,33 @@ const QuestionDetail = () => {
     }
   }
 
+  // 语音命令处理
+  useVoiceCommandHandler(
+    {
+      'select-answer': (matches) => {
+        const answer = matches[2]
+        if (currentQuestion && answer) {
+          handleSelectAnswer(answer)
+        }
+      },
+      'next-question': goToNext,
+      'prev-question': goToPrev,
+      'mark-question': toggleMark,
+      'unmark-question': toggleMark,
+      'submit-exam': () => {
+        Modal.confirm({
+          title: mode === 'exam' ? '确认交卷' : '结束练习',
+          content: mode === 'exam' ? '确定要提交试卷吗？' : '确定要结束本次练习吗？',
+          onOk: handleSubmitExam,
+        })
+      },
+    },
+    {
+      enabled: voiceEnabled,
+      commands: questionCommands,
+    }
+  )
+
   // 滑动翻页 (移动端)
   const touchStartX = useRef(0)
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -205,9 +236,6 @@ const QuestionDetail = () => {
       }
     }
   }
-
-  // 添加 ref
-  const touchStartXRef = useRef(0)
 
   if (loading) return <Card loading />
   if (!currentQuestion) return (
@@ -382,8 +410,5 @@ const QuestionDetail = () => {
     </div>
   )
 }
-
-// 添加 ref 声明
-const touchStartXRef = { current: 0 }
 
 export default QuestionDetail

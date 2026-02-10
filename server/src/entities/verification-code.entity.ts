@@ -34,6 +34,7 @@ export enum VerificationCodeType {
 @Entity("verification_codes")
 @Index("idx_verification_codes_phone_type", ["phone", "type"])
 @Index("idx_verification_codes_email_type", ["email", "type"])
+@Index("idx_verification_codes_expires_cleanup", ["expiresAt"])
 export class VerificationCode {
   /** 主键 ID */
   @PrimaryGeneratedColumn({ comment: "主键" })

@@ -1,6 +1,6 @@
 {
   "name": "medical-bible",
-  "version": "1.0.0",
+  "version": "1.8.0",
   "description": "医学宝典 - 在线医学考试刷题与学习平台",
   "private": true,
   "workspaces": [
