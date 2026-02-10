@@ -149,7 +149,7 @@ export class CircuitBreakerService implements OnModuleDestroy {
       this.logger.log(`Circuit breaker CLOSED for ${key} - normal operation`);
     });
 
-    breaker.on('fallback', (result) => {
+    breaker.on('fallback', (_result: unknown) => {
       this.logger.debug(`Fallback executed for ${key}`);
     });
 
@@ -165,7 +165,7 @@ export class CircuitBreakerService implements OnModuleDestroy {
       this.logger.debug(`Request success for ${key}`);
     });
 
-    breaker.on('failure', (error) => {
+    breaker.on('failure', (error: Error) => {
       this.logger.debug(`Request failure for ${key}: ${error.message}`);
     });
   }
