@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -130,6 +130,22 @@ chmod +x deploy.sh
 
 </td>
 </tr>
+<tr>
+<td>
+
+**可穿戴设备**
+- Apple HealthKit 集成
+- Android Health Connect 集成
+- 健康数据同步（步数、心率、睡眠等）
+- 数据汇总与分析
+- 隐私合规（数据删除权）
+- 设备连接管理
+
+</td>
+<td>
+
+</td>
+</tr>
 </table>
 
 ### 👨‍💼 管理后台功能
@@ -246,6 +262,7 @@ MedicalBible/
 │   │   │   ├── lecture/   # 讲义模块
 │   │   │   ├── order/     # 订单模块
 │   │   │   ├── affiliate/ # 分销模块
+│   │   │   ├── wearable/  # 可穿戴设备模块
 │   │   │   └── admin/     # 管理模块
 │   │   ├── common/        # 公共模块
 │   │   ├── config/        # 配置文件
@@ -288,6 +305,9 @@ MedicalBible/
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
+- [可穿戴设备集成研究](./doc/wearable-integration-research.md) - Apple HealthKit 和 Android Health Connect 集成研究
+- [可穿戴设备数据模型设计](./doc/wearable-data-model-design.md) - 健康数据存储架构与数据类型定义
+- [可穿戴设备隐私与合规评估](./doc/wearable-privacy-regulatory-evaluation.md) - 隐私保护与监管合规分析
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
 
@@ -412,6 +432,16 @@ npm run dev
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.3.0 (2026-02-08)
+
+- ✅ 可穿戴设备集成研究（Apple HealthKit、Android Health Connect）
+- ✅ 健康数据模型设计（支持步数、心率、睡眠等9种数据类型）
+- ✅ 可穿戴设备连接管理 API
+- ✅ 健康数据上传、查询、汇总 API
+- ✅ 隐私合规支持（用户数据删除权）
+- ✅ 数据库迁移脚本与索引优化
+- ✅ E2E 集成测试
 
 ### v1.2.0 (2026-02-01)
 
