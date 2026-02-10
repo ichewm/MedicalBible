@@ -11,7 +11,7 @@ import { INestApplication, ValidationPipe } from "@nestjs/common";
 const request = require("supertest");
 import { AppModule } from "../src/app.module";
 import { VersioningType } from "@nestjs/common";
-import { DataSource } from "typeorm";
+import { DataSource, Like } from "typeorm";
 import { User } from "../src/entities/user.entity";
 import { Notification } from "../src/entities/notification.entity";
 import { NotificationPreference } from "../src/entities/notification-preference.entity";
@@ -205,11 +205,12 @@ describe("Notification System (e2e)", () => {
       // Verify required columns per spec
       expect(columns).toContain("id");
       expect(columns).toContain("code");
+      expect(columns).toContain("name");
       expect(columns).toContain("channel");
       expect(columns).toContain("type");
       expect(columns).toContain("title_template");
       expect(columns).toContain("content_template");
-      expect(columns).toContain("description");
+      expect(columns).toContain("variables");
       expect(columns).toContain("is_enabled");
       expect(columns).toContain("created_at");
       expect(columns).toContain("updated_at");
@@ -628,18 +629,19 @@ describe("Notification System (e2e)", () => {
     beforeEach(async () => {
       testTemplate = await dataSource.getRepository(NotificationTemplate).save({
         code: "TEST_WELCOME",
+        name: "Test Welcome Template",
         channel: NotificationChannel.EMAIL,
         type: NotificationType.ACCOUNT,
         titleTemplate: "欢迎 {{username}}",
         contentTemplate: "亲爱的 {{username}}，欢迎来到医学宝典！",
-        description: "Test welcome template",
+        variables: { username: "用户名" },
         isEnabled: true,
       });
     });
 
     afterEach(async () => {
       await dataSource.getRepository(NotificationTemplate).delete({
-        code: "TEST_%",
+        code: Like("TEST_%"),
       });
     });
 
