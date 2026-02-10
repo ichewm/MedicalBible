@@ -103,6 +103,7 @@ export class EmailService {
 
   /**
    * 初始化邮件传输器
+   * @note Retry decorator removed - internal try/catch returns null on error
    */
   private async initTransporter(): Promise<nodemailer.Transporter | null> {
     try {

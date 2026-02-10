@@ -166,6 +166,7 @@ export class PaymentService {
 
   /**
    * 微信支付 - Native支付（扫码支付）
+   * @note Retry decorator removed - internal try/catch converts errors to { success: false }
    */
   private async createWechatOrder(
     options: CreateOrderOptions,
@@ -252,6 +253,7 @@ export class PaymentService {
 
   /**
    * 支付宝 - 当面付（扫码支付）
+   * @note Retry decorator removed - internal try/catch converts errors to { success: false }
    */
   private async createAlipayOrder(
     options: CreateOrderOptions,
@@ -337,6 +339,7 @@ export class PaymentService {
 
   /**
    * PayPal - 创建订单
+   * @note Retry decorator removed - internal try/catch converts errors to { success: false }
    */
   private async createPaypalOrder(
     options: CreateOrderOptions,
@@ -434,6 +437,7 @@ export class PaymentService {
 
   /**
    * Stripe - 创建Checkout Session
+   * @note Retry decorator removed - internal try/catch converts errors to { success: false }
    */
   private async createStripeOrder(
     options: CreateOrderOptions,
