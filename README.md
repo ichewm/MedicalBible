@@ -451,7 +451,7 @@ npm run dev
   - 每用户最大连接数限制（默认3个连接）
   - 心跳检测和超时断开（25秒心跳，60秒超时）
   - 消息队列支持离线用户（7天TTL）
-  - 自动重连策略（1秒-30秒指数退避，最多10次尝试）
+  - 服务端提供重连参数与事件：`reconnectDelayMin` / `reconnectDelayMax` / `maxReconnectAttempts` 及 `reconnectRequested` 事件，客户端可基于此实现指数退避重连策略
 - **Rate Limiting (SEC-001)**: 基于 Redis 的滑动窗口限流
   - 认证端点限流（登录：10次/小时，注册：5次/分钟）
   - 验证码限流（10次/天）
@@ -981,7 +981,6 @@ interface ErrorResponse {
   - 敏感配置加密存储
   - 统一存储接口，支持热切换存储提供商
   - 47 个单元测试覆盖
-
 - 🔌 **WebSocket 连接限制和优化 (API-003)**: 实时客服消息系统增强
   - 每用户最大连接数限制（默认3个，支持环境变量配置）
   - 离线消息队列支持（Redis，默认7天TTL）

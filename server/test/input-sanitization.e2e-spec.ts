@@ -22,10 +22,10 @@
  * @version 1.0.0
  */
 
+import request from "supertest";
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe, VersioningType } from "@nestjs/common";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const request = require("supertest");
+
 import { AppModule } from "../src/app.module";
 import { ConfigService } from "@nestjs/config";
 import { SanitizationMiddleware, getSanitizationMetrics } from "../src/common/middleware/sanitization.middleware";
