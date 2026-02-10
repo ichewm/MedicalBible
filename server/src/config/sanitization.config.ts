@@ -71,6 +71,7 @@ export const sanitizationConfig = registerAs("sanitization", () => {
         a: ["href", "title", "target"],
       },
       // 仅允许 http/https 链接，阻止 javascript: 协议
+      transformingTag: (tagName: string, attribs: any) => {
         if (tagName === "a" && attribs.href) {
           // 移除以 javascript: 开头的链接
           if (/^\s*javascript:/i.test(attribs.href)) {
