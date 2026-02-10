@@ -10,4 +10,5 @@ export * from "./jwt.config";
 export * from "./logger.config";
 export * from "./redis.config";
 export * from "./security.config";
+export * from "./retry.config";
 export * from "./websocket.config";

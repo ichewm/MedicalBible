@@ -57,7 +57,6 @@ vi.mock('antd', () => ({
 // Import after all mocks are defined
 import axios from 'axios'
 import { message } from 'antd'
-import { logger } from '@/utils'
 import { ApiClient, apiClient } from '@/utils/request'
 
 describe('ApiClient', () => {
@@ -113,7 +112,7 @@ describe('ApiClient', () => {
   describe('构造函数和配置', () => {
     it('应该使用提供的配置创建 axios 实例', () => {
       // Create a fresh client to verify constructor call
-      const freshClient = new ApiClient({
+      new ApiClient({
         baseURL: '/api/v1',
         timeout: 30000,
       })

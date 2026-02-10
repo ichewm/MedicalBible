@@ -49,8 +49,8 @@ const SystemSettings = () => {
   const [storageForm] = Form.useForm()
   
   const [loading, setLoading] = useState(false)
-  const [config, setConfig] = useState<any>({})
-  const [_testModeLoading, setTestModeLoading] = useState(false)
+  const [_config, setConfig] = useState<any>({})
+  const [_testModeLoading, _setTestModeLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('basic')
   const [smsProvider, setSmsProvider] = useState('')
   const [storageProvider, setStorageProvider] = useState('local')

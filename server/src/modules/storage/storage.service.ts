@@ -59,6 +59,7 @@ export class StorageService implements OnModuleInit {
 
   /**
    * 初始化/重新初始化存储适配器
+   * @note Retry decorator removed - internal try/catch handles fallback to local storage
    */
   async initAdapter(): Promise<void> {
     try {
