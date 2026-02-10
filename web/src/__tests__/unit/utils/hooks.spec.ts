@@ -95,7 +95,9 @@ describe('useApi', () => {
 
   it('应该支持手动重新获取', async () => {
     let callCount = 0
-    const mockFn = vi.fn().mockResolvedValue({ callCount: ++callCount })
+    const mockFn = vi.fn().mockImplementation(async () => {
+      return { callCount: ++callCount }
+    })
 
     const { result } = renderHook(() => useApi(mockFn))
 
@@ -211,11 +213,6 @@ describe('useApiRequest', () => {
 describe('useApiRequestWithCancel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
   })
 
   it('应该初始化为空闲状态', () => {
@@ -228,7 +225,10 @@ describe('useApiRequestWithCancel', () => {
 
   it('应该成功执行请求', async () => {
     const mockData = { id: 1 }
-    const mockFn = vi.fn().mockResolvedValue(mockData)
+    // The mock needs to accept signal parameter but can ignore it
+    const mockFn = vi.fn().mockImplementation(async (_signal?: AbortSignal) => {
+      return mockData
+    })
 
     const { result } = renderHook(() => useApiRequestWithCancel())
 
@@ -268,14 +268,17 @@ describe('useApiRequestWithCancel', () => {
   it('应该在新请求时自动取消之前的请求', async () => {
     let firstAborted = false
     const mockFn1 = vi.fn().mockImplementation(async (signal?: AbortSignal) => {
-      return new Promise<void>((_resolve) => {
+      return new Promise<void>((resolve, reject) => {
         signal?.addEventListener('abort', () => {
           firstAborted = true
+          reject(new Error('Aborted'))
         })
       })
     })
 
-    const mockFn2 = vi.fn().mockResolvedValue({ id: 2 })
+    const mockFn2 = vi.fn().mockImplementation(async (_signal?: AbortSignal) => {
+      return { id: 2 }
+    })
 
     const { result } = renderHook(() => useApiRequestWithCancel())
 
@@ -287,12 +290,16 @@ describe('useApiRequestWithCancel', () => {
       result.current.execute(mockFn2)
     })
 
+    // Wait for the second request to complete
     await waitFor(() => {
       expect(result.current.loading).toBe(false)
     })
+    // Additional wait to ensure setData is called
+    await waitFor(() => {
+      expect(result.current.data).toEqual({ id: 2 })
+    })
 
     expect(firstAborted).toBe(true)
-    expect(result.current.data).toEqual({ id: 2 })
   })
 
   it('应该在组件卸载时取消请求', async () => {

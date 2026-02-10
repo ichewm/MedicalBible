@@ -47,8 +47,6 @@ export function useApi<T>(
   const [error, setError] = useState<unknown | null>(null)
 
   const execute = useCallback(async () => {
-    if (!enabled) return
-
     setLoading(true)
     setError(null)
 
@@ -66,13 +64,20 @@ export function useApi<T>(
     } finally {
       setLoading(false)
     }
-  }, [fn, enabled, onError, onSuccess])
+  }, [fn, onError, onSuccess])
 
-  useEffect(() => {
-    execute()
+  // refetch always executes, ignoring enabled flag
+  const refetch = useCallback(async () => {
+    await execute()
   }, [execute])
 
-  return { data, loading, error, refetch: execute, execute }
+  useEffect(() => {
+    if (enabled) {
+      execute()
+    }
+  }, [execute, enabled])
+
+  return { data, loading, error, refetch, execute }
 }
 
 /**

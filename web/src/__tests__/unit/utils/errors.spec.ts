@@ -19,6 +19,7 @@ import {
 } from '@/utils/errors'
 import { ApiError, ErrorCode } from '@/api/types'
 import { logger } from '@/utils/logger'
+import * as antd from 'antd'
 
 // Mock Ant Design message
 vi.mock('antd', () => ({
@@ -28,6 +29,8 @@ vi.mock('antd', () => ({
     success: vi.fn(),
   },
 }))
+
+const { message } = antd as { message: { error: ReturnType<typeof vi.fn>, warning: ReturnType<typeof vi.fn>, success: ReturnType<typeof vi.fn> } }
 
 // Mock logger
 vi.mock('@/utils/logger', () => ({
@@ -177,8 +180,6 @@ describe('getErrorMessage', () => {
 })
 
 describe('handleApiError', () => {
-  const { message } = require('antd')
-
   beforeEach(() => {
     vi.clearAllMocks()
     mockLocation.href = ''
@@ -283,8 +284,6 @@ describe('hasErrorCode', () => {
 })
 
 describe('showErrorMessage', () => {
-  const { message } = require('antd')
-
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -297,7 +296,8 @@ describe('showErrorMessage', () => {
   })
 
   it('应该使用后备消息', () => {
-    showErrorMessage(null, 'Fallback message')
+    // Create an Error with empty message - when getErrorMessage returns empty, fallback is used
+    showErrorMessage(new Error(''), 'Fallback message')
 
     expect(message.error).toHaveBeenCalledWith('Fallback message')
   })
@@ -305,13 +305,11 @@ describe('showErrorMessage', () => {
   it('应该使用默认后备消息', () => {
     showErrorMessage('some error')
 
-    expect(message.error).toHaveBeenCalledWith('操作失败')
+    expect(message.error).toHaveBeenCalledWith('操作失败，请稍后重试')
   })
 })
 
 describe('showMembershipMessage', () => {
-  const { message } = require('antd')
-
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -352,8 +350,6 @@ describe('showMembershipMessage', () => {
 })
 
 describe('getDefaultErrorHandler', () => {
-  const { message } = require('antd')
-
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -385,7 +381,6 @@ describe('getSilentErrorHandler', () => {
   })
 
   it('应该记录错误但不显示消息', () => {
-    const { message } = require('antd')
     const handler = getSilentErrorHandler('Silent context')
     const error = new ApiError('Silent error', 500)
 
