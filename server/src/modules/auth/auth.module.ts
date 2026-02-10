@@ -12,10 +12,12 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { RefreshTokenService } from "./services/refresh-token.service";
 import { User } from "../../entities/user.entity";
 import { UserDevice } from "../../entities/user-device.entity";
 import { VerificationCode } from "../../entities/verification-code.entity";
 import { SystemConfig } from "../../entities/system-config.entity";
+import { TokenFamily } from "../../entities/token-family.entity";
 import { NotificationModule } from "../notification/notification.module";
 
 /**
@@ -34,15 +36,16 @@ import { NotificationModule } from "../notification/notification.module";
       UserDevice,
       VerificationCode,
       SystemConfig,
+      TokenFamily,
     ]),
-    // JWT 模块配置
+    // JWT 模块配置 - 使用新的 accessTokenExpires 配置
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>("jwt.secret"),
         signOptions: {
-          expiresIn: configService.get<string>("jwt.expiresIn") || "7d",
+          expiresIn: configService.get<string>("jwt.accessTokenExpires") || "15m",
         },
       }),
     }),
@@ -50,7 +53,7 @@ import { NotificationModule } from "../notification/notification.module";
     NotificationModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService, JwtModule],
+  providers: [AuthService, RefreshTokenService],
+  exports: [AuthService, JwtModule, RefreshTokenService],
 })
 export class AuthModule {}

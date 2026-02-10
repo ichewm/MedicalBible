@@ -18,6 +18,8 @@ import { redisConfig } from "./config/redis.config";
 import { jwtConfig } from "./config/jwt.config";
 import { corsConfig } from "./config/cors.config";
 import { loggerConfig } from "./config/logger.config";
+import { compressionConfig } from "./config/compression.config";
+import { rateLimitConfig } from "./config/rate-limit.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -34,6 +36,7 @@ import { PaymentModule } from "./modules/payment/payment.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { ChatModule } from "./modules/chat/chat.module";
 import { DataExportModule } from "./modules/data-export/data-export.module";
+import { RbacModule } from "./modules/rbac/rbac.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
@@ -74,7 +77,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, compressionConfig, rateLimitConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -137,6 +140,7 @@ class HealthController {
     PaymentModule, // 支付模块
     ChatModule, // 客服模块
     DataExportModule, // 数据导出模块
+    RbacModule, // RBAC 角色权限模块
   ],
   providers: [
     // 全局 JWT 认证守卫

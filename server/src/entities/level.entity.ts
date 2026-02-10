@@ -69,18 +69,18 @@ export class Level {
   profession: Profession;
 
   /** 包含的科目列表 */
-  @OneToMany(() => Subject, (subject) => subject.level)
+  @OneToMany(() => Subject, (subject) => subject.level, { eager: false })
   subjects: Subject[];
 
   /** 定价列表 */
-  @OneToMany(() => SkuPrice, (price) => price.level)
+  @OneToMany(() => SkuPrice, (price) => price.level, { eager: false })
   prices: SkuPrice[];
 
   /** 订单列表 */
-  @OneToMany(() => Order, (order) => order.level)
+  @OneToMany(() => Order, (order) => order.level, { eager: false })
   orders: Order[];
 
   /** 订阅列表 */
-  @OneToMany(() => Subscription, (subscription) => subscription.level)
+  @OneToMany(() => Subscription, (subscription) => subscription.level, { eager: false })
   subscriptions: Subscription[];
 }
