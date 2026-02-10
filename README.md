@@ -414,6 +414,11 @@ npm run dev
 
 - **CORS 配置**: 环境级域名白名单，生产环境禁止通配符
 - **安全头**: Helmet 中间件防护常见 Web 漏洞
+  - **HSTS** (HTTP Strict Transport Security): 强制 HTTPS 连接
+  - **CSP** (Content Security Policy): 控制资源加载来源，防止 XSS 攻击
+  - **X-Frame-Options**: 防止点击劫持
+  - **X-Content-Type-Options**: 防止 MIME 类型嗅探
+  - **Permissions-Policy**: 控制浏览器功能访问（地理位置、摄像头等）
 - JWT Token 认证
 - 密码 bcrypt 加密
 - SQL 注入防护
@@ -438,6 +443,12 @@ npm run dev
 - 生产环境: 必须通过 `CORS_ORIGIN` 环境变量指定具体域名
 - 支持逗号分隔的多个域名: `https://example.com,https://app.example.com`
 - 生产环境使用通配符 (`*`) 将导致应用拒绝启动
+
+**安全头配置说明**:
+- 可通过环境变量配置各项安全策略（见 `server/.env.example`）
+- HSTS 默认在生产环境启用，最大有效期 365 天
+- CSP 默认启用，可通过 `CSP_*` 环境变量自定义指令
+- 可通过 `SECURITY_ENABLED=false` 临时禁用（不推荐生产环境）
 
 **限流配置说明**:
 - 基于 Redis 的滑动窗口限流实现
