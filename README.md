@@ -261,7 +261,8 @@ MedicalBible/
 │   │   │   ├── lecture/   # 讲义模块
 │   │   │   ├── order/     # 订单模块
 │   │   │   ├── affiliate/ # 分销模块
-│   │   │   └── admin/     # 管理模块
+│   │   │   ├── admin/     # 管理模块
+│   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
 │   │   ├── config/        # 配置文件
 │   │   └── entities/      # 数据库实体
@@ -309,6 +310,9 @@ MedicalBible/
 - [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
+- [FHIR标准研究](./docs/fhir-research.md) - FHIR R4标准与CMS互操作性要求
+- [FHIR服务器评估](./docs/fhir-server-evaluation.md) - FHIR服务器选项对比
+- [FHIR资源映射](./docs/fhir-resource-mappings.md) - 数据模型到FHIR资源的映射
 
 ## 🧪 测试
 
@@ -572,7 +576,7 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 
 ## 📝 更新日志
 
-### v1.5.0 (2026-02-09)
+### v1.6.0 (2026-02-09)
 
 - ✅ 实现断路器模式（Circuit Breaker）保护外部服务调用
 - ✅ 集成 opossum 断路器库，支持自动熔断和降级策略
@@ -580,7 +584,7 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 - ✅ 添加预设配置，支持不同类型外部服务的优化参数
 - ✅ 新增断路器状态监控和统计信息 API
 
-### v1.4.0 (2026-02-09)
+### v1.5.0 (2026-02-09)
 
 - 🔐 **RBAC 权限系统**: 实现基于角色的访问控制
   - 角色-权限数据模型（admin, teacher, student, user）
@@ -590,7 +594,7 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
   - 初始角色和权限自动种子数据
   - 完整的 RBAC 相关单元测试覆盖
 
-### v1.3.0 (2026-02-09)
+### v1.4.0 (2026-02-09)
 
 - 🔒 **限流守卫 (SEC-001)**: 基于 Redis 的滑动窗口限流
   - 认证端点限流（登录：10次/小时，注册：5次/分钟）
@@ -628,6 +632,14 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
   - 支持表统计信息和索引碎片化分析
   - 支持自动周度表维护 (ANALYZE TABLE)
   - 新增数据库索引策略文档 (`docs/database-index-strategy.md`)
+
+### v1.3.0 (2026-02-08)
+
+- ✅ 实现FHIR R4标准API端点（医疗数据互操作性）
+- ✅ 支持Patient、Observation、Condition、DocumentReference、Encounter、Coverage、Organization资源
+- ✅ 添加FHIR元数据端点（Capability Statement）
+- ✅ 实现FHIR资源搜索和读取操作
+- ✅ 添加FHIR集成测试
 ### v1.2.0 (2026-02-01)
 
 - ✅ 实现结构化日志系统（基于 Pino）
