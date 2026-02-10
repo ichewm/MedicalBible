@@ -7,7 +7,12 @@
 
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@nestjs/config";
-import { CompressionMiddleware, CompressionMetrics } from "./compression.middleware";
+import {
+  CompressionMiddleware,
+  CompressionMetrics,
+  getCompressionMetrics,
+  resetCompressionMetrics,
+} from "./compression.middleware";
 import { CompressionLevel } from "../../config/compression.config";
 import { Request, Response, NextFunction } from "express";
 
@@ -224,7 +229,6 @@ describe("CompressionMiddleware", () => {
 
   describe("SPEC: 辅助函数", () => {
     it("getCompressionMetrics should return a copy of metrics", () => {
-      const { getCompressionMetrics } = require("./compression.middleware");
       const metrics1 = middleware.getMetrics();
       const metrics2 = getCompressionMetrics(middleware);
 
@@ -232,8 +236,6 @@ describe("CompressionMiddleware", () => {
     });
 
     it("resetCompressionMetrics should reset the middleware metrics", () => {
-      const { resetCompressionMetrics } = require("./compression.middleware");
-
       // Simulate some activity
       const req = createMockRequest();
       const res = createMockResponse();
