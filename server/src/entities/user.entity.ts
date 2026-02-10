@@ -158,11 +158,12 @@ export class User {
   currentLevelId: number;
 
   /** 用户角色 */
+  @Index("idx_users_role")
   @Column({
     type: "varchar",
     length: 20,
     default: "user",
-    comment: "用户角色：user-普通用户, admin-管理员",
+    comment: "用户角色名称，对应 roles 表中的 name 字段。系统预置角色名称（admin, teacher, student, user）不可变更，自定义角色添加后名称也应保持稳定以确保数据一致性",
   })
   role: string;
 

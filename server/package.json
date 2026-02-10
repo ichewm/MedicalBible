@@ -68,6 +68,7 @@
     "@types/node": "^20.3.1",
     "@types/passport-jwt": "^3.0.9",
     "@types/pino": "^7.0.4",
+    "@types/supertest": "^6.0.3",
     "@types/uuid": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
