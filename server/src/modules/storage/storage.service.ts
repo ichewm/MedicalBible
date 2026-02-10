@@ -30,7 +30,6 @@ import {
   CircuitBreakerService,
   ExternalService,
 } from "../../common/circuit-breaker";
-import { Retry } from "../../common/retry";
 import * as crypto from "crypto";
 import * as path from "path";
 import { v4 as uuidv4 } from "uuid";
@@ -60,18 +59,8 @@ export class StorageService implements OnModuleInit {
 
   /**
    * 初始化/重新初始化存储适配器
+   * @note Retry decorator removed - internal try/catch handles fallback to local storage
    */
-  @Retry({
-    maxAttempts: 2,
-    baseDelayMs: 1000,
-    maxDelayMs: 3000,
-    retryableErrors: [
-      (error) => error.message.includes('ETIMEDOUT'),
-      (error) => error.message.includes('ECONNREFUSED'),
-      (error) => error.message.includes('ECONNRESET'),
-    ],
-    logContext: { service: 'storage', operation: 'initAdapter' },
-  })
   async initAdapter(): Promise<void> {
     try {
       this.config = await this.loadConfig();

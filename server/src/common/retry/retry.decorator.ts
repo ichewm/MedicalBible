@@ -69,6 +69,14 @@ const DEFAULT_RETRY_OPTIONS: Required<Omit<RetryOptions, 'retryableErrors' | 'on
 export function Retry(options: RetryOptions = {}) {
   const opts = { ...DEFAULT_RETRY_OPTIONS, ...options };
 
+  // Ensure maxAttempts is a valid integer >= 1
+  const rawMaxAttempts = Number(opts.maxAttempts);
+  if (!Number.isFinite(rawMaxAttempts) || rawMaxAttempts < 1) {
+    opts.maxAttempts = DEFAULT_RETRY_OPTIONS.maxAttempts;
+  } else {
+    opts.maxAttempts = Math.max(1, Math.floor(rawMaxAttempts));
+  }
+
   return function (
     target: any,
     propertyKey: string,
@@ -84,7 +92,8 @@ export function Retry(options: RetryOptions = {}) {
         try {
           return await originalMethod.apply(this, args);
         } catch (error) {
-          lastError = error as Error;
+          // Normalize error to Error instance for non-Error throws
+          lastError = error instanceof Error ? error : new Error(String(error));
 
           // 检查是否是可重试的错误
           const isRetryable = opts.retryableErrors
