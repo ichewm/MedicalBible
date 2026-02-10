@@ -37,9 +37,16 @@ export class RbacService implements OnModuleInit {
     try {
       await this.seedInitialData();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.stack ?? error.message : String(error);
-      this.logger.error(`Failed to seed initial RBAC data: ${errorMessage}`);
+      if (error instanceof Error) {
+        this.logger.error(
+          `Failed to seed initial RBAC data: ${error.message}`,
+          error.stack,
+        );
+      } else {
+        this.logger.error(
+          `Failed to seed initial RBAC data: ${String(error)}`,
+        );
+      }
       // 不抛出异常，避免模块启动失败
     }
   }
@@ -50,6 +57,15 @@ export class RbacService implements OnModuleInit {
    * 使用事务确保原子性，使用 find-or-create 模式确保幂等性
    */
   async seedInitialData(): Promise<void> {
+    // 轻量级短路判断：检查关键系统角色是否存在，避免每次启动都完整跑一遍 seed
+    const existingAdminCount = await this.roleRepository.count({
+      where: { name: "admin" },
+    });
+    if (existingAdminCount > 0) {
+      this.logger.log("RBAC data already seeded, skipping...");
+      return;
+    }
+
     this.logger.log("Seeding initial RBAC data...");
 
     // 使用事务确保原子性
