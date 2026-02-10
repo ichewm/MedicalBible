@@ -9,6 +9,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CryptoService } from "../../common/crypto/crypto.service";
+import { Retry } from "../../common/retry";
 import {
   SystemConfig,
   SystemConfigKeys,
@@ -84,6 +85,7 @@ export class SmsService {
 
   /**
    * 阿里云短信发送
+   * @note Retry decorator removed - internal try/catch converts errors to { success: false }
    */
   private async sendAliyunSms(
     options: SendSmsOptions,
@@ -161,6 +163,7 @@ export class SmsService {
 
   /**
    * 腾讯云短信发送
+   * @note Retry decorator removed - internal try/catch converts errors to { success: false }
    */
   private async sendTencentSms(
     options: SendSmsOptions,
@@ -274,6 +277,7 @@ export class SmsService {
 
   /**
    * 容联云短信发送
+   * @note Retry decorator removed - internal try/catch converts errors to { success: false }
    */
   private async sendRonglianSms(
     options: SendSmsOptions,
