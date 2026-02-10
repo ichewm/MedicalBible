@@ -23,7 +23,7 @@
 
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe, UnauthorizedException, BadRequestException, ExecutionContext } from "@nestjs/common";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const request = require("supertest");
 import { AppModule } from "../src/app.module";
 import { DatabaseMonitoringService } from "../src/common/database/database-monitoring.service";

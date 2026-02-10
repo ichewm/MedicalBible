@@ -3,9 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { useVoiceCommands, useVoiceCommandHandler } from './use-voice-commands'
-import { VoiceCommand } from './commands'
 
 // Mock SpeechRecognition API
 class MockSpeechRecognition {
@@ -198,7 +197,7 @@ describe('useVoiceCommandHandler', () => {
       'test-action': mockHandler,
     }
 
-    const { result } = renderHook(() =>
+    renderHook(() =>
       useVoiceCommandHandler(commandMap, {
         enabled: true,
       })
