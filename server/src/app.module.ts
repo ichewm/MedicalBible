@@ -24,6 +24,7 @@ import { securityConfig } from "./config/security.config";
 import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
 import { retryConfig } from "./config/retry.config";
+import { auditConfig } from "./config/audit.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -44,6 +45,7 @@ import { FhirModule } from "./modules/fhir/fhir.module";
 import { DataExportModule } from "./modules/data-export/data-export.module";
 import { RbacModule } from "./modules/rbac/rbac.module";
 import { SymptomCheckerModule } from "./modules/symptom-checker/symptom-checker.module";
+import { AuditModule } from "./common/audit/audit.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
@@ -57,6 +59,7 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { Controller, Get } from "@nestjs/common";
 import { Public } from "./common/decorators/public.decorator";
 import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
+import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 
 /**
@@ -88,7 +91,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, retryConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, retryConfig, auditConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -194,6 +197,7 @@ class HealthController {
     DataExportModule, // 数据导出模块
     RbacModule, // RBAC 角色权限模块
     SymptomCheckerModule, // AI症状检查模块
+    AuditModule, // 审计日志模块
   ],
   providers: [
     // 全局 JWT 认证守卫
@@ -205,6 +209,11 @@ class HealthController {
     {
       provide: APP_INTERCEPTOR,
       useClass: ActivityTrackingInterceptor,
+    },
+    // 全局审计日志拦截器
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
     },
   ],
 })

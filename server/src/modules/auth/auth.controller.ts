@@ -26,6 +26,8 @@ import { Request } from "express";
 import { AuthService } from "./auth.service";
 import { Public } from "../../common/decorators/public.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { AuditLog } from "../../common/decorators/audit.decorator";
+import { AuditAction } from "../../common/enums/sensitive-operations.enum";
 import { JwtPayload } from "../../common/guards/jwt-auth.guard";
 import { RateLimit, RateLimitPresets } from "../../common/guards/rate-limit.guard";
 import {
@@ -86,6 +88,9 @@ export class AuthController {
   @ApiOperation({
     summary: "手机号登录",
     description: "使用手机号和验证码登录，新用户会自动注册",
+  })
+  @AuditLog({
+    action: AuditAction.LOGIN_SUCCESS,
   })
   @ApiResponse({
     status: 200,
@@ -159,6 +164,9 @@ export class AuthController {
   @ApiOperation({
     summary: "密码登录",
     description: "使用手机号和密码登录",
+  })
+  @AuditLog({
+    action: AuditAction.LOGIN_SUCCESS,
   })
   @ApiResponse({
     status: 200,
@@ -240,6 +248,9 @@ export class AuthController {
     summary: "退出登录",
     description: "退出当前设备的登录状态，Token 将被加入黑名单",
   })
+  @AuditLog({
+    action: AuditAction.LOGOUT,
+  })
   @ApiResponse({ status: 200, description: "退出成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   async logout(
@@ -289,6 +300,9 @@ export class AuthController {
   @ApiOperation({
     summary: "验证码修改密码",
     description: "已登录用户通过验证码修改密码（使用用户真实手机号/邮箱验证）",
+  })
+  @AuditLog({
+    action: AuditAction.PASSWORD_CHANGE,
   })
   @ApiResponse({
     status: 200,
