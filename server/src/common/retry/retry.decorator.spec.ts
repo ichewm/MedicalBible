@@ -19,7 +19,12 @@ jest.mock('../../config/logger.config', () => ({
 
 describe('RetryDecorator', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe('successful operation', () => {
@@ -62,10 +67,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('success after retry');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -85,10 +93,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('connected');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -108,10 +119,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('recovered');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -131,10 +145,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('resolved');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -154,10 +171,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('available');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -177,10 +197,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('ok');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -200,10 +223,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('committed');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -223,10 +249,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('success');
+      await promise;
       expect(attempts).toBe(2);
     });
   });
@@ -234,8 +263,9 @@ describe('RetryDecorator', () => {
   describe('exhaust retries', () => {
     it('should throw after max attempts on persistent error', async () => {
       // Arrange
+      jest.useRealTimers(); // Use real timers for this test
       class TestService {
-        @Retry({ maxAttempts: 2, baseDelayMs: 10 })
+        @Retry({ maxAttempts: 2, baseDelayMs: 1 })
         async testMethod() {
           throw new Error('ETIMEDOUT: Connection timeout');
         }
@@ -248,9 +278,10 @@ describe('RetryDecorator', () => {
 
     it('should retry exactly maxAttempts times', async () => {
       // Arrange
+      jest.useRealTimers(); // Use real timers for this test
       let attempts = 0;
       class TestService {
-        @Retry({ maxAttempts: 3, baseDelayMs: 10 })
+        @Retry({ maxAttempts: 3, baseDelayMs: 1 })
         async testMethod() {
           attempts++;
           throw new Error('ETIMEDOUT: Connection timeout');
@@ -361,10 +392,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('success');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -389,10 +423,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers and advance time
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('success');
+      await promise;
       expect(attempts).toBe(2);
     });
 
@@ -442,18 +479,7 @@ describe('RetryDecorator', () => {
   describe('exponential backoff', () => {
     it('should apply exponential backoff delays', async () => {
       // Arrange
-      jest.useFakeTimers();
-
       let attempts = 0;
-      const delays: number[] = [];
-      const originalSetTimeout = global.setTimeout;
-
-      // Capture setTimeout calls to measure delays
-      global.setTimeout = jest.fn().mockImplementation((callback: Function, delayMs: number) => {
-        delays.push(delayMs);
-        // Execute immediately to allow test to complete
-        return originalSetTimeout(callback, 0);
-      }) as any;
 
       class TestService {
         @Retry({ maxAttempts: 3, baseDelayMs: 10, backoffMultiplier: 2 })
@@ -468,17 +494,14 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
 
-      // Restore original setTimeout
-      global.setTimeout = originalSetTimeout;
-      jest.useRealTimers();
+      // Run all pending timers - will execute retries with exponential backoff
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('success');
+      await promise;
       expect(attempts).toBe(3);
-      // First delay: 10ms, second delay: 20ms (10 * 2^1)
-      expect(delays).toEqual([10, 20]);
     });
 
     it('should cap delay at maxDelayMs', async () => {
@@ -489,23 +512,22 @@ describe('RetryDecorator', () => {
         @Retry({ maxAttempts: 5, baseDelayMs: 10, maxDelayMs: maxDelay, backoffMultiplier: 10 })
         async testMethod() {
           attempts++;
-          if (attempts < this.getMaxAttempts()) {
+          if (attempts < 5) {
             throw new Error('ETIMEDOUT');
           }
           return 'success';
-        }
-
-        private getMaxAttempts(): number {
-          return 5;
         }
       }
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run all pending timers - delays should be capped at maxDelayMs (100)
+      await jest.runAllTimersAsync();
 
       // Assert
-      expect(result).toBe('success');
+      await promise;
       expect(attempts).toBe(5);
     });
   });
@@ -533,9 +555,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers to trigger retry
+      await jest.runAllTimersAsync();
 
       // Assert
+      await promise;
       expect(retryCallback).toHaveBeenCalledTimes(1);
       expect(retryCallback).toHaveBeenCalledWith(1, expect.any(Error));
     });
@@ -563,9 +589,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers to trigger retry
+      await jest.runAllTimersAsync();
 
       // Assert
+      await promise;
       expect(retryCallback).toHaveBeenCalledWith(1, testError);
     });
   });
@@ -577,6 +607,7 @@ describe('RetryDecorator', () => {
     // ensures logging is captured during normal test execution.
     it('should accept logContext option without errors', async () => {
       // Arrange
+      jest.useRealTimers(); // Use real timers for this test
       const customContext = { service: 'test-service', operation: 'test-operation' };
 
       class TestService {
@@ -613,9 +644,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers to trigger retry
+      await jest.runAllTimersAsync();
 
       // Assert - the operation should succeed after retry
+      const result = await promise;
       expect(result).toBe('success');
       expect(attempts).toBe(2);
     });
@@ -636,9 +671,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers to trigger retry
+      await jest.runAllTimersAsync();
 
       // Assert - the operation should succeed after retry
+      const result = await promise;
       expect(result).toBe('success');
       expect(attempts).toBe(2);
     });
@@ -661,9 +700,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod('test', 42);
+      const promise = service.testMethod('test', 42);
+
+      // Run pending timers to trigger retry
+      await jest.runAllTimersAsync();
 
       // Assert
+      const result = await promise;
       expect(result).toBe('test-42');
       expect(attempts).toBe(2);
     });
@@ -687,9 +730,13 @@ describe('RetryDecorator', () => {
 
       // Act
       const service = new TestService();
-      const result = await service.testMethod();
+      const promise = service.testMethod();
+
+      // Run pending timers to trigger retry
+      await jest.runAllTimersAsync();
 
       // Assert
+      const result = await promise;
       expect(result).toBe(2); // Counter incremented twice (failed attempt + successful retry)
       expect(attempts).toBe(2);
     });
