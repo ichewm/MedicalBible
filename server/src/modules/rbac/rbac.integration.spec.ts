@@ -202,12 +202,8 @@ describe("RBAC Integration Tests", () => {
         findOne: jest.fn(),
       };
 
-      const mockPermissionRepo = {
-        findOne: jest.fn(),
-      };
-
       expect(() => {
-        new PermissionsGuard(mockReflector as any, mockRoleRepo as any, mockPermissionRepo as any);
+        new PermissionsGuard(mockReflector as any, mockRoleRepo as any);
       }).not.toThrow();
     });
 
@@ -222,11 +218,7 @@ describe("RBAC Integration Tests", () => {
         findOne: jest.fn(),
       };
 
-      const mockPermissionRepo = {
-        findOne: jest.fn(),
-      };
-
-      const guard = new PermissionsGuard(mockReflector as any, mockRoleRepo as any, mockPermissionRepo as any);
+      const guard = new PermissionsGuard(mockReflector as any, mockRoleRepo as any);
 
       expect(typeof guard.canActivate).toBe("function");
     });

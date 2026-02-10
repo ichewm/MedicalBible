@@ -9,7 +9,7 @@ import { Controller, Get, UseGuards, Param, NotFoundException } from "@nestjs/co
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../../common/guards/permissions.guard";
-import { RequirePermission } from "../../common/decorators/permissions.decorator";
+import { RequireAllPermissions } from "../../common/decorators/permissions.decorator";
 import { RbacService } from "./rbac.service";
 import { Public } from "../../common/decorators/public.decorator";
 
@@ -30,7 +30,7 @@ export class RbacController {
   @Get("roles/:roleName/permissions")
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @ApiBearerAuth()
-  @RequirePermission("role:read", "permission:read")
+  @RequireAllPermissions("role:read", "permission:read")
   @ApiOperation({ summary: "获取角色的所有权限" })
   async getRolePermissions(@Param("roleName") roleName: string) {
     const permissions = await this.rbacService.getRolePermissions(roleName);
