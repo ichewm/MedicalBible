@@ -119,6 +119,13 @@ describe("UserService", () => {
     deleteFile: jest.fn(),
   };
 
+  const mockSensitiveWordService = {
+    containsSensitiveWord: jest.fn().mockReturnValue(false),
+    findSensitiveWords: jest.fn().mockReturnValue([]),
+    replaceSensitiveWords: jest.fn().mockImplementation((text: string) => text),
+    validateNickname: jest.fn().mockReturnValue({ valid: true }),
+  };
+
   const mockVerificationCodeRepository = {
     findOne: jest.fn(),
     update: jest.fn(),
@@ -190,6 +197,12 @@ describe("UserService", () => {
 
     // 清除所有 mock 的调用记录
     jest.clearAllMocks();
+
+    // 设置默认的 mock 返回值
+    mockSensitiveWordService.validateNickname.mockReturnValue({ valid: true });
+    mockSensitiveWordService.containsSensitiveWord.mockReturnValue(false);
+    mockSensitiveWordService.findSensitiveWords.mockReturnValue([]);
+    mockSensitiveWordService.replaceSensitiveWords.mockImplementation((text: string) => text);
   });
 
   describe("定义检查", () => {

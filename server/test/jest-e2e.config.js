@@ -21,6 +21,9 @@ module.exports = {
   // 测试环境
   testEnvironment: 'node',
 
+  // Setup file to run before tests
+  setupFiles: ['<rootDir>/setup-e2e.ts'],
+
   // 模块路径别名映射
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/../src/$1',
