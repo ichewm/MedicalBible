@@ -74,6 +74,7 @@ describe("ChatGateway", () => {
     markAsRead: jest.fn(),
     adminMarkAsRead: jest.fn(),
     getConversationDetail: jest.fn(),
+    getUnreadCount: jest.fn(),
   };
 
   const mockRedisService = {
@@ -408,6 +409,7 @@ describe("ChatGateway", () => {
 
       mockChatService.adminSendMessage.mockResolvedValue(message);
       mockChatService.getConversationDetail.mockResolvedValue(conversation);
+      mockChatService.getUnreadCount.mockResolvedValue({ count: 1, unreadCount: 1, hasUnread: true });
       // 用户在线
       (gateway as any).userSockets.set(123, new Set(["socket-user"]));
 
@@ -415,6 +417,46 @@ describe("ChatGateway", () => {
 
       expect(result.success).toBe(true);
       expect(mockChatService.adminSendMessage).toHaveBeenCalled();
+    });
+
+    it("应该发送未读数更新事件当管理员发送消息", async () => {
+      const socket = createMockSocket("socket-admin") as AuthenticatedSocket;
+      socket.userId = 1;
+      socket.userRole = "admin";
+
+      const data = { conversationId: 1, content: "Reply", contentType: 1 };
+      const message = { id: 1, content: "Reply", senderName: "Admin" };
+      const conversation = {
+        user: { id: 123 },
+        messages: [],
+      };
+
+      mockChatService.adminSendMessage.mockResolvedValue(message);
+      mockChatService.getConversationDetail.mockResolvedValue(conversation);
+      mockChatService.getUnreadCount.mockResolvedValue({ count: 5, unreadCount: 5, hasUnread: true });
+
+      // 用户在线
+      (gateway as any).userSockets.set(123, new Set(["socket-user"]));
+
+      // Mock sendToUser to track calls
+      const sendToUserSpy = jest.spyOn(gateway as any, "sendToUser");
+
+      const result = await gateway["handleAdminSendMessage"](socket, data);
+
+      expect(result.success).toBe(true);
+      expect(mockChatService.getUnreadCount).toHaveBeenCalledWith(123);
+
+      // Verify sendToUser was called for unreadCountUpdated
+      const unreadCountCalls = sendToUserSpy.mock.calls.filter(
+        (call) => call[1] === "unreadCountUpdated"
+      );
+      expect(unreadCountCalls.length).toBe(1);
+      expect(unreadCountCalls[0][2]).toEqual({
+        unreadCount: 5,
+        hasUnread: true,
+      });
+
+      sendToUserSpy.mockRestore();
     });
   });
 

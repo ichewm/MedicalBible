@@ -71,6 +71,24 @@ describe("AdminService", () => {
   };
 
   // Mock Repositories
+  const createMockQueryBuilder = () => ({
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    innerJoin: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getRawOne: jest.fn(),
+    getRawMany: jest.fn().mockResolvedValue([]),
+    getMany: jest.fn().mockResolvedValue([]),
+    getOne: jest.fn(),
+  });
+
   const mockUserRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
@@ -465,7 +483,7 @@ describe("AdminService", () => {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ count: "500" }),
-      };
+      } as any;
       mockSubscriptionRepository.createQueryBuilder.mockReturnValue(
         subscriptionQueryBuilder,
       );

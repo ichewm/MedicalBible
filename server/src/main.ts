@@ -7,7 +7,8 @@
 
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, Logger, VersioningType } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { SwaggerModule } from "@nestjs/swagger";
+import { createSwaggerConfig } from "./common/documentation/swagger.config";
 import { ConfigService } from "@nestjs/config";
 import helmet, { HelmetOptions } from "helmet";
 import { Request, Response, NextFunction } from "express";
@@ -224,6 +225,7 @@ async function bootstrap(): Promise<void> {
   // - TimeoutInterceptor: 设置请求超时（30秒）
   // - LoggingInterceptor: 记录请求日志
   // - TransformInterceptor: 转换响应格式
+  // - ApmInterceptor: 在 AppModule 中通过 APP_INTERCEPTOR 全局注册
   app.useGlobalInterceptors(
     new TimeoutInterceptor(), // 超时拦截器（最先执行）
     new LoggingInterceptor(), // 日志拦截器
@@ -260,28 +262,8 @@ async function bootstrap(): Promise<void> {
   );
 
   // 配置 Swagger API 文档
-  const config = new DocumentBuilder()
-    .setTitle("医学宝典 API")
-    .setDescription("医学宝典在线考试平台后端接口文档")
-    .setVersion("1.0.0")
-    .addBearerAuth(
-      {
-        type: "http",
-        scheme: "bearer",
-        bearerFormat: "JWT",
-        description: "请输入 JWT Token",
-      },
-      "JWT-auth",
-    )
-    .addTag("Auth", "认证模块 - 注册、登录、验证码等")
-    .addTag("用户", "用户模块 - 个人信息、设备管理等")
-    .addTag("SKU", "SKU模块 - 大类、等级、科目管理")
-    .addTag("题库", "题库模块 - 试卷、题目、刷题等")
-    .addTag("讲义", "讲义模块 - PDF阅读、重点标注")
-    .addTag("订单", "订单模块 - 支付、订阅")
-    .addTag("分销", "分销模块 - 推广、佣金、提现")
-    .addTag("管理后台", "管理后台 - 系统配置、数据看板")
-    .build();
+  // 使用集中的 Swagger 配置，包含详细的认证、版本控制和响应格式文档
+  const config = createSwaggerConfig();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("api-docs", app, document);

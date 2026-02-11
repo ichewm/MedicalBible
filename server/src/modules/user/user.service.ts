@@ -27,6 +27,7 @@ import {
 import { RedisService } from "../../common/redis/redis.service";
 import { UploadService } from "../upload/upload.service";
 import { SensitiveWordService } from "../../common/filter/sensitive-word.service";
+import { TransactionService } from "../../common/database/transaction.service";
 import {
   UpdateProfileDto,
   UserProfileDto,
@@ -62,6 +63,7 @@ export class UserService {
     private readonly redisService: RedisService,
     private readonly uploadService: UploadService,
     private readonly sensitiveWordService: SensitiveWordService,
+    private readonly transactionService: TransactionService,
   ) {}
 
   /**
@@ -392,6 +394,8 @@ export class UserService {
 
   /**
    * 绑定手机号
+   * CRITICAL: This method marks verification code used and updates user phone.
+   * Uses transaction to ensure atomicity - both operations succeed or both roll back.
    * @param userId - 用户 ID
    * @param dto - 绑定手机号请求参数
    * @returns 绑定结果
@@ -399,54 +403,60 @@ export class UserService {
   async bindPhone(userId: number, dto: BindPhoneDto): Promise<BindResponseDto> {
     const { phone, code } = dto;
 
-    // 查找用户
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
+    // Use transaction to ensure atomicity of:
+    // 1. Mark verification code as used
+    // 2. Update user phone
+    await this.transactionService.runInTransaction(async (qr) => {
+      const userRepo = this.transactionService.getRepository(qr, User);
+      const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+
+      // 查找用户
+      const user = await userRepo.findOne({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new NotFoundException("用户不存在");
+      }
+
+      // 检查是否已绑定手机号
+      if (user.phone) {
+        throw new BadRequestException("您已绑定手机号，如需更换请联系客服");
+      }
+
+      // 检查手机号是否被其他用户使用
+      const existingUser = await userRepo.findOne({
+        where: { phone },
+      });
+
+      if (existingUser) {
+        throw new BadRequestException("该手机号已被其他账号使用");
+      }
+
+      // 验证验证码（使用 REGISTER 或 LOGIN 类型的验证码）
+      const verificationCode = await verificationCodeRepo.findOne({
+        where: [
+          { phone, code, type: VerificationCodeType.REGISTER, used: 0 },
+          { phone, code, type: VerificationCodeType.LOGIN, used: 0 },
+        ],
+        order: { createdAt: "DESC" },
+      });
+
+      if (!verificationCode) {
+        throw new BadRequestException("验证码错误");
+      }
+
+      if (verificationCode.expiresAt < new Date()) {
+        throw new BadRequestException("验证码已过期，请重新获取");
+      }
+
+      // 标记验证码已使用
+      await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+      // 绑定手机号
+      user.phone = phone;
+      await userRepo.save(user);
     });
-
-    if (!user) {
-      throw new NotFoundException("用户不存在");
-    }
-
-    // 检查是否已绑定手机号
-    if (user.phone) {
-      throw new BadRequestException("您已绑定手机号，如需更换请联系客服");
-    }
-
-    // 检查手机号是否被其他用户使用
-    const existingUser = await this.userRepository.findOne({
-      where: { phone },
-    });
-
-    if (existingUser) {
-      throw new BadRequestException("该手机号已被其他账号使用");
-    }
-
-    // 验证验证码（使用 REGISTER 或 LOGIN 类型的验证码）
-    const verificationCode = await this.verificationCodeRepository.findOne({
-      where: [
-        { phone, code, type: VerificationCodeType.REGISTER, used: 0 },
-        { phone, code, type: VerificationCodeType.LOGIN, used: 0 },
-      ],
-      order: { createdAt: "DESC" },
-    });
-
-    if (!verificationCode) {
-      throw new BadRequestException("验证码错误");
-    }
-
-    if (verificationCode.expiresAt < new Date()) {
-      throw new BadRequestException("验证码已过期，请重新获取");
-    }
-
-    // 标记验证码已使用
-    await this.verificationCodeRepository.update(verificationCode.id, {
-      used: 1,
-    });
-
-    // 绑定手机号
-    user.phone = phone;
-    await this.userRepository.save(user);
 
     this.logger.log(`用户 ${userId} 成功绑定手机号 ${phone}`);
 
@@ -458,6 +468,8 @@ export class UserService {
 
   /**
    * 绑定邮箱
+   * CRITICAL: This method marks verification code used and updates user email.
+   * Uses transaction to ensure atomicity - both operations succeed or both roll back.
    * @param userId - 用户 ID
    * @param dto - 绑定邮箱请求参数
    * @returns 绑定结果
@@ -465,54 +477,60 @@ export class UserService {
   async bindEmail(userId: number, dto: BindEmailDto): Promise<BindResponseDto> {
     const { email, code } = dto;
 
-    // 查找用户
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
+    // Use transaction to ensure atomicity of:
+    // 1. Mark verification code as used
+    // 2. Update user email
+    await this.transactionService.runInTransaction(async (qr) => {
+      const userRepo = this.transactionService.getRepository(qr, User);
+      const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+
+      // 查找用户
+      const user = await userRepo.findOne({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new NotFoundException("用户不存在");
+      }
+
+      // 检查是否已绑定邮箱
+      if (user.email) {
+        throw new BadRequestException("您已绑定邮箱，如需更换请联系客服");
+      }
+
+      // 检查邮箱是否被其他用户使用
+      const existingUser = await userRepo.findOne({
+        where: { email },
+      });
+
+      if (existingUser) {
+        throw new BadRequestException("该邮箱已被其他账号使用");
+      }
+
+      // 验证验证码
+      const verificationCode = await verificationCodeRepo.findOne({
+        where: [
+          { email, code, type: VerificationCodeType.REGISTER, used: 0 },
+          { email, code, type: VerificationCodeType.LOGIN, used: 0 },
+        ],
+        order: { createdAt: "DESC" },
+      });
+
+      if (!verificationCode) {
+        throw new BadRequestException("验证码错误");
+      }
+
+      if (verificationCode.expiresAt < new Date()) {
+        throw new BadRequestException("验证码已过期，请重新获取");
+      }
+
+      // 标记验证码已使用
+      await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+      // 绑定邮箱
+      user.email = email;
+      await userRepo.save(user);
     });
-
-    if (!user) {
-      throw new NotFoundException("用户不存在");
-    }
-
-    // 检查是否已绑定邮箱
-    if (user.email) {
-      throw new BadRequestException("您已绑定邮箱，如需更换请联系客服");
-    }
-
-    // 检查邮箱是否被其他用户使用
-    const existingUser = await this.userRepository.findOne({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new BadRequestException("该邮箱已被其他账号使用");
-    }
-
-    // 验证验证码
-    const verificationCode = await this.verificationCodeRepository.findOne({
-      where: [
-        { email, code, type: VerificationCodeType.REGISTER, used: 0 },
-        { email, code, type: VerificationCodeType.LOGIN, used: 0 },
-      ],
-      order: { createdAt: "DESC" },
-    });
-
-    if (!verificationCode) {
-      throw new BadRequestException("验证码错误");
-    }
-
-    if (verificationCode.expiresAt < new Date()) {
-      throw new BadRequestException("验证码已过期，请重新获取");
-    }
-
-    // 标记验证码已使用
-    await this.verificationCodeRepository.update(verificationCode.id, {
-      used: 1,
-    });
-
-    // 绑定邮箱
-    user.email = email;
-    await this.userRepository.save(user);
 
     this.logger.log(`用户 ${userId} 成功绑定邮箱 ${email}`);
 

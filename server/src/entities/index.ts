@@ -51,3 +51,9 @@ export * from "./user-activity.entity";
 // ==================== 可穿戴设备集成 ====================
 export * from "./wearable-connection.entity";
 export * from "./wearable-health-data.entity";
+
+// ==================== 审计日志 ====================
+export * from "./audit-log.entity";
+export * from "./notification-preference.entity";
+export * from "./notification-template.entity";
+export * from "./notification.entity";
