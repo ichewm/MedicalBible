@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { ApiResponseDto, PaginatedResponseDto, PaginationDto } from "./api-response.dto";
+import { ApiResponseDto, PaginatedResponseDto, PaginationDto, CursorPaginationDto } from "./api-response.dto";
 
 describe("ApiResponseDto", () => {
   describe("基本属性", () => {
