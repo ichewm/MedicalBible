@@ -463,11 +463,12 @@ export class AuditService {
     }));
 
     switch (format) {
-      case AuditExportFormat.JSON:
+      case AuditExportFormat.JSON: {
         await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
         break;
+      }
 
-      case AuditExportFormat.CSV:
+      case AuditExportFormat.CSV: {
         const headers = Object.keys(data[0]).join(",");
         const rows = data.map((row) =>
           Object.values(row)
@@ -477,8 +478,9 @@ export class AuditService {
         const csv = [headers, ...rows].join("\n");
         await fs.writeFile(filePath, csv, "utf-8");
         break;
+      }
 
-      case AuditExportFormat.XLSX:
+      case AuditExportFormat.XLSX: {
         const buffer = this.exportService.exportToExcel(
           data,
           Object.keys(data[0]).map((key) => ({ header: key, key })),
@@ -486,6 +488,7 @@ export class AuditService {
         );
         await fs.writeFile(filePath, buffer);
         break;
+      }
 
       default:
         throw new Error(`Unsupported export format: ${format}`);

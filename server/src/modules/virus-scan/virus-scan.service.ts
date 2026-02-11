@@ -162,7 +162,7 @@ export class VirusScanService implements IVirusScanner {
    */
   private createScanner(provider: VirusScanProvider): IVirusScanner {
     switch (provider) {
-      case VirusScanProvider.CLAMAV:
+      case VirusScanProvider.CLAMAV: {
         const config: ClamAVConfig = {
           provider: VirusScanProvider.CLAMAV,
           host: this.configService.get<string>("upload.virusScanClamavHost") || "localhost",
@@ -183,6 +183,7 @@ export class VirusScanService implements IVirusScanner {
           failOpen: this.failOpen,
         };
         return new ClamAVScanner(config, this.logger);
+      }
 
       case VirusScanProvider.DISABLED:
         return new DisabledScanner();

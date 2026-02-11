@@ -5,7 +5,7 @@
  * @version 1.0.0
  */
 
-import { uploadConfig, FileCategory, getFileCategoryConfig, ALLOWED_FILE_TYPES, FILE_SIZE_LIMITS, FILE_EXTENSIONS } from "./upload.config";
+import { uploadConfig, FileCategory, getFileCategoryConfig, ALLOWED_FILE_TYPES, FILE_SIZE_LIMITS, FILE_EXTENSIONS, MimeTypes } from "./upload.config";
 
 describe("UploadConfig", () => {
   const originalEnv = process.env;
@@ -337,7 +337,6 @@ describe("UploadConfig", () => {
 
   describe("SPEC: MIME 类型常量", () => {
     it("should define image MIME types", () => {
-      const { MimeTypes } = require("./upload.config");
       expect(MimeTypes.IMAGE_JPEG).toBe("image/jpeg");
       expect(MimeTypes.IMAGE_PNG).toBe("image/png");
       expect(MimeTypes.IMAGE_GIF).toBe("image/gif");
@@ -346,7 +345,6 @@ describe("UploadConfig", () => {
     });
 
     it("should define document MIME types", () => {
-      const { MimeTypes } = require("./upload.config");
       expect(MimeTypes.PDF).toBe("application/pdf");
       expect(MimeTypes.MS_WORD).toBe("application/msword");
       expect(MimeTypes.MS_EXCEL).toBe("application/vnd.ms-excel");

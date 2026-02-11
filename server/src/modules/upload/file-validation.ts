@@ -156,8 +156,12 @@ export class FileValidator {
     // 检查危险字符
     for (const char of DANGEROUS_CHARACTERS) {
       if (filename.includes(char)) {
+        const displayChar = char
+          .replace(/\n/g, "\\n")
+          .replace(/\r/g, "\\r")
+          .replace(/\0/g, "\\x00");
         throw new FileNameInvalidException(
-          `文件名包含危险字符: ${char.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\x00/g, "\\x00")}`,
+          `文件名包含危险字符: ${displayChar}`,
         );
       }
     }

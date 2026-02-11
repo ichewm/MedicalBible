@@ -225,7 +225,7 @@ export class NotificationService {
 
     try {
       switch (notification.channel) {
-        case NotificationChannel.EMAIL:
+        case NotificationChannel.EMAIL: {
           const emailResult = await this.emailService.sendEmail({
             to: notification.recipient,
             subject: notification.title,
@@ -234,8 +234,9 @@ export class NotificationService {
           success = emailResult.success;
           errorMessage = emailResult.error || "";
           break;
+        }
 
-        case NotificationChannel.SMS:
+        case NotificationChannel.SMS: {
           // 短信需要从 variables 中提取验证码或其他信息
           const smsCode = (notification.variables?.code as string) || "";
           const smsResult = await this.smsService.sendVerificationCode(
@@ -245,6 +246,7 @@ export class NotificationService {
           success = smsResult.success;
           errorMessage = smsResult.error || "";
           break;
+        }
 
         case NotificationChannel.IN_APP:
           // 应用内通知通过 WebSocket 推送

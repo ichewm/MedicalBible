@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import { VirusScanService } from "./virus-scan.service";
 import { VirusScanProvider } from "./virus-scan.interface";
 import { VirusDetectedException, VirusScanException } from "@common/exceptions/business.exception";
+import { DisabledScanner } from "./scanners/disabled.scanner";
 
 describe("VirusScanService", () => {
   let service: VirusScanService;
@@ -206,7 +207,6 @@ describe("VirusScanService", () => {
 
 describe("DisabledScanner", () => {
   // 直接测试 DisabledScanner 类
-  const { DisabledScanner } = require("./scanners/disabled.scanner");
 
   describe("SPEC: 禁用扫描器行为", () => {
     let scanner: any;
