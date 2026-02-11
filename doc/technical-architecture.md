@@ -224,7 +224,142 @@ CacheKeyBuilder.systemConfig('REGISTER_ENABLED')
 
 ---
 
-## 5. WebSocket 实时通信 (WebSocket)
+## 5. APM 性能监控架构 (APM Architecture)
+
+### APM 服务 (ApmService)
+
+**位置**: `server/src/common/apm/apm.service.ts`
+
+基于 OpenTelemetry 的应用性能监控服务，提供分布式追踪和指标收集功能。
+
+#### 核心功能
+
+- **分布式追踪**: 自动追踪 HTTP 请求、数据库查询、Redis 命令的调用链路
+- **性能指标收集**: 收集响应时间、错误率、慢查询等指标
+- **慢查询/慢请求检测**: 自动检测并标记超过阈值的慢操作
+- **告警系统**: 支持自定义告警规则和 Webhook 通知
+- **多后端支持**: 支持 Console、OTLP、Jaeger、Zipkin、DataDog、New Relic
+
+#### 支持的后端服务
+
+| 服务类型 | 说明 | 适用场景 |
+|---------|------|----------|
+| console | 控制台输出 | 开发环境 |
+| otlp | OpenTelemetry 协议 | 生产环境（推荐） |
+| jaeger | Jaeger 分布式追踪 | 分布式系统追踪 |
+| zipkin | Zipkin 分布式追踪 | 分布式系统追踪 |
+| datadog | DataDog APM | 商业 APM 服务 |
+| new_relic | New Relic APM | 商业 APM 服务 |
+
+#### 配置环境变量
+
+```bash
+# 基础配置
+APM_ENABLED=true                          # 是否启用 APM
+APM_SERVICE_NAME=medical-bible-api        # 服务名称
+APM_SERVICE_VERSION=1.0.0                 # 服务版本
+APM_ENVIRONMENT=production                # 部署环境
+
+# 后端配置
+APM_SERVICE_TYPE=otlp                     # 服务类型
+APM_OTLP_ENDPOINT=http://localhost:4317   # OTLP 端点
+APM_SAMPLE_RATE=0.1                       # 采样率（生产建议 0.1）
+
+# 阈值配置
+APM_DB_QUERY_THRESHOLD=1000               # 慢查询阈值（毫秒）
+APM_HTTP_REQUEST_THRESHOLD=3000           # 慢请求阈值（毫秒）
+APM_REDIS_COMMAND_THRESHOLD=500           # 慢 Redis 命令阈值（毫秒）
+
+# 告警配置
+APM_ALERTS_ENABLED=true                   # 是否启用告警
+APM_ALERT_WEBHOOK_URL=https://...         # 告警 Webhook
+```
+
+#### 使用示例
+
+```typescript
+// 记录自定义指标
+this.apmService.recordMetric({
+  name: 'custom_operation_count',
+  value: 1,
+  labels: { operation: 'export' },
+});
+
+// 在自定义 Span 中执行代码
+const result = await this.apmService.runInSpan('customOperation', async () => {
+  return await this.someExpensiveOperation();
+});
+```
+
+### APM 控制器 (ApmController)
+
+**位置**: `server/src/common/apm/apm.controller.ts`
+
+提供 APM 状态查询和健康检查接口。
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/apm/status` | GET | 获取 APM 状态和系统资源使用情况 |
+| `/apm/health` | GET | APM 健康检查 |
+
+### APM 拦截器 (ApmInterceptor)
+
+**位置**: `server/src/common/apm/apm.interceptor.ts`
+
+自动拦截所有 HTTP 请求，记录请求指标和性能数据，无需额外配置。
+
+### 收集的指标
+
+#### HTTP 请求指标
+- `http_requests_total`: HTTP 请求总数（按状态码分组）
+- `http_request_duration_milliseconds`: HTTP 请求响应时间
+- `http_slow_requests_total`: 慢请求总数
+
+#### 数据库指标
+- `db_queries_total`: 数据库查询总数
+- `db_query_duration_milliseconds`: 数据库查询响应时间
+- `db_slow_queries_total`: 慢查询总数
+
+#### Redis 指标
+- `redis_commands_total`: Redis 命令总数
+- `redis_command_duration_milliseconds`: Redis 命令响应时间
+- `redis_slow_commands_total`: 慢 Redis 命令总数
+
+### 告警规则
+
+告警规则通过环境变量配置，支持多种操作符和严重级别：
+
+```json
+[
+  {
+    "name": "high_error_rate",
+    "metric": "http_requests_total{status=~\"5..\"}",
+    "threshold": 0.05,
+    "operator": "gt",
+    "severity": "critical"
+  },
+  {
+    "name": "slow_db_query",
+    "metric": "db_query_duration_milliseconds",
+    "threshold": 3000,
+    "operator": "gt",
+    "severity": "warning"
+  }
+]
+```
+
+### 生产环境建议
+
+1. **采样率**: 生产环境建议设置 `APM_SAMPLE_RATE=0.1`（10% 采样）
+2. **后端选择**: 使用 OTLP 连接 OpenTelemetry Collector 进行数据处理
+3. **告警配置**: 启用告警并配置 Webhook 通知
+4. **阈值调整**: 根据实际业务情况调整慢查询和慢请求阈值
+
+详细文档请参考: [APM 使用文档](../../server/src/common/apm/README.md)
+
+---
+
+## 6. WebSocket 实时通信 (WebSocket)
 
 ### 概述
 
@@ -672,4 +807,3 @@ this.circuitBreakerService.reset(ExternalService.REDIS);
 2. **优雅降级**: fallback 函数应返回可接受的默认值或执行备用逻辑
 3. **监控告警**: 定期检查断路器状态，及时发现服务异常
 4. **避免级联**: 下游服务故障不应影响上游核心业务
-

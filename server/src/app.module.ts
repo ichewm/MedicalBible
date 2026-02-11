@@ -11,6 +11,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ServeStaticModule } from "@nestjs/serve-static";
 import { APP_GUARD } from "@nestjs/core";
 import { join } from "path";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 
 // 配置文件导入
 import { databaseConfig } from "./config/database.config";
@@ -18,11 +19,13 @@ import { redisConfig } from "./config/redis.config";
 import { jwtConfig } from "./config/jwt.config";
 import { corsConfig } from "./config/cors.config";
 import { loggerConfig } from "./config/logger.config";
+import { apmConfig } from "./config/apm.config";
 import { websocketConfig } from "./config/websocket.config";
 import { compressionConfig } from "./config/compression.config";
 import { securityConfig } from "./config/security.config";
 import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
+import { healthConfig } from "./config/health.config";
 import { retryConfig } from "./config/retry.config";
 
 // 业务模块导入
@@ -51,36 +54,19 @@ import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
 import { DatabaseModule } from "./common/database/database.module";
 import { LoggerModule } from "./common/logger";
+import { ApmModule, ApmInterceptor } from "./common/apm";
 import { CircuitBreakerModule } from "./common/circuit-breaker";
+import { HealthModule } from "./common/health/health.module";
 import { RetryModule } from "./common/retry";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
-import { Controller, Get } from "@nestjs/common";
-import { Public } from "./common/decorators/public.decorator";
 import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
 import { APP_INTERCEPTOR } from "@nestjs/core";
-
-/**
- * 健康检查控制器
- */
-@Controller()
-class HealthController {
-  @Public()
-  @Get("health")
-  healthCheck() {
-    return {
-      status: "ok",
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    };
-  }
-}
 
 /**
  * 应用程序根模块
  * @description 聚合所有功能模块，配置全局依赖
  */
 @Module({
-  controllers: [HealthController],
   imports: [
     // 全局配置模块
     // - isGlobal: 使配置在所有模块中可用
@@ -88,7 +74,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, retryConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, healthConfig, retryConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -160,12 +146,17 @@ class HealthController {
     // 结构化日志模块（全局）
     LoggerModule,
 
+    // APM 性能监控模块（全局）
+    ApmModule,
+
     // 断路器模块（全局）
     CircuitBreakerModule,
 
+    // 健康检查模块（全局）
+    HealthModule,
+
     // 重试模块（全局）
     RetryModule,
-
     // 静态文件服务（上传文件访问）
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, "..", "uploads"),
@@ -200,6 +191,11 @@ class HealthController {
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // 全局 APM 拦截器（自动追踪性能）
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ApmInterceptor,
     },
     // 全局活动追踪拦截器
     {
