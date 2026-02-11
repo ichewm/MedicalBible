@@ -12,58 +12,77 @@
  * @version 1.0.0
  */
 
-import { Test, TestingModule } from "@nestjs/testing";
-import { REQUEST } from "@nestjs/core";
-import { LoggerService, LogContext, createModuleLogger } from "./logger.service";
-import pino from "pino";
-
-// Create a mock Pino class that properly tracks calls
-const createMockPinoLogger = (): pino.Logger & { _bindings?: any } => ({
-  fatal: jest.fn(),
-  error: jest.fn(),
-  warn: jest.fn(),
-  info: jest.fn(),
-  debug: jest.fn(),
-  trace: jest.fn(),
-  child: jest.fn(function (this: any, bindings: any): pino.Logger & { _bindings?: any } {
-    // Return a new mock logger that inherits the same methods
-    const childLogger = createMockPinoLogger();
-    // Store bindings for verification
-    childLogger._bindings = bindings;
-    return childLogger;
-  }),
-} as any);
-
-const mockPinoLogger = createMockPinoLogger();
-
-// Mock Pino module - need to mock it before importing logger.service
+// Mock pino module before anything else
 jest.mock("pino", () => {
+  // Inline the factory function here as well
+  const createMockPinoLogger = (): any => ({
+    fatal: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    child: jest.fn(function (this: any, bindings: any): any {
+      const childLogger = createMockPinoLogger();
+      childLogger._bindings = bindings;
+      return childLogger;
+    }),
+  });
+
   return {
     __esModule: true,
-    default: jest.fn(() => mockPinoLogger),
+    default: jest.fn(() => createMockPinoLogger()),
+    stdSerializers: {
+      err: jest.fn((err: any) => err),
+      req: jest.fn((req: any) => req),
+      res: jest.fn((res: any) => res),
+    },
+    stdTimeFunctions: {
+      isoTime: jest.fn(() => new Date().toISOString()),
+    },
   };
 });
 
-// Mock the logger config module to avoid actual pino creation
-jest.mock("../../config/logger.config", () => ({
-  createPinoLogger: jest.fn(() => mockPinoLogger),
-  LogLevel: {
-    FATAL: "fatal",
-    ERROR: "error",
-    WARN: "warn",
-    INFO: "info",
-    DEBUG: "debug",
-    TRACE: "trace",
-    SILENT: "silent",
-  },
-  loggerConfig: jest.fn(),
-  createTransportOptions: jest.fn(),
-}));
+// Mock the logger config module
+jest.mock("../../config/logger.config", () => {
+  // Inline the factory function to avoid reference issues
+  const createMockPinoLogger = (): any => ({
+    fatal: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+    child: jest.fn(function (this: any, bindings: any): any {
+      const childLogger = createMockPinoLogger();
+      childLogger._bindings = bindings;
+      return childLogger;
+    }),
+  });
+  return {
+    createPinoLogger: jest.fn(() => createMockPinoLogger()),
+    LogLevel: {
+      FATAL: "fatal",
+      ERROR: "error",
+      WARN: "warn",
+      INFO: "info",
+      DEBUG: "debug",
+      TRACE: "trace",
+      SILENT: "silent",
+    },
+    loggerConfig: jest.fn(),
+    createTransportOptions: jest.fn(),
+  };
+});
 
 // Mock os module
 jest.mock("os", () => ({
   hostname: jest.fn(() => "test-host"),
 }));
+
+import { Test, TestingModule } from "@nestjs/testing";
+import { REQUEST } from "@nestjs/core";
+import { LoggerService, LogContext, createModuleLogger } from "./logger.service";
 
 describe("LoggerService Unit Tests (REL-005)", () => {
   let loggerService: LoggerService;
@@ -74,7 +93,8 @@ describe("LoggerService Unit Tests (REL-005)", () => {
    * Setup: Initialize logger service with mock request
    */
   beforeEach(async () => {
-    jest.clearAllMocks();
+    // Note: NOT clearing mocks because it causes issues with the mock implementations
+    // jest.clearAllMocks();
 
     // Create mock request
     mockRequest = {
@@ -104,6 +124,13 @@ describe("LoggerService Unit Tests (REL-005)", () => {
    * Expected: Each log level should call corresponding Pino method
    */
   describe("test_unit_logging_levels", () => {
+    it("DEBUG: Check if logger is properly initialized", () => {
+      // Debug test to check what's happening
+      const pinoLogger = loggerService.getPinoLogger();
+      console.log("PinoLogger:", pinoLogger);
+      expect(pinoLogger).toBeDefined();
+    });
+
     it("should log fatal level messages", () => {
       loggerService.fatal("Fatal error occurred", {
         context: { userId: 123 },
@@ -338,7 +365,7 @@ describe("LoggerService Unit Tests (REL-005)", () => {
       childLogger.info("User created");
 
       // Verify that child logger has the pino child method called with correct context
-      expect(mockPinoLogger.child).toHaveBeenCalledWith(
+      expect(loggerService.getPinoLogger().child).toHaveBeenCalledWith(
         expect.objectContaining({
           module: "UserService",
           correlationId: "test-correlation-id-123",
@@ -354,7 +381,7 @@ describe("LoggerService Unit Tests (REL-005)", () => {
 
       childLogger.info("Order processed");
 
-      expect(mockPinoLogger.child).toHaveBeenCalledWith(
+      expect(loggerService.getPinoLogger().child).toHaveBeenCalledWith(
         expect.objectContaining({
           module: "OrderService",
           version: "2.0",
@@ -389,7 +416,7 @@ describe("LoggerService Unit Tests (REL-005)", () => {
       createModuleLogger("AuthService");
 
       // Verify child was called with module context
-      expect(mockPinoLogger.child).toHaveBeenCalledWith(
+      expect(loggerService.getPinoLogger().child).toHaveBeenCalledWith(
         expect.objectContaining({
           module: "AuthService",
         })

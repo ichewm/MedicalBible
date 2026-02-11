@@ -23,6 +23,8 @@ import { SystemConfig } from "../../entities/system-config.entity";
 import { EmailService } from "../notification/email.service";
 import { SmsService } from "../notification/sms.service";
 import { RefreshTokenService } from "./services/refresh-token.service";
+import { TransactionService } from "../../common/database/transaction.service";
+import { QueryRunner } from "typeorm";
 
 describe("AuthService", () => {
   let service: AuthService;
@@ -158,6 +160,31 @@ describe("AuthService", () => {
     cleanupExpiredTokens: jest.fn().mockResolvedValue(undefined),
   };
 
+  // Mock QueryRunner
+  const mockQueryRunner = {
+    connect: jest.fn(),
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn(),
+    rollbackTransaction: jest.fn(),
+    release: jest.fn(),
+    manager: {
+      getRepository: jest.fn(),
+    },
+  } as unknown as QueryRunner;
+
+  const mockTransactionService = {
+    runInTransaction: jest.fn().mockImplementation(async <T,>(callback: (qr: QueryRunner) => Promise<T>): Promise<T> => {
+      return callback(mockQueryRunner);
+    }),
+    getRepository: jest.fn().mockImplementation((qr: QueryRunner, entity) => {
+      // Return the appropriate mock repository based on the entity
+      if (entity.name === 'User') return mockUserRepository;
+      if (entity.name === 'UserDevice') return mockUserDeviceRepository;
+      if (entity.name === 'VerificationCode') return mockVerificationCodeRepository;
+      return {};
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -201,6 +228,10 @@ describe("AuthService", () => {
         {
           provide: RefreshTokenService,
           useValue: mockRefreshTokenService,
+        },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
         },
       ],
     }).compile();
