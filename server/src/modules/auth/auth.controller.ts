@@ -14,6 +14,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Res,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -21,7 +22,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from "@nestjs/swagger";
-import { Request } from "express";
+import { Request, Response } from "express";
 
 import { AuthService } from "./auth.service";
 import { Public } from "../../common/decorators/public.decorator";
@@ -30,6 +31,7 @@ import { AuditLog } from "../../common/decorators/audit.decorator";
 import { AuditAction } from "../../common/enums/sensitive-operations.enum";
 import { JwtPayload } from "../../common/guards/jwt-auth.guard";
 import { RateLimit, RateLimitPresets } from "../../common/guards/rate-limit.guard";
+import { CookieHelper } from "../../common/utils/cookie.helper";
 import {
   SendVerificationCodeDto,
   SendVerificationCodeResponseDto,
@@ -196,9 +198,17 @@ export class AuthController {
   async loginWithPhone(
     @Body() dto: LoginWithPhoneDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResponseDto> {
     const ipAddress = this.getClientIp(req);
-    return this.authService.loginWithPhone(dto, ipAddress);
+    const result = await this.authService.loginWithPhone(dto, ipAddress);
+
+    // Set HTTP-only cookies for security
+    CookieHelper.setAccessTokenCookie(res, result.accessToken);
+    const refreshMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    CookieHelper.setRefreshTokenCookie(res, result.refreshToken, refreshMaxAge);
+
+    return result;
   }
 
   /**
@@ -219,8 +229,18 @@ export class AuthController {
     type: RegisterResponseDto,
   })
   @ApiResponse({ status: 400, description: "验证码错误或手机号已存在" })
-  async register(@Body() dto: RegisterDto): Promise<RegisterResponseDto> {
-    return this.authService.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RegisterResponseDto> {
+    const result = await this.authService.register(dto);
+
+    // Set HTTP-only cookies for security
+    CookieHelper.setAccessTokenCookie(res, result.accessToken);
+    const refreshMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    CookieHelper.setRefreshTokenCookie(res, result.refreshToken, refreshMaxAge);
+
+    return result;
   }
 
   /**
@@ -272,9 +292,17 @@ export class AuthController {
   async loginWithPassword(
     @Body() dto: LoginWithPasswordDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResponseDto> {
     const ipAddress = this.getClientIp(req);
-    return this.authService.loginWithPassword(dto, ipAddress);
+    const result = await this.authService.loginWithPassword(dto, ipAddress);
+
+    // Set HTTP-only cookies for security
+    CookieHelper.setAccessTokenCookie(res, result.accessToken);
+    const refreshMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    CookieHelper.setRefreshTokenCookie(res, result.refreshToken, refreshMaxAge);
+
+    return result;
   }
 
   /**
@@ -352,8 +380,16 @@ export class AuthController {
   @ApiResponse({ status: 401, description: "Token 无效或已过期" })
   async refreshToken(
     @Body() dto: RefreshTokenDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<RefreshTokenResponseDto> {
-    return this.authService.refreshToken(dto.refreshToken);
+    const result = await this.authService.refreshToken(dto.refreshToken);
+
+    // Set HTTP-only cookies for security
+    CookieHelper.setAccessTokenCookie(res, result.accessToken);
+    const refreshMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    CookieHelper.setRefreshTokenCookie(res, result.refreshToken, refreshMaxAge);
+
+    return result;
   }
 
   /**
@@ -405,9 +441,16 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   async logout(
     @CurrentUser() user: JwtPayload,
     @Headers("authorization") authorization: string,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<{ success: boolean; message: string }> {
     const token = authorization?.replace("Bearer ", "");
-    return this.authService.logout(user.sub, user.deviceId, token);
+    const result = await this.authService.logout(user.sub, user.deviceId, token);
+
+    // Clear HTTP-only cookies
+    CookieHelper.clearAccessTokenCookie(res);
+    CookieHelper.clearRefreshTokenCookie(res);
+
+    return result;
   }
 
   /**

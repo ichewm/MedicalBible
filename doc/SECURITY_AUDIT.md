@@ -316,8 +316,43 @@ import DOMPurify from "dompurify";
 | 2026-02-10 | 安全配置环境变量支持 | ✅ 所有安全头可通过环境变量配置 |
 | 2026-02-10 | SEC-005 输入清洗系统 | ✅ 完成 - 全局输入清洗中间件 + 自定义验证器 |
 | 2026-02-10 | SEC-008 文件上传安全验证 | ✅ 完成文件大小限制、类型验证、病毒扫描、路径遍历防护 |
+| 2026-02-11 | SEC-004 Cookie 安全配置 | ✅ 完成 - HTTP-only、Secure、SameSite 配置 |
 
-## 安全修复详情 (2025-02-09)
+---
+
+## 6. Cookie 安全配置 (SEC-004) ✅
+
+**实现文件**:
+- `server/src/config/cookie.config.ts` - Cookie 配置和选项工厂
+- `server/src/common/utils/cookie.helper.ts` - Cookie 辅助工具类
+- `server/src/config/config.schema.ts` - Zod 验证 schema
+
+**配置选项**:
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `COOKIE_SECURITY_ENABLED` | 启用 Cookie 安全配置 | `true` |
+| `COOKIE_SECURE` | 仅 HTTPS 传输 | 生产: `true`, 开发: `false` |
+| `COOKIE_HTTP_ONLY` | 防止 JavaScript 访问 | `true` |
+| `COOKIE_SAME_SITE` | CSRF 防护策略 | 生产: `strict`, 开发: `lax` |
+| `COOKIE_DOMAIN` | Cookie 作用域域名 | 当前域名 |
+| `COOKIE_PATH` | Cookie 路径 | `/` |
+| `COOKIE_MAX_AGE` | 过期时间（毫秒） | 会话 Cookie |
+| `COOKIE_SIGNED` | Cookie 签名 | `false` |
+| `COOKIE_OVERWRITE` | 覆盖同名 Cookie | `true` |
+
+**辅助工具**:
+- `CookieHelper.setSecureCookie()` - 设置安全 Cookie
+- `CookieHelper.setSessionCookie()` - 设置会话 Cookie
+- `CookieHelper.setPersistentCookie()` - 设置持久 Cookie
+- `CookieHelper.setAccessTokenCookie()` - 设置访问令牌 Cookie
+- `CookieHelper.setRefreshTokenCookie()` - 设置刷新令牌 Cookie
+- `CookieHelper.clearCookie()` - 清除 Cookie
+
+**测试覆盖**: 76 个测试用例全部通过
+
+---
+
+## 7. 安全修复详情 (2025-02-09)
 
 ### SEC-010: xlsx 库安全加固
 

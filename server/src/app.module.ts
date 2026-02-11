@@ -28,6 +28,7 @@ import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
 import { healthConfig } from "./config/health.config";
 import { retryConfig } from "./config/retry.config";
+import { cookieConfig } from "./config/cookie.config";
 import { auditConfig } from "./config/audit.config";
 
 // 业务模块导入
@@ -78,7 +79,7 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig, websocketConfig, compressionConfig, uploadConfig, securityConfig, sanitizationConfig, rateLimitConfig, healthConfig, retryConfig, auditConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig, websocketConfig, compressionConfig, uploadConfig, securityConfig, sanitizationConfig, rateLimitConfig, healthConfig, retryConfig, cookieConfig, auditConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
