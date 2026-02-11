@@ -396,7 +396,7 @@ describe("AdminService", () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ totalSpent: "1000" }),
-      };
+      } as any;
       mockOrderRepository.createQueryBuilder.mockReturnValue(mockOrderQueryBuilder);
     });
 
@@ -518,15 +518,6 @@ describe("AdminService", () => {
         select: jest.fn().mockReturnThis(),
         addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        innerJoin: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        take: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ total: "50000" }),
         getRawMany: jest.fn().mockResolvedValue([]),
         getMany: jest.fn().mockResolvedValue([]),
