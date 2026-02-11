@@ -23,7 +23,6 @@ import {
   WithdrawalQueryDto,
   InviteeQueryDto,
 } from "./dto/affiliate.dto";
-import { TransactionService } from "../../common/database/transaction.service";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -357,7 +356,7 @@ describe("AffiliateService", () => {
     it("应该成功获取佣金统计", async () => {
       // Arrange
       let callCount = 0;
-      mockCommissionRepository.createQueryBuilder.mockImplementation(() => {
+      const createCommissionQueryBuilder: any = () => {
         const queryBuilder = {
           select: jest.fn().mockReturnThis(),
           where: jest.fn().mockReturnThis(),
@@ -369,9 +368,10 @@ describe("AffiliateService", () => {
             if (callCount === 3) return { total: "20" }; // 冻结佣金
             return { total: "0" };
           }),
-        };
+        } as any;
         return queryBuilder;
-      });
+      };
+      mockCommissionRepository.createQueryBuilder.mockImplementation(createCommissionQueryBuilder);
       mockUserRepository.findOne.mockResolvedValue(mockUser); // balance = 100
       mockUserRepository.count.mockResolvedValue(5);
       mockSystemConfigRepository.findOne.mockResolvedValue({ configValue: "10" });

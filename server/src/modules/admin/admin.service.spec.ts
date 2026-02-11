@@ -54,23 +54,6 @@ describe("AdminService", () => {
   };
 
   // Mock Query Builder Factory - creates a new builder each time
-  const createMockQueryBuilder = () => {
-    const builder: any = {
-      select: jest.fn().mockReturnThis(),
-      addSelect: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      groupBy: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      leftJoinAndSelect: jest.fn().mockReturnThis(),
-      getRawMany: jest.fn().mockResolvedValue([]),
-      getRawOne: jest.fn().mockResolvedValue(null),
-      getMany: jest.fn().mockResolvedValue([]),
-    };
-    return builder;
-  };
-
-  // Mock Repositories
   const createMockQueryBuilder = () => ({
     select: jest.fn().mockReturnThis(),
     addSelect: jest.fn().mockReturnThis(),
@@ -301,7 +284,7 @@ describe("AdminService", () => {
         andWhere: jest.fn().mockReturnThis(),
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([{ userId: 2, totalSpent: "100" }]),
-      };
+      } as any;
       mockOrderRepository.createQueryBuilder.mockReturnValue(orderQueryBuilder);
 
       // Act
@@ -323,7 +306,7 @@ describe("AdminService", () => {
         andWhere: jest.fn().mockReturnThis(),
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([{ userId: 2, totalSpent: "100" }]),
-      };
+      } as any;
       mockOrderRepository.createQueryBuilder.mockReturnValue(orderQueryBuilder);
 
       // Act
@@ -350,7 +333,7 @@ describe("AdminService", () => {
         andWhere: jest.fn().mockReturnThis(),
         groupBy: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([{ userId: 2, totalSpent: "100" }]),
-      };
+      } as any;
       mockOrderRepository.createQueryBuilder.mockReturnValue(orderQueryBuilder);
 
       // Act
@@ -397,7 +380,7 @@ describe("AdminService", () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ totalSpent: "500" }),
-      };
+      } as any;
       mockOrderRepository.createQueryBuilder.mockReturnValue(orderQueryBuilder);
 
       // Act
@@ -493,13 +476,13 @@ describe("AdminService", () => {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ total: "50000" }),
-      };
+      } as any;
       const revenueQueryBuilder2 = {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ total: "1000" }),
-      };
+      } as any;
       mockOrderRepository.createQueryBuilder
         .mockReturnValueOnce(revenueQueryBuilder1)
         .mockReturnValueOnce(revenueQueryBuilder2);
@@ -509,17 +492,18 @@ describe("AdminService", () => {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ total: "5000" }),
-      };
+      } as any;
       const pendingCommissionQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ total: "1000" }),
-      };
+      } as any;
       let callCount = 0;
-      mockCommissionRepository.createQueryBuilder.mockImplementation(() => {
+      const createCommissionQueryBuilder: any = () => {
         callCount++;
         return callCount === 1 ? commissionQueryBuilder : pendingCommissionQueryBuilder;
-      });
+      };
+      mockCommissionRepository.createQueryBuilder.mockImplementation(createCommissionQueryBuilder);
 
       // Act
       const result = await service.getDashboardStats();
