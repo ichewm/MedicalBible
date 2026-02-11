@@ -25,7 +25,6 @@
 import request from "supertest";
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe, VersioningType } from "@nestjs/common";
-
 import { AppModule } from "../src/app.module";
 import { ConfigService } from "@nestjs/config";
 import { SanitizationMiddleware, getSanitizationMetrics } from "../src/common/middleware/sanitization.middleware";

@@ -250,7 +250,7 @@ function zodErrorToConfigError(namespace: string, error: z.ZodIssue): ConfigErro
         suggestion = `Ensure ${envVar || path} has at most ${error.maximum} items`;
       }
       break;
-    case z.ZodIssueCode.invalid_enum_value:
+    case z.ZodIssueCode.invalid_enum_value: {
       // Cast to access enum-specific properties
       const enumError = error as z.ZodIssue & { options?: string[] };
       if (enumError.options) {
@@ -258,6 +258,7 @@ function zodErrorToConfigError(namespace: string, error: z.ZodIssue): ConfigErro
         suggestion = `Set ${envVar || path} to one of: ${expected}`;
       }
       break;
+    }
     case z.ZodIssueCode.invalid_union:
       suggestion = `Set ${envVar || path} to a valid value (see schema for options)`;
       break;

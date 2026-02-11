@@ -9,6 +9,7 @@ import { registerAs } from "@nestjs/config";
 import pino from "pino";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import { loggerConfigSchema } from "./config.schema";
 
 /**
@@ -176,7 +177,7 @@ export function createPinoLogger(baseOptions?: {
     // 基础上下文
     base: {
       pid: process.pid,
-      hostname: require("os").hostname(),
+      hostname: os.hostname(),
       environment: process.env.NODE_ENV || "development",
     },
     // 时间戳格式

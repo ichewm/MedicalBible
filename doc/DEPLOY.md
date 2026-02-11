@@ -139,6 +139,14 @@ CORS_ORIGIN=https://your-domain.com
 # 中等流量生产环境推荐值：
 # DB_POOL_MAX=30
 # DB_POOL_MIN=5
+
+# APM 性能监控（可选，生产环境推荐启用）
+APM_ENABLED=true
+APM_SERVICE_TYPE=otlp
+APM_OTLP_ENDPOINT=http://your-opentelemetry-collector:4317
+APM_SAMPLE_RATE=0.1
+APM_ALERTS_ENABLED=true
+APM_ALERT_WEBHOOK_URL=https://your-webhook-url.com/alerts
 ```
 
 > 生成随机密钥：`openssl rand -base64 32`

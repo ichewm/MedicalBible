@@ -43,14 +43,26 @@ describe("API Versioning (e2e)", () => {
   });
 
   describe("健康检查端点", () => {
-    it("/health (GET) 应该返回健康状态", () => {
+    it("/health/live (GET) 应该返回存活状态", () => {
       return request(app.getHttpServer())
-        .get("/health")
+        .get("/health/live")
         .expect(200)
         .expect((res: Response) => {
-          expect(res.body).toHaveProperty("status", "ok");
-          expect(res.body).toHaveProperty("timestamp");
-          expect(res.body).toHaveProperty("uptime");
+          expect(res.body).toHaveProperty("status");
+          expect(res.body.status).toBe("ok");
+          expect(res.body).toHaveProperty("info");
+          expect(res.body.info).toHaveProperty("process");
+        });
+    });
+
+    it("/health/ready (GET) 应该返回就绪状态", () => {
+      return request(app.getHttpServer())
+        .get("/health/ready")
+        .expect(200)
+        .expect((res: Response) => {
+          expect(res.body).toHaveProperty("status");
+          expect(res.body.status).toBe("ok");
+          expect(res.body).toHaveProperty("info");
         });
     });
   });
