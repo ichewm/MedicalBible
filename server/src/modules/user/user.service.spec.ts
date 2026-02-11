@@ -20,6 +20,7 @@ import { VerificationCode } from "../../entities/verification-code.entity";
 import { RedisService } from "../../common/redis/redis.service";
 import { UploadService } from "../upload/upload.service";
 import { SensitiveWordService } from "../../common/filter/sensitive-word.service";
+import { TransactionService } from "../../common/database/transaction.service";
 
 describe("UserService", () => {
   let service: UserService;
@@ -131,6 +132,11 @@ describe("UserService", () => {
     update: jest.fn(),
   };
 
+  const mockTransactionService = {
+    runInTransaction: jest.fn(),
+    getRepository: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -171,6 +177,10 @@ describe("UserService", () => {
           provide: SensitiveWordService,
           useValue: mockSensitiveWordService,
         },
+        {
+          provide: TransactionService,
+          useValue: mockTransactionService,
+        },
       ],
     }).compile();
 
@@ -196,6 +206,15 @@ describe("UserService", () => {
     mockSensitiveWordService.containsSensitiveWord.mockReturnValue(false);
     mockSensitiveWordService.findSensitiveWords.mockReturnValue([]);
     mockSensitiveWordService.replaceSensitiveWords.mockImplementation((text: string) => text);
+
+    // 设置 TransactionService mock - execute callback directly and return mock repositories
+    mockTransactionService.runInTransaction.mockImplementation((callback) => callback({} as any));
+    mockTransactionService.getRepository.mockImplementation((qr, target) => {
+      // Return the appropriate mock repository based on the entity type
+      if (target === User) return mockUserRepository as any;
+      if (target === VerificationCode) return mockVerificationCodeRepository as any;
+      return {} as any;
+    });
   });
 
   describe("定义检查", () => {
@@ -627,6 +646,160 @@ describe("UserService", () => {
       expect(result.success).toBe(true);
       expect(result.deletedCount).toBe(0);
       expect(result.message).toContain("没有需要清理");
+    });
+  });
+
+  describe("bindPhone - 绑定手机号", () => {
+    it("应该成功绑定手机号", async () => {
+      // Arrange
+      const userWithoutPhone = { ...mockUser, phone: null };
+      const mockValidCode = {
+        id: 1,
+        phone: "13900139000",
+        code: "123456",
+        type: "REGISTER",
+        used: 0,
+        expiresAt: new Date(Date.now() + 300000), // 5分钟后过期
+      };
+
+      mockUserRepository.findOne.mockResolvedValueOnce(userWithoutPhone); // 检查用户存在
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // 检查手机号未被使用
+      mockVerificationCodeRepository.findOne.mockResolvedValue(mockValidCode);
+      mockVerificationCodeRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.save.mockResolvedValue({ ...userWithoutPhone, phone: "13900139000" });
+
+      // Act
+      const result = await service.bindPhone(1, { phone: "13900139000", code: "123456" });
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.message).toBe("手机号绑定成功");
+      expect(mockTransactionService.runInTransaction).toHaveBeenCalled();
+      expect(mockVerificationCodeRepository.update).toHaveBeenCalledWith(1, { used: 1 });
+    });
+
+    it("已绑定手机号的用户应该无法再次绑定", async () => {
+      // Arrange
+      mockTransactionService.runInTransaction.mockImplementation(async (callback) => {
+        return callback({} as any);
+      });
+      mockUserRepository.findOne.mockResolvedValue(mockUser); // 用户已有手机号
+
+      // Act & Assert
+      await expect(
+        service.bindPhone(1, { phone: "13900139000", code: "123456" }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("手机号已被使用应该抛出异常", async () => {
+      // Arrange
+      const userWithoutPhone = { ...mockUser, phone: null };
+      const anotherUser = { id: 2, phone: "13900139000" };
+
+      mockTransactionService.runInTransaction.mockImplementation(async (callback) => {
+        return callback({} as any);
+      });
+      mockUserRepository.findOne.mockResolvedValueOnce(userWithoutPhone);
+      mockUserRepository.findOne.mockResolvedValueOnce(anotherUser); // 手机号已被使用
+
+      // Act & Assert
+      await expect(
+        service.bindPhone(1, { phone: "13900139000", code: "123456" }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("验证码错误应该抛出异常", async () => {
+      // Arrange
+      const userWithoutPhone = { ...mockUser, phone: null };
+
+      mockTransactionService.runInTransaction.mockImplementation(async (callback) => {
+        return callback({} as any);
+      });
+      mockUserRepository.findOne.mockResolvedValueOnce(userWithoutPhone); // 用户存在
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // 手机号未被使用
+      mockVerificationCodeRepository.findOne.mockResolvedValue(null); // 验证码不存在
+
+      // Act & Assert
+      await expect(
+        service.bindPhone(1, { phone: "13900139000", code: "wrong_code" }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("bindEmail - 绑定邮箱", () => {
+    it("应该成功绑定邮箱", async () => {
+      // Arrange
+      const userWithoutEmail = { ...mockUser, email: null };
+      const mockValidCode = {
+        id: 2,
+        email: "test@example.com",
+        code: "654321",
+        type: "REGISTER",
+        used: 0,
+        expiresAt: new Date(Date.now() + 300000),
+      };
+
+      mockUserRepository.findOne.mockResolvedValueOnce(userWithoutEmail); // 检查用户存在
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // 检查邮箱未被使用
+      mockVerificationCodeRepository.findOne.mockResolvedValue(mockValidCode);
+      mockVerificationCodeRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.save.mockResolvedValue({ ...userWithoutEmail, email: "test@example.com" });
+
+      // Act
+      const result = await service.bindEmail(1, { email: "test@example.com", code: "654321" });
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.message).toBe("邮箱绑定成功");
+      expect(mockTransactionService.runInTransaction).toHaveBeenCalled();
+      expect(mockVerificationCodeRepository.update).toHaveBeenCalledWith(2, { used: 1 });
+    });
+
+    it("已绑定邮箱的用户应该无法再次绑定", async () => {
+      // Arrange
+      mockTransactionService.runInTransaction.mockImplementation(async (callback) => {
+        return callback({} as any);
+      });
+      mockUserRepository.findOne.mockResolvedValue(mockUser); // 用户已有邮箱
+
+      // Act & Assert
+      await expect(
+        service.bindEmail(1, { email: "test@example.com", code: "654321" }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("邮箱已被使用应该抛出异常", async () => {
+      // Arrange
+      const userWithoutEmail = { ...mockUser, email: null };
+      const anotherUser = { id: 2, email: "test@example.com" };
+
+      mockTransactionService.runInTransaction.mockImplementation(async (callback) => {
+        return callback({} as any);
+      });
+      mockUserRepository.findOne.mockResolvedValueOnce(userWithoutEmail);
+      mockUserRepository.findOne.mockResolvedValueOnce(anotherUser); // 邮箱已被使用
+
+      // Act & Assert
+      await expect(
+        service.bindEmail(1, { email: "test@example.com", code: "654321" }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("验证码错误应该抛出异常", async () => {
+      // Arrange
+      const userWithoutEmail = { ...mockUser, email: null };
+
+      mockTransactionService.runInTransaction.mockImplementation(async (callback) => {
+        return callback({} as any);
+      });
+      mockUserRepository.findOne.mockResolvedValueOnce(userWithoutEmail); // 用户存在
+      mockUserRepository.findOne.mockResolvedValueOnce(null); // 邮箱未被使用
+      mockVerificationCodeRepository.findOne.mockResolvedValue(null); // 验证码不存在
+
+      // Act & Assert
+      await expect(
+        service.bindEmail(1, { email: "test@example.com", code: "wrong_code" }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
