@@ -13,9 +13,21 @@ module.exports = {
   // Use single worker to reduce memory usage during tests with large buffers
   maxWorkers: 1,
 
+  // Limit workers to prevent memory buildup
+  workerThreads: false,
+
+  // Force exit after tests complete to prevent memory buildup
+  forceExit: true,
+
+  // Run each test file in isolation to prevent cross-contamination
+  isolatedModules: true,
+
   // Clear mocks between tests to prevent memory buildup (but not modules, as it breaks jest.mock)
   resetMocks: true,
   clearMocks: true,
+
+  // Reset modules between tests to prevent memory leaks (but can break jest.mock)
+  resetModules: false,
 
   // 测试文件匹配规则 (unit tests + integration tests)
   testRegex: '.*\\.(spec|integration\\.spec)\\.ts$',
@@ -25,11 +37,14 @@ module.exports = {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
 
-  // 覆盖率收集来源
-  collectCoverageFrom: ['**/*.(t|j)s'],
+  // 覆盖率收集来源 - exclude test files from collection to reduce memory
+  collectCoverageFrom: ['**/*.(t|j)s', '!**/*.spec.ts', '!**/*.integration.spec.ts', '!**/*.e2e-spec.ts', '!**/test/**', '!**/test-helpers/**'],
 
   // 覆盖率报告目录
   coverageDirectory: '../coverage',
+
+  // Disable coverage collection by default to prevent OOM - use --coverage flag when needed
+  collectCoverage: false,
 
   // 测试环境
   testEnvironment: 'node',
