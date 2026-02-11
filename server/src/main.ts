@@ -237,6 +237,7 @@ async function bootstrap(): Promise<void> {
   // - TimeoutInterceptor: 设置请求超时（30秒）
   // - LoggingInterceptor: 记录请求日志
   // - TransformInterceptor: 转换响应格式
+  // - ApmInterceptor: 在 AppModule 中通过 APP_INTERCEPTOR 全局注册
   app.useGlobalInterceptors(
     new TimeoutInterceptor(), // 超时拦截器（最先执行）
     new LoggingInterceptor(), // 日志拦截器
