@@ -146,6 +146,22 @@ chmod +x deploy.sh
 
 </td>
 </tr>
+<tr>
+<td>
+
+**可穿戴设备**
+- Apple HealthKit 集成
+- Android Health Connect 集成
+- 健康数据同步（步数、心率、睡眠等）
+- 数据汇总与分析
+- 隐私合规（数据删除权）
+- 设备连接管理
+
+</td>
+<td>
+
+</td>
+</tr>
 </table>
 
 ### 👨‍💼 管理后台功能
@@ -252,6 +268,11 @@ chmod +x deploy.sh
 - **PDF**: react-pdf + pdf.js
 - **语音识别**: Web Speech API (实验性功能)
 - **AI症状分析**: 多提供商支持（Infermedica、Azure Health Bot、Mock）
+- **性能优化 (PERF-007)**:
+  - **代码分割**: React.lazy() 路由级代码分割，减少初始 bundle 大小
+  - **虚拟化列表**: react-window 优化大列表渲染性能
+  - **组件优化**: React.memo 避免不必要的重渲染
+  - **加载骨架**: Suspense fallback 提供流畅的加载体验
 - **样式**: TailwindCSS
 
 ### 部署技术
@@ -284,6 +305,7 @@ MedicalBible/
 │   │   │   ├── rbac/      # RBAC角色权限模块
 │   │   │   ├── storage/   # 文件存储与CDN模块 (FEAT-004)
 │   │   │   ├── symptom-checker/ # AI症状检查模块 (INNOV-001)
+│   │   │   ├── wearable/  # 可穿戴设备模块
 │   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
 │   │   │   ├── apm/       # APM 性能监控模块
@@ -334,6 +356,9 @@ MedicalBible/
 - [APM 性能监控](./server/src/common/apm/README.md) - OpenTelemetry APM 配置与使用指南
 - [缓存管理 API](#-缓存管理-api) - 缓存监控与管理接口
 - [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
+- [可穿戴设备集成研究](./doc/wearable-integration-research.md) - Apple HealthKit 和 Android Health Connect 集成研究
+- [可穿戴设备数据模型设计](./doc/wearable-data-model-design.md) - 健康数据存储架构与数据类型定义
+- [可穿戴设备隐私与合规评估](./doc/wearable-privacy-regulatory-evaluation.md) - 隐私保护与监管合规分析
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
 - [FHIR标准研究](./docs/fhir-research.md) - FHIR R4标准与CMS互操作性要求
@@ -377,7 +402,7 @@ npm run lint
 npm run type-check
 ```
 
-**测试结果**: ✅ 90/90 测试通过 (含语音功能测试)
+**测试结果**: ✅ 330/330 测试通过 (含语音功能测试、性能优化组件测试)
 
 ## 🔧 开发
 
@@ -969,6 +994,13 @@ interface ErrorResponse {
 
 ### v1.10.0 (2026-02-11)
 
+- ⚡ **前端性能优化 (PERF-007)**: 代码分割和列表虚拟化
+  - React.lazy() 路由级代码分割，减少初始 bundle 大小 (~2MB+ → 按需加载)
+  - Suspense fallback 集成 LoadingSkeleton 组件
+  - react-window 虚拟化优化 LectureList、QuestionBank、UserTable 大列表渲染
+  - React.memo 优化 AnswerCard、MobileLectureReader 组件性能
+  - 24 个新增单元测试覆盖（LoadingSkeleton、AnswerCard）
+  - 330 个前端测试全部通过
 - 🔒 **审计日志系统 (SEC-010)**: 敏感操作的完整审计追踪，符合HIPAA/GDPR合规要求
   - 审计日志实体（user_id, action, resource_type, resource_id, ip_address, user_agent, changes, metadata）
   - 哈希链完整性验证：使用SHA-256哈希链检测篡改，每条记录包含previousHash和currentHash
@@ -985,7 +1017,6 @@ interface ErrorResponse {
   - 管理员统计API：审计日志总数、今日/本周/本月日志数、热门操作统计
   - 非阻塞写入：审计失败不影响主业务流程，使用fire-and-forget模式
   - 完整的单元测试覆盖（94个测试）：entity、decorator、interceptor、service
-
 ### v1.9.0 (2026-02-10)
 
 - 📊 **APM 性能监控**: 基于 OpenTelemetry 的应用性能监控
@@ -1024,6 +1055,14 @@ interface ErrorResponse {
   - `@NoSqlInjection`: 检测 SQL 注入模式
   - `@NoCommandInjection`: 检测命令注入模式
 - ✅ 完整的 E2E 测试覆盖（输入清洗功能）
+- ✅ 可穿戴设备集成研究（Apple HealthKit、Android Health Connect）
+- ✅ 健康数据模型设计（支持步数、心率、睡眠等9种数据类型）
+- ✅ 可穿戴设备连接管理 API
+- ✅ 健康数据上传、查询、汇总 API
+- ✅ 隐私合规支持（用户数据删除权）
+- ✅ 数据库迁移脚本与索引优化
+- ✅ E2E 集成测试
+
 ### v1.8.0 (2026-02-10)
 
 - ✅ **配置验证** (DATA-002): 应用启动时环境变量验证
@@ -1056,6 +1095,7 @@ interface ErrorResponse {
   - 连接心跳检测和超时断开（25秒心跳间隔，60秒超时）
   - 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
   - 完整的 WebSocket 配置单元测试覆盖
+
 ### v1.7.0 (2026-02-09)
 
 - ✅ 实现用户活动追踪和分析系统

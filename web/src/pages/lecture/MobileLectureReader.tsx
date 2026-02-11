@@ -3,7 +3,7 @@
  * @description 支持左右滑动翻页、全屏阅读、重点标注展示
  */
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Spin, message, FloatButton, Drawer, List, Tag, Empty } from 'antd'
 import {
@@ -25,6 +25,67 @@ import './MobileLectureReader.css'
 
 // PDF worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+
+// 重点标注覆盖层 - 使用 memo 避免不必要的重渲染
+const HighlightOverlay = memo(({ highlights, pageNumber }: {
+  highlights: Highlight[]
+  pageNumber: number
+}) => {
+  const currentHighlights = useMemo(() =>
+    highlights.filter(h => h.pageIndex === pageNumber),
+    [highlights, pageNumber]
+  )
+
+  return (
+    <>
+      {currentHighlights.map((h) => (
+        (Array.isArray(h.data) ? h.data : []).map((rect: any, idx: number) => (
+          <div
+            key={`${h.id}-${idx}`}
+            className="mobile-highlight-rect"
+            style={{
+              left: `${rect.x}%`,
+              top: `${rect.y}%`,
+              width: `${rect.w}%`,
+              height: `${rect.h}%`,
+              backgroundColor: rect.color || '#FFFF00',
+            }}
+          />
+        ))
+      ))}
+    </>
+  )
+})
+
+HighlightOverlay.displayName = 'HighlightOverlay'
+
+// 页码网格 - 使用 memo 避免不必要的重渲染
+const PageGrid = memo(({
+  numPages,
+  currentPage,
+  highlightPages,
+  onPageClick
+}: {
+  numPages: number
+  currentPage: number
+  highlightPages: number[]
+  onPageClick: (page: number) => void
+}) => (
+  <div className="page-grid">
+    {Array.from({ length: numPages }, (_, i) => i + 1).map(page => (
+      <div
+        key={page}
+        className={`page-grid-item ${page === currentPage ? 'active' : ''} ${highlightPages.includes(page) ? 'has-highlight' : ''}`}
+        onClick={() => onPageClick(page)}
+      >
+        {page}
+        {highlightPages.includes(page) && <span className="highlight-dot" />}
+      </div>
+    ))}
+  </div>
+))
+
+PageGrid.displayName = 'PageGrid'
 
 const MobileLectureReader = () => {
   const { id } = useParams()
@@ -255,22 +316,8 @@ const MobileLectureReader = () => {
             />
           </Document>
           
-          {/* 重点标注渲染层 */}
-          {currentHighlights.map((h) => (
-            (Array.isArray(h.data) ? h.data : []).map((rect: any, idx: number) => (
-              <div
-                key={`${h.id}-${idx}`}
-                className="mobile-highlight-rect"
-                style={{
-                  left: `${rect.x}%`,
-                  top: `${rect.y}%`,
-                  width: `${rect.w}%`,
-                  height: `${rect.h}%`,
-                  backgroundColor: rect.color || '#FFFF00',
-                }}
-              />
-            ))
-          ))}
+          {/* 重点标注渲染层 - 使用 memoized 组件 */}
+          <HighlightOverlay highlights={highlights} pageNumber={pageNumber} />
         </div>
 
         {/* 翻页指示 */}
@@ -379,18 +426,13 @@ const MobileLectureReader = () => {
         open={showPageList}
         height="50%"
       >
-        <div className="page-grid">
-          {Array.from({ length: numPages }, (_, i) => i + 1).map(page => (
-            <div
-              key={page}
-              className={`page-grid-item ${page === pageNumber ? 'active' : ''} ${highlightPages.includes(page) ? 'has-highlight' : ''}`}
-              onClick={() => goToPage(page)}
-            >
-              {page}
-              {highlightPages.includes(page) && <span className="highlight-dot" />}
-            </div>
-          ))}
-        </div>
+        {/* 使用 memoized 页码网格组件 */}
+        <PageGrid
+          numPages={numPages}
+          currentPage={pageNumber}
+          highlightPages={highlightPages}
+          onPageClick={goToPage}
+        />
       </Drawer>
     </div>
   )

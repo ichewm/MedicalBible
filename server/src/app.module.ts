@@ -50,6 +50,7 @@ import { FhirModule } from "./modules/fhir/fhir.module";
 import { DataExportModule } from "./modules/data-export/data-export.module";
 import { RbacModule } from "./modules/rbac/rbac.module";
 import { SymptomCheckerModule } from "./modules/symptom-checker/symptom-checker.module";
+import { WearableModule } from "./modules/wearable/wearable.module";
 import { AuditModule } from "./common/audit/audit.module";
 
 // 公共模块导入
@@ -190,6 +191,7 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
     DataExportModule, // 数据导出模块
     RbacModule, // RBAC 角色权限模块
     SymptomCheckerModule, // AI症状检查模块
+    WearableModule, // 可穿戴设备集成模块
     AuditModule, // 审计日志模块
   ],
   providers: [
