@@ -617,4 +617,3 @@ export class ApmService implements OnModuleInit, OnModuleDestroy {
 
 // 导入上下文和状态码
 import { context, SpanStatusCode } from "@opentelemetry/api";
-import { ParentBasedSampler, TraceIdRatioBasedSampler } from "@opentelemetry/sdk-trace-base";
