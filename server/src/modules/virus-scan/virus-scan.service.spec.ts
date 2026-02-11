@@ -59,20 +59,35 @@ describe("VirusScanService", () => {
   });
 
   describe("SPEC: 病毒扫描 - 禁用模式", () => {
-    beforeEach(() => {
-      // 配置为禁用模式
-      configService.get.mockImplementation((key: string) => {
-        const config: Record<string, any> = {
-          "upload.virusScanEnabled": "false",
-          "upload.virusScanProvider": "disabled",
-        };
-        return config[key];
-      });
+    let disabledService: VirusScanService;
+
+    beforeEach(async () => {
+      // Create a new service instance with disabled configuration
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          VirusScanService,
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string) => {
+                const config: Record<string, any> = {
+                  "upload.virusScanEnabled": "false",
+                  "upload.virusScanProvider": "disabled",
+                  "upload.virusScanFailOpen": "false",
+                };
+                return config[key];
+              }),
+            },
+          },
+        ],
+      }).compile();
+
+      disabledService = module.get<VirusScanService>(VirusScanService);
     });
 
     it("should skip scan when disabled", async () => {
       const buffer = createTestBuffer();
-      const result = await service.scan(buffer, "test.txt");
+      const result = await disabledService.scan(buffer, "test.txt");
 
       expect(result.isClean).toBe(true);
       expect(result.message).toContain("disabled");
@@ -80,7 +95,7 @@ describe("VirusScanService", () => {
     });
 
     it("should pass health check when disabled", async () => {
-      const result = await service.healthCheck();
+      const result = await disabledService.healthCheck();
       expect(result).toBe(true);
     });
   });
