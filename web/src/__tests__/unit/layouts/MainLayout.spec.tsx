@@ -97,7 +97,7 @@ describe('MainLayout - WebSocket 实时未读数更新 (BUG-001)', () => {
       socket.on('unreadCountUpdated', () => {})
 
       // 验证监听了 unreadCountUpdated 事件
-      expect(socket.on).toHaveBeenCalledWith('unreadCountUpdated', expect.any(Function))
+      expect(socket.on).toHaveBeenCalledWith('unreadCountUpdated', expect.anything())
     })
 
     it('应该在收到 unreadCountUpdated 事件时更新未读数', async () => {
@@ -110,7 +110,7 @@ describe('MainLayout - WebSocket 实时未读数更新 (BUG-001)', () => {
       }
 
       // 设置监听器
-      mockSocket.on.mockImplementation((event: string, callback: Function) => {
+      mockSocket.on.mockImplementation((event: string, callback: (...args: unknown[]) => void) => {
         if (event === 'unreadCountUpdated') {
           // 模拟收到 WebSocket 事件
           act(() => {
