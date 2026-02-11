@@ -499,10 +499,11 @@ describe("AdminService", () => {
         getRawOne: jest.fn().mockResolvedValue({ total: "1000" }),
       } as any;
       let callCount = 0;
-      mockCommissionRepository.createQueryBuilder.mockImplementation(() => {
+      const createCommissionQueryBuilder: any = () => {
         callCount++;
         return callCount === 1 ? commissionQueryBuilder : pendingCommissionQueryBuilder;
-      });
+      };
+      mockCommissionRepository.createQueryBuilder.mockImplementation(createCommissionQueryBuilder);
 
       // Act
       const result = await service.getDashboardStats();
