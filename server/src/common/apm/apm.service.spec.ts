@@ -13,21 +13,26 @@
  */
 
 // Mock OpenTelemetry modules before importing
-jest.mock("@opentelemetry/api", () => ({
-  trace: {
-    getTracer: jest.fn(() => ({
-      startSpan: jest.fn(() => ({
-        setAttribute: jest.fn(),
-        setAttributes: jest.fn(),
-        setStatus: jest.fn(),
-        addEvent: jest.fn(),
-        recordException: jest.fn(),
-        end: jest.fn(),
-      })),
-      startActiveSpan: jest.fn((name, fn) => fn({})),
-    })),
-    getSpan: jest.fn(() => null),
-  },
+jest.mock("@opentelemetry/api", () => {
+  const mockSpan = {
+    setAttribute: jest.fn(),
+    setAttributes: jest.fn(),
+    setStatus: jest.fn(),
+    addEvent: jest.fn(),
+    recordException: jest.fn(),
+    end: jest.fn(),
+  };
+
+  const mockTracer = {
+    startSpan: jest.fn(() => mockSpan),
+    startActiveSpan: jest.fn((name: string, fn: any) => fn(mockSpan)),
+  };
+
+  return {
+    trace: {
+      getTracer: jest.fn(() => mockTracer),
+      getSpan: jest.fn(() => null),
+    },
   metrics: {
     getMeter: jest.fn(() => ({
       createCounter: jest.fn(() => ({
@@ -49,7 +54,8 @@ jest.mock("@opentelemetry/api", () => ({
     OK: 0,
     ERROR: 1,
   },
-}));
+  };
+});
 
 jest.mock("@opentelemetry/sdk-node", () => ({
   NodeSDK: jest.fn().mockImplementation(() => ({
@@ -103,22 +109,6 @@ import {
   SpanStatusCode,
 } from "@opentelemetry/api";
 
-// Configure mock tracer to return proper values
-const mockSpan = {
-  setAttribute: jest.fn(),
-  setAttributes: jest.fn(),
-  setStatus: jest.fn(),
-  addEvent: jest.fn(),
-  recordException: jest.fn(),
-  end: jest.fn(),
-};
-
-const mockTracer = {
-  startSpan: jest.fn(() => mockSpan),
-  startActiveSpan: jest.fn((name: string, fn: any) => fn(mockSpan)),
-};
-(trace.getTracer as jest.Mock).mockReturnValue(mockTracer);
-
 // Mock fetch for webhook alerts
 global.fetch = jest.fn(() =>
   Promise.resolve({
@@ -137,6 +127,23 @@ describe("ApmService Unit Tests (REL-006)", () => {
    */
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    // Ensure the tracer mock always returns a valid tracer with startActiveSpan
+    const mockSpan = {
+      setAttribute: jest.fn(),
+      setAttributes: jest.fn(),
+      setStatus: jest.fn(),
+      addEvent: jest.fn(),
+      recordException: jest.fn(),
+      end: jest.fn(),
+    };
+
+    const mockTracer = {
+      startSpan: jest.fn(() => mockSpan),
+      startActiveSpan: jest.fn((name: string, fn: any) => fn(mockSpan)),
+    };
+
+    (trace.getTracer as jest.Mock).mockReturnValue(mockTracer);
 
     // Create a testing module with ConfigService
     moduleRef = await Test.createTestingModule({
