@@ -7,7 +7,7 @@
 
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Between, In } from "typeorm";
 import { Logger } from "@nestjs/common";
 
 import { AnalyticsService } from "./analytics.service";
@@ -252,7 +252,6 @@ describe("AnalyticsService", () => {
         endDate,
       });
 
-      const { Between } = require("typeorm");
       expect(mockActivityRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -269,7 +268,6 @@ describe("AnalyticsService", () => {
         eventTypes: [ActivityEventType.LOGIN, ActivityEventType.LOGOUT],
       });
 
-      const { In } = require("typeorm");
       expect(mockActivityRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -286,7 +284,6 @@ describe("AnalyticsService", () => {
         userIds: [1, 2, 3],
       });
 
-      const { In } = require("typeorm");
       expect(mockActivityRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({

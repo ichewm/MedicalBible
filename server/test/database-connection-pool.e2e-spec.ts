@@ -28,7 +28,6 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
 import { JwtModule } from "@nestjs/jwt";
-
 import { DataSource } from "typeorm";
 import { DatabaseMonitoringService } from "../src/common/database/database-monitoring.service";
 import { DatabaseConnectionService } from "../src/common/database/database-connection.service";

@@ -11,6 +11,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ServeStaticModule } from "@nestjs/serve-static";
 import { APP_GUARD } from "@nestjs/core";
 import { join } from "path";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 
 // 配置文件导入
 import { databaseConfig } from "./config/database.config";
@@ -18,11 +19,14 @@ import { redisConfig } from "./config/redis.config";
 import { jwtConfig } from "./config/jwt.config";
 import { corsConfig } from "./config/cors.config";
 import { loggerConfig } from "./config/logger.config";
+import { apmConfig } from "./config/apm.config";
 import { websocketConfig } from "./config/websocket.config";
 import { compressionConfig } from "./config/compression.config";
+import { uploadConfig } from "./config/upload.config";
 import { securityConfig } from "./config/security.config";
 import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
+import { healthConfig } from "./config/health.config";
 import { retryConfig } from "./config/retry.config";
 import { auditConfig } from "./config/audit.config";
 
@@ -53,37 +57,19 @@ import { CacheModule } from "./common/cache/cache.module";
 import { CryptoModule } from "./common/crypto/crypto.module";
 import { DatabaseModule } from "./common/database/database.module";
 import { LoggerModule } from "./common/logger";
+import { ApmModule, ApmInterceptor } from "./common/apm";
 import { CircuitBreakerModule } from "./common/circuit-breaker";
+import { HealthModule } from "./common/health/health.module";
 import { RetryModule } from "./common/retry";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
-import { Controller, Get } from "@nestjs/common";
-import { Public } from "./common/decorators/public.decorator";
 import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
 import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
-import { APP_INTERCEPTOR } from "@nestjs/core";
-
-/**
- * 健康检查控制器
- */
-@Controller()
-class HealthController {
-  @Public()
-  @Get("health")
-  healthCheck() {
-    return {
-      status: "ok",
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    };
-  }
-}
 
 /**
  * 应用程序根模块
  * @description 聚合所有功能模块，配置全局依赖
  */
 @Module({
-  controllers: [HealthController],
   imports: [
     // 全局配置模块
     // - isGlobal: 使配置在所有模块中可用
@@ -91,7 +77,7 @@ class HealthController {
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, retryConfig, auditConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig, websocketConfig, compressionConfig, uploadConfig, securityConfig, sanitizationConfig, rateLimitConfig, healthConfig, retryConfig, auditConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -102,9 +88,8 @@ class HealthController {
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const pool = configService.get<any>("database.pool");
-        const connectionTimeout = configService.get<number>("database.connectionTimeout");
-        const queryTimeout = configService.get<number>("database.queryTimeout");
+        const nodeEnv = configService.get<string>("NODE_ENV", "development");
+        const isTest = nodeEnv === "test";
 
         return {
           type: "mysql",
@@ -114,35 +99,30 @@ class HealthController {
           password: configService.get<string>("database.password"),
           database: configService.get<string>("database.database"),
           entities: [__dirname + "/entities/**/*.entity{.ts,.js}"],
-          synchronize: configService.get<string>("NODE_ENV") !== "production",
-          logging: configService.get<string>("NODE_ENV") === "development",
+          synchronize: nodeEnv !== "production",
+          logging: nodeEnv === "development",
           charset: "utf8mb4",
           timezone: "+08:00", // 北京时间
+
+          // In test mode, reduce retry attempts to fail quickly if DB is unavailable
+          keepConnectionAlive: !isTest,
 
           // 连接池配置 - 使用 extra 传递给底层 mysql2 驱动
           extra: {
             // 连接池大小
-            connectionLimit: pool?.max || 20,
+            connectionLimit: isTest ? 1 : 20,
 
             // 启用连接池的 keepAlive 功能
-            enableKeepAlive: true,
+            enableKeepAlive: !isTest,
             keepAliveInitialDelay: 0,
 
-            // 连接建立超时时间（毫秒）
-            connectTimeout: connectionTimeout || 60000,
-
-            // 查询超时时间
-            timeout: queryTimeout || 60000,
-
-            // 连接获取超时时间（通过 acquireTimeout 配置）
-            acquireTimeout: pool?.acquireTimeoutMillis || 30000,
+            // 连接建立超时时间（毫秒）- shorter in tests
+            connectTimeout: isTest ? 5000 : 60000,
           } as {
             connectionLimit: number;
             enableKeepAlive: boolean;
             keepAliveInitialDelay: number;
             connectTimeout: number;
-            timeout: number;
-            acquireTimeout: number;
           },
         };
       },
@@ -163,15 +143,27 @@ class HealthController {
     // 结构化日志模块（全局）
     LoggerModule,
 
+    // APM 性能监控模块（全局）
+    ApmModule,
+
     // 断路器模块（全局）
     CircuitBreakerModule,
 
+    // 健康检查模块（全局）
+    HealthModule,
+
     // 重试模块（全局）
     RetryModule,
-
     // 静态文件服务（上传文件访问）
+    // 配置说明：
+    // - UPLOAD_ROOT 环境变量指定上传文件的存储路径，建议设置在应用目录之外
+    // - 默认值：./uploads（仅用于开发环境，生产环境必须配置独立路径）
+    // - 安全建议：生产环境应将上传目录放在 web 根目录之外，防止直接访问
+    // - 示例配置：
+    //   - 开发环境：UPLOAD_ROOT=./uploads
+    //   - 生产环境：UPLOAD_ROOT=/var/uploads/medical-bible
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, "..", "uploads"),
+      rootPath: process.env.UPLOAD_ROOT || join(__dirname, "..", "uploads"),
       serveRoot: "/uploads",
       serveStaticOptions: {
         index: false,
@@ -204,6 +196,11 @@ class HealthController {
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // 全局 APM 拦截器（自动追踪性能）
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ApmInterceptor,
     },
     // 全局活动追踪拦截器
     {

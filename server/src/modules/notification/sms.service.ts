@@ -157,7 +157,8 @@ export class SmsService {
       }
     } catch (error) {
       this.logger.error(`Aliyun SMS error: ${error.message}`);
-      return { success: false, error: error.message };
+      // Return generic error message to avoid exposing internal system details
+      return { success: false, error: "Failed to send SMS. Please try again later." };
     }
   }
 
@@ -271,7 +272,8 @@ export class SmsService {
       }
     } catch (error) {
       this.logger.error(`Tencent SMS error: ${error.message}`);
-      return { success: false, error: error.message };
+      // Return generic error message to avoid exposing internal system details
+      return { success: false, error: "Failed to send SMS. Please try again later." };
     }
   }
 
@@ -339,7 +341,8 @@ export class SmsService {
       }
     } catch (error) {
       this.logger.error(`Ronglian SMS error: ${error.message}`);
-      return { success: false, error: error.message };
+      // Return generic error message to avoid exposing internal system details
+      return { success: false, error: "Failed to send SMS. Please try again later." };
     }
   }
 

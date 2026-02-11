@@ -133,6 +133,19 @@ chmod +x deploy.sh
 
 </td>
 </tr>
+<tr>
+<td colspan="2">
+
+**消息通知**
+- 应用内通知（实时推送）
+- 邮件通知（多服务商支持）
+- 短信通知（阿里云/腾讯云/容联云）
+- 通知偏好设置（按类型/渠道控制）
+- 模板化通知内容
+- 定时发送与失败重试
+
+</td>
+</tr>
 </table>
 
 ### 👨‍💼 管理后台功能
@@ -248,6 +261,7 @@ chmod +x deploy.sh
 - **CI/CD**: GitHub Actions (可选)
 - **监控**: 日志系统 + 健康检查
 - **日志**: Pino 结构化日志 + 关联 ID（Correlation ID）追踪（无 console.log）
+- **APM**: OpenTelemetry 分布式追踪和性能监控
 
 ## 📁 项目结构
 
@@ -266,11 +280,14 @@ MedicalBible/
 │   │   │   ├── analytics/ # 分析模块
 │   │   │   ├── admin/     # 管理模块
 │   │   │   ├── data-export/ # 数据导出模块
+│   │   │   ├── notification/ # 通知模块
 │   │   │   ├── rbac/      # RBAC角色权限模块
 │   │   │   ├── storage/   # 文件存储与CDN模块 (FEAT-004)
 │   │   │   ├── symptom-checker/ # AI症状检查模块 (INNOV-001)
 │   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
+│   │   │   ├── apm/       # APM 性能监控模块
+│   │   │   └── ...        # 其他公共模块
 │   │   ├── config/        # 配置文件
 │   │   └── entities/      # 数据库实体
 │   ├── database/          # 数据库脚本
@@ -314,6 +331,7 @@ MedicalBible/
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
+- [APM 性能监控](./server/src/common/apm/README.md) - OpenTelemetry APM 配置与使用指南
 - [缓存管理 API](#-缓存管理-api) - 缓存监控与管理接口
 - [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
 - [开发计划](./doc/development-plan.md) - 开发任务清单
@@ -471,6 +489,15 @@ npm run dev
   - 管理员统计API和日志验证API
 - HTTPS 支持
 - **结构化日志**: 使用 Pino 结构化日志 + 关联 ID 追踪（无 console.log，防止敏感信息泄露）
+- **文件上传安全 (SEC-008)**: 完整的文件上传安全验证
+  - 文件大小限制（按分类配置：头像5MB、PDF 50MB、图片10MB、文档20MB）
+  - MIME 类型白名单验证
+  - 文件扩展名验证
+  - 严格模式（MIME 类型与扩展名匹配验证）
+  - 路径遍历攻击防护（文件名净化）
+  - 病毒扫描集成（ClamAV）
+  - 随机文件名生成
+  - 安全存储（可配置存储目录）
 
 **CORS 配置说明**:
 - 开发环境: 默认允许 `http://localhost:5173` 和 `http://localhost:3000`
@@ -518,7 +545,8 @@ npm run dev
 - 支持每用户多连接管理（默认最多3个同时连接）
 - 心跳检测机制防止僵尸连接（25秒间隔，60秒超时）
 - 离线消息队列存储（Redis，默认7天TTL）
-- 服务端提供重连参数与事件下发，客户端可基于此实现指数退避重连策略
+- 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
+- **实时未读数更新 (BUG-001)**: 管理员发送消息时，通过 `unreadCountUpdated` 事件实时推送未读消息数到客户端，客服通知徽章立即更新
 - 可通过环境变量配置：
   - `WS_MAX_CONNECTIONS_PER_USER`: 每用户最大连接数 (默认: 3)
   - `WS_HEARTBEAT_INTERVAL`: 心跳间隔毫秒 (默认: 25000)
@@ -960,6 +988,17 @@ interface ErrorResponse {
 
 ### v1.9.0 (2026-02-10)
 
+- 📊 **APM 性能监控**: 基于 OpenTelemetry 的应用性能监控
+  - 分布式追踪（支持 OTLP、Jaeger、Zipkin、DataDog、New Relic）
+  - 性能指标收集（HTTP 请求、数据库查询、Redis 命令）
+  - 慢查询和慢请求自动检测与告警
+  - 可配置的采样率和告警规则
+  - APM 状态查询端点：`GET /apm/status`
+  - APM 健康检查端点：`GET /apm/health`
+  - 详见 [APM 使用文档](./server/src/common/apm/README.md)
+
+### v1.8.0 (2026-02-10)
+
 - 🤖 **AI症状检查 (INNOV-001)**: AI驱动的症状分析与健康指导
   - 支持多种AI服务提供商（Infermedica、Azure Health Bot、Mock）
   - 断路器模式保护外部AI服务调用，自动降级到Mock分析
@@ -1085,6 +1124,13 @@ interface ErrorResponse {
 
 ### v1.3.0 (2026-02-08)
 
+- ✅ 实现通知系统（邮件/短信/应用内）
+- ✅ 支持多邮件服务商（QQ/163/企业邮箱/Gmail/Outlook）
+- ✅ 支持多短信服务商（阿里云/腾讯云/容联云）
+- ✅ 用户通知偏好设置（按类型/渠道控制）
+- ✅ 通知模板系统（变量替换）
+- ✅ 定时发送与失败重试机制
+- ✅ 通知历史记录查询
 - ✅ 实现FHIR R4标准API端点（医疗数据互操作性）
 - ✅ 支持Patient、Observation、Condition、DocumentReference、Encounter、Coverage、Organization资源
 - ✅ 添加FHIR元数据端点（Capability Statement）
