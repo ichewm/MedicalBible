@@ -85,9 +85,8 @@ import { ActivityTrackingInterceptor } from "./common/interceptors/activity-trac
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const pool = configService.get<any>("database.pool");
-        const connectionTimeout = configService.get<number>("database.connectionTimeout");
-        const queryTimeout = configService.get<number>("database.queryTimeout");
+        const nodeEnv = configService.get<string>("NODE_ENV", "development");
+        const isTest = nodeEnv === "test";
 
         return {
           type: "mysql",
@@ -97,35 +96,30 @@ import { ActivityTrackingInterceptor } from "./common/interceptors/activity-trac
           password: configService.get<string>("database.password"),
           database: configService.get<string>("database.database"),
           entities: [__dirname + "/entities/**/*.entity{.ts,.js}"],
-          synchronize: configService.get<string>("NODE_ENV") !== "production",
-          logging: configService.get<string>("NODE_ENV") === "development",
+          synchronize: nodeEnv !== "production",
+          logging: nodeEnv === "development",
           charset: "utf8mb4",
           timezone: "+08:00", // 北京时间
+
+          // In test mode, reduce retry attempts to fail quickly if DB is unavailable
+          keepConnectionAlive: !isTest,
 
           // 连接池配置 - 使用 extra 传递给底层 mysql2 驱动
           extra: {
             // 连接池大小
-            connectionLimit: pool?.max || 20,
+            connectionLimit: isTest ? 1 : 20,
 
             // 启用连接池的 keepAlive 功能
-            enableKeepAlive: true,
+            enableKeepAlive: !isTest,
             keepAliveInitialDelay: 0,
 
-            // 连接建立超时时间（毫秒）
-            connectTimeout: connectionTimeout || 60000,
-
-            // 查询超时时间
-            timeout: queryTimeout || 60000,
-
-            // 连接获取超时时间（通过 acquireTimeout 配置）
-            acquireTimeout: pool?.acquireTimeoutMillis || 30000,
+            // 连接建立超时时间（毫秒）- shorter in tests
+            connectTimeout: isTest ? 5000 : 60000,
           } as {
             connectionLimit: number;
             enableKeepAlive: boolean;
             keepAliveInitialDelay: number;
             connectTimeout: number;
-            timeout: number;
-            acquireTimeout: number;
           },
         };
       },
