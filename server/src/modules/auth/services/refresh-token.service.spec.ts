@@ -43,10 +43,10 @@ describe("RefreshTokenService", () => {
     exists: jest.fn(),
   };
 
-  // Mock ConfigService
-  const mockConfigService = {
-    get: jest.fn((key: string) => {
-      const config: Record<string, any> = {
+  // Mock ConfigService as a simple object with get method
+  const mockConfigService: any = {
+    get: jest.fn((key: string): string => {
+      const config: Record<string, string> = {
         "jwt.secret": "test-access-secret",
         "jwt.refreshTokenSecret": "test-refresh-secret",
         "jwt.accessTokenExpires": "15m",
@@ -77,7 +77,7 @@ describe("RefreshTokenService", () => {
         },
         {
           provide: ConfigService,
-          useValue: mockConfigService,
+          useFactory: () => mockConfigService,
         },
         {
           provide: RedisService,
@@ -98,16 +98,20 @@ describe("RefreshTokenService", () => {
     );
     configService = module.get<ConfigService>(ConfigService);
 
-    // 重置所有 mock
-    jest.clearAllMocks();
+    // Don't reset all mocks - let each test manage its own mock state
+    // jest.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
   });
 
   describe("generateRefreshToken", () => {
     it("should generate a new refresh token with unique family ID", async () => {
+      // Debug: check what configService actually returns
+      console.log('Mock function calls:', mockConfigService.get.mock.calls);
+      console.log('Mock return values:', mockConfigService.get.mock.results);
+
       const mockToken = "mock-refresh-token";
       mockJwtService.signAsync.mockResolvedValue(mockToken);
 
