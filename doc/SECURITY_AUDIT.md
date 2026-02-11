@@ -304,7 +304,88 @@ import DOMPurify from "dompurify";
 | 2025-01-31 | SEC-009 结构化日志实现 | 完成 - 移除所有 console.log，使用 NestJS Logger |
 | 2025-01-31 | CORS 安全配置 (SEC-002) | ✅ 完成环境级域名白名单 |
 | 2025-01-31 | Helmet 中间件集成 (SEC-002) | ✅ 完成安全头配置 |
+| 2025-02-09 | SEC-010 xlsx 库安全加固 | ✅ 完成文件大小限制（5MB）+ 魔数字节验证 |
+| 2025-02-09 | XSS 防护验证 | ✅ 已确认所有 dangerouslySetInnerHTML 使用 DOMPurify.sanitize |
+| 2025-02-09 | tmp 依赖修复 | ✅ 已更新到安全版本 |
+| 2025-02-09 | web 前端依赖检查 | ✅ 无漏洞 |
+| 2025-02-09 | bcrypt 依赖升级 | ✅ 从 5.1.0 升级到 6.0.0 (修复 tar 漏洞) |
+| 2025-02-09 | fast-xml-parser 漏洞修复 | ✅ 通过 overrides 强制使用 5.3.4+ 版本 |
+| 2025-02-09 | @nestjs/serve-static 升级 | ✅ 从 4.0.2 升级到 5.0.4 (修复 path-to-regexp 漏洞) |
+| 2025-02-09 | 依赖 overrides 配置 | ✅ 添加 js-yaml, lodash, fast-xml-parser, qs, form-data, tough-cookie overrides |
 | 2026-02-10 | SEC-006 安全头中间件增强 | ✅ Helmet、CSP、HSTS 完整配置支持 |
 | 2026-02-10 | 安全配置环境变量支持 | ✅ 所有安全头可通过环境变量配置 |
 | 2026-02-10 | SEC-005 输入清洗系统 | ✅ 完成 - 全局输入清洗中间件 + 自定义验证器 |
 | 2026-02-10 | SEC-008 文件上传安全验证 | ✅ 完成文件大小限制、类型验证、病毒扫描、路径遍历防护 |
+
+## 安全修复详情 (2025-02-09)
+
+### SEC-010: xlsx 库安全加固
+
+**问题**: xlsx 库存在原型污染 + ReDoS 漏洞，无修复版本
+
+**缓解措施**:
+1. 文件大小限制: 5MB 最大限制
+2. 文件类型验证: 魔数字节检查（XLS: 0xD0CF11E0, XLSX: 0x504B0304）
+3. 仅允许管理员访问导入功能
+
+**代码变更**: `server/src/modules/question/question.controller.ts:294-347`
+
+### XSS 防护状态
+
+已验证以下文件正确使用 DOMPurify.sanitize:
+- `web/src/pages/agreement/Agreement.tsx:74`
+- `web/src/pages/teacher/TeacherQuestionList.tsx:322, 367`
+- `web/src/pages/admin/SystemSettings.tsx:1333`
+
+### 安全依赖修复详情 (2025-02-09)
+
+#### SEC-011: bcrypt 升级修复 tar 漏洞
+**问题**: bcrypt@5.1.0 通过 @mapbox/node-pre-gyp 依赖了有漏洞的 tar 包
+**修复**: 升级到 bcrypt@6.0.0
+**文件**: `server/package.json`
+
+#### SEC-012: fast-xml-parser DoS 漏洞修复
+**问题**: minio@8.0.6 依赖的 fast-xml-parser@4.5.3 存在 RangeError DoS 漏洞 (GHSA-37qj-frw5-hhjh)
+**修复**: 通过 npm overrides 强制使用 fast-xml-parser@5.3.4+
+**文件**: `package.json` (overrides 配置)
+
+#### SEC-013: path-to-regexp ReDoS 漏洞修复
+**问题**: @nestjs/serve-static@4.0.2 依赖的 path-to-regexp 存在回溯正则表达式漏洞 (GHSA-9wv6-86v2-598j)
+**修复**: 升级到 @nestjs/serve-static@5.0.4
+**文件**: `server/package.json`
+
+#### SEC-014: 依赖安全 overrides 配置
+**问题**: 多个传递依赖存在已知漏洞，但无法直接更新
+**修复**: 在根 package.json 添加 overrides 强制使用安全版本
+**覆盖的包**:
+- js-yaml: ^4.1.1 (原型污染)
+- lodash: ^4.17.23 (原型污染)
+- fast-xml-parser: ^5.3.4 (ReDoS)
+- qs: ^6.14.1 (DoS)
+- form-data: ^2.5.4 (不安全随机数)
+- tough-cookie: ^4.1.3 (原型污染)
+**文件**: `package.json`
+
+### 剩余待处理漏洞 (2025-02-09 更新)
+
+以下漏洞需要进一步评估或属于第三方 SDK 不可修复问题：
+
+| 包名 | 严重程度 | 状态 | 建议 |
+|------|----------|------|------|
+| `xlsx` | High | ✅ 已缓解 | SEC-010: 文件大小限制 + 魔数字节验证 + 仅管理员访问 |
+| `cos-nodejs-sdk-v5` (request) | Moderate | ⚠️ 第三方SDK | 腾讯云 COS SDK 依赖已废弃的 request 包，需等待官方更新或考虑更换云服务商 |
+| `form-data` (cos子依赖) | Critical | ⚠️ 第三方SDK | 通过 overrides 缓解，但需 cos-sdk 更新 |
+| `qs` (cos子依赖) | High | ⚠️ 第三方SDK | 通过 overrides 缓解，但需 cos-sdk 更新 |
+| `tough-cookie` (cos子依赖) | Moderate | ⚠️ 第三方SDK | 通过 overrides 缓解，但需 cos-sdk 更新 |
+| `glob` | High | ⚠️ 开发依赖 | @nestjs/cli 的传递依赖，仅影响开发环境 |
+| `webpack` | Low/High | ⚠️ 开发依赖 | @nestjs/cli 的传递依赖，仅影响开发环境 |
+| `tmp` | Low | ✅ 已修复 | 通过 npm audit fix 修复 |
+
+**当前漏洞统计**:
+- 修复前: 15+ 漏洞 (5 low, 2 moderate, 5 high, 2 critical)
+- 修复后: 10 漏洞 (5 low, 2 moderate, 3 high)
+- 已修复: bcrypt (tar漏洞), fast-xml-parser, path-to-regexp (@nestjs/serve-static), tmp
+
+**重要说明**:
+- 开发依赖漏洞 (glob, webpack, inquirer, tmp) 仅影响开发环境，不影响生产环境安全
+- `cos-nodejs-sdk-v5` 的子依赖漏洞来自已废弃的 `request` 包，这是第三方 SDK 的问题，无法通过项目代码修复
