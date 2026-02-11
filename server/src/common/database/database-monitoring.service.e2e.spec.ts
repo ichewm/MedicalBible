@@ -26,6 +26,11 @@ import { ConfigService } from "@nestjs/config";
 // Mock for DataSource query method
 const mockDataSourceQuery = jest.fn();
 
+// Mock for ConfigService
+const mockConfigService = {
+  get: jest.fn(),
+};
+
 /**
  * E2E Tests: Database Monitoring Service
  *
@@ -40,24 +45,22 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
    * Setup: Create testing module with mocked DataSource and ConfigService
    */
   beforeEach(async () => {
-    // Reset mock before each test
+    // Reset mocks before each test
     mockDataSourceQuery.mockReset();
+    mockConfigService.get.mockReset();
 
     // Mock DataSource
     const mockDataSource = {
       query: mockDataSourceQuery,
     } as any;
 
-    // Mock ConfigService
-    const mockConfigService = {
-      get: jest.fn().mockImplementation((key: string) => {
-        if (key === 'database.pool') {
-          return { max: 20, min: 5, acquireTimeoutMillis: 30000, idleTimeoutMillis: 300000, maxLifetimeMillis: 1800000 };
-        }
-        return null;
-      }),
-    };
-
+    // Setup default ConfigService mock values
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'database.pool') {
+        return { max: 20, min: 5, acquireTimeoutMillis: 30000, idleTimeoutMillis: 300000, maxLifetimeMillis: 1800000 };
+      }
+      return undefined;
+    });
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatabaseMonitoringService,
@@ -640,7 +643,7 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
       jest.spyOn(service, 'getTableStats').mockResolvedValue([{ tableName: "users", rowCount: 10000, dataLengthMb: 50, indexLengthMb: 10, totalSizeMb: 60 }]);
       jest.spyOn(service, 'getIndexUsageStats').mockResolvedValue([{ tableName: "users", indexName: "PRIMARY", usageCount: 1000, countRead: 950, countWrite: 50 }]);
       jest.spyOn(service, 'getUnusedIndexes').mockResolvedValue([{ tableName: "users", indexName: "idx_unused", comment: "Never used" }]);
-      jest.spyOn(service, 'getIndexFragmentation').mockResolvedValue([]);
+      jest.spyOn(service, 'getIndexFragmentation').mockResolvedValue([{ tableName: "users", fragmentationPercent: 2.5, recommendation: "No action needed" }]);
       jest.spyOn(service, 'getSlowQueryStatus').mockResolvedValue({ enabled: true, longQueryTime: 2, logQueriesNotUsingIndexes: true });
 
       const result = await service.getPerformanceSummary();

@@ -24,7 +24,7 @@ export const databaseConfigSchema = z.object({
   port: z
     .string()
     .default('3306')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 3306;
       const num = Number(val);
       if (isNaN(num)) {
@@ -60,7 +60,7 @@ export const redisConfigSchema = z.object({
   port: z
     .string()
     .default('6379')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 6379;
       const num = Number(val);
       if (isNaN(num)) {
@@ -84,7 +84,7 @@ export const redisConfigSchema = z.object({
   db: z
     .string()
     .default('0')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 0;
       const num = Number(val);
       if (isNaN(num)) {
@@ -128,11 +128,11 @@ export const jwtConfigSchema = z
     refreshTokenExpires: z.string().default('7d'),
     issuer: z.string().default('medical-bible'),
   })
-  .transform((data) => ({
+  .transform((data: { secret: string; refreshTokenSecret?: string; accessTokenExpires: string; refreshTokenExpires: string; issuer: string }) => ({
     ...data,
     refreshTokenSecret: data.refreshTokenSecret ?? data.secret,
   }))
-  .refine((data) => data.secret.length >= 32, 'JWT_SECRET must be at least 32 characters for security');
+  .refine((data: { secret: string; refreshTokenSecret?: string; accessTokenExpires: string; refreshTokenExpires: string; issuer: string }) => data.secret.length >= 32, 'JWT_SECRET must be at least 32 characters for security');
 
 export type JwtConfig = z.infer<typeof jwtConfigSchema>;
 
@@ -163,7 +163,7 @@ export const websocketConfigSchema = z.object({
   maxConnectionsPerUser: z
     .string()
     .default('3')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 3;
       const num = Number(val);
       if (isNaN(num)) {
@@ -186,7 +186,7 @@ export const websocketConfigSchema = z.object({
   heartbeatInterval: z
     .string()
     .default('25000')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 25000;
       const num = Number(val);
       if (isNaN(num)) {
@@ -209,7 +209,7 @@ export const websocketConfigSchema = z.object({
   connectionTimeout: z
     .string()
     .default('60000')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 60000;
       const num = Number(val);
       if (isNaN(num)) {
@@ -232,7 +232,7 @@ export const websocketConfigSchema = z.object({
   messageQueueTtl: z
     .string()
     .default('604800')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 604800;
       const num = Number(val);
       if (isNaN(num)) {
@@ -255,7 +255,7 @@ export const websocketConfigSchema = z.object({
   reconnectDelayMin: z
     .string()
     .default('1000')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 1000;
       const num = Number(val);
       if (isNaN(num)) {
@@ -278,7 +278,7 @@ export const websocketConfigSchema = z.object({
   reconnectDelayMax: z
     .string()
     .default('30000')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 30000;
       const num = Number(val);
       if (isNaN(num)) {
@@ -301,7 +301,7 @@ export const websocketConfigSchema = z.object({
   maxReconnectAttempts: z
     .string()
     .default('10')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 10;
       const num = Number(val);
       if (isNaN(num)) {
@@ -333,7 +333,7 @@ export type WebsocketConfig = z.infer<typeof websocketConfigSchema>;
 const compressionLevelSchema = z
   .string()
   .default('6')
-  .transform((val, ctx) => {
+  .transform((val: string, ctx: z.RefinementCtx) => {
     if (val === '') return 6;
     const num = Number(val);
     if (isNaN(num)) {
@@ -374,7 +374,7 @@ export const compressionConfigSchema = z.object({
   threshold: z
     .string()
     .default('1024')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 1024;
       const num = Number(val);
       if (isNaN(num)) {
@@ -405,7 +405,7 @@ function rateLimitNumber(defaultValue: string, envName: string) {
   return z
     .string()
     .default(defaultValue)
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return Number(defaultValue);
       const num = Number(val);
       if (isNaN(num)) {
@@ -502,7 +502,7 @@ const loggerConfigBaseSchema = z.object({
   maxFiles: z
     .string()
     .default('10')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 10;
       const num = Number(val);
       if (isNaN(num)) {
@@ -525,7 +525,7 @@ const loggerConfigBaseSchema = z.object({
   retentionDays: z
     .string()
     .default('30')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 30;
       const num = Number(val);
       if (isNaN(num)) {
@@ -573,7 +573,7 @@ export const appConfigSchema = z.object({
   port: z
     .string()
     .default('3000')
-    .transform((val, ctx) => {
+    .transform((val: string, ctx: z.RefinementCtx) => {
       if (val === '') return 3000;
       const num = Number(val);
       if (isNaN(num)) {
@@ -597,3 +597,140 @@ export const appConfigSchema = z.object({
 });
 
 export type AppConfig = z.infer<typeof appConfigSchema>;
+
+/**
+ * Cookie security configuration schema
+ * @description Cookie security settings for httpOnly, secure, and SameSite attributes
+ */
+export const cookieConfigSchema = z
+  .object({
+    enabled: z
+      .union([z.boolean(), z.string()])
+      .default('true')
+      .transform((val) => {
+        if (typeof val === 'boolean') return val;
+        if (val === '') return true;
+        const lower = val.toLowerCase();
+        if (lower === 'false' || lower === '0' || lower === 'no') return false;
+        return true;
+      })
+      .pipe(z.boolean()),
+    security: z.object({
+      secure: z
+        .union([z.boolean(), z.string()])
+        .default('true')
+        .transform((val) => {
+          if (typeof val === 'boolean') return val;
+          if (val === '') return true;
+          const lower = val.toLowerCase();
+          if (lower === 'false' || lower === '0' || lower === 'no') return false;
+          return true;
+        })
+        .pipe(z.boolean()),
+      httpOnly: z
+        .union([z.boolean(), z.string()])
+        .default('true')
+        .transform((val) => {
+          if (typeof val === 'boolean') return val;
+          if (val === '') return true;
+          const lower = val.toLowerCase();
+          if (lower === 'false' || lower === '0' || lower === 'no') return false;
+          return true;
+        })
+        .pipe(z.boolean()),
+      sameSite: z
+        .enum(['strict', 'lax', 'none'])
+        .default('lax'),
+      domain: z.string().optional(),
+      path: z.string().default('/'),
+      maxAge: z
+        .string()
+        .optional()
+        .transform((val, ctx) => {
+          if (!val || val === '') return undefined;
+          const num = Number(val);
+          if (isNaN(num)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'COOKIE_MAX_AGE must be a valid number',
+            });
+            return z.NEVER;
+          }
+          if (num < 0) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'COOKIE_MAX_AGE must be non-negative',
+            });
+            return z.NEVER;
+          }
+          return Math.floor(num);
+        })
+        .pipe(z.number().int().nonnegative().optional()),
+      signed: z
+        .union([z.boolean(), z.string()])
+        .default('false')
+        .transform((val) => {
+          if (typeof val === 'boolean') return val;
+          if (val === '') return false;
+          const lower = val.toLowerCase();
+          if (lower === 'true' || lower === '1' || lower === 'yes') return true;
+          return false;
+        })
+        .pipe(z.boolean()),
+      overwrite: z
+        .union([z.boolean(), z.string()])
+        .default('true')
+        .transform((val) => {
+          if (typeof val === 'boolean') return val;
+          if (val === '') return true;
+          const lower = val.toLowerCase();
+          if (lower === 'false' || lower === '0' || lower === 'no') return false;
+          return true;
+        })
+        .pipe(z.boolean()),
+    }),
+    session: z.object({
+      secure: z.boolean().default(true),
+      httpOnly: z.boolean().default(true),
+      sameSite: z.enum(['strict', 'lax', 'none']).default('lax'),
+      maxAge: z.number().int().nonnegative().optional(),
+      path: z.string().default('/'),
+    }),
+    persistent: z.object({
+      secure: z.boolean().default(true),
+      httpOnly: z.boolean().default(true),
+      sameSite: z.enum(['strict', 'lax', 'none']).default('strict'),
+      maxAge: z.number().int().nonnegative().default(7 * 24 * 60 * 60 * 1000),
+      path: z.string().default('/'),
+    }),
+  })
+  .refine(
+    (data) => {
+      // SameSite=None requires secure=true
+      if (
+        data.security.sameSite === 'none' &&
+        !data.security.secure
+      ) {
+        return false;
+      }
+      if (
+        data.session.sameSite === 'none' &&
+        !data.session.secure
+      ) {
+        return false;
+      }
+      if (
+        data.persistent.sameSite === 'none' &&
+        !data.persistent.secure
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'SameSite=None requires secure=true',
+      path: ['security'],
+    },
+  );
+
+export type CookieConfig = z.infer<typeof cookieConfigSchema>;
