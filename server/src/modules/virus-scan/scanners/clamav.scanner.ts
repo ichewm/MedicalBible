@@ -200,7 +200,7 @@ export class ClamAVScanner implements IVirusScanner {
     // INSTREAM 协议：先发送 4 字节的块大小（大端序），然后发送数据
     // 最后发送一个空的块（大小为 0）表示结束
     const CHUNK_SIZE = 4096;
-    const offset = 0;
+    let offset = 0;
 
     while (offset < buffer.length) {
       const chunk = buffer.slice(offset, Math.min(offset + CHUNK_SIZE, buffer.length));

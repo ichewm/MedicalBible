@@ -13,34 +13,31 @@ import { ClamAVConfig, VirusScanProvider, ScanResult } from "../virus-scan.inter
 let currentSocketResponse = "stream: OK\0";
 let currentSocketShouldConnect = true;
 
-// Mock net module
+// Mock net module - use a simpler approach with direct object
 jest.mock("net", () => {
+  // Define the mock socket factory
+  function MockSocket(this: any) {
+    this.write = jest.fn();
+    this.connect = jest.fn((portOrPath: any, hostOrCallback: any, callback?: any) => {
+      const cb = typeof hostOrCallback === "function" ? hostOrCallback : callback;
+      setTimeout(() => {
+        if (currentSocketShouldConnect && cb) {
+          cb();
+        }
+      }, 5);
+    });
+    this.on = jest.fn((event: string, callback: any) => {
+      if (event === "data") {
+        setTimeout(() => {
+          callback(Buffer.from(currentSocketResponse));
+        }, 15);
+      }
+    });
+    this.destroy = jest.fn();
+  }
+
   return {
-    Socket: jest.fn().mockImplementation(function () {
-      return {
-        write: jest.fn(),
-        connect: jest.fn(function (this: any, portOrPath: any, hostOrCallback: any, callback?: any) {
-          // 处理不同的 connect 签名
-          const cb = typeof hostOrCallback === "function" ? hostOrCallback : callback;
-          setTimeout(() => {
-            if (currentSocketShouldConnect && cb) {
-              cb();
-            }
-          }, 5);
-          return this;
-        }),
-        on: jest.fn(function (this: any, event: string, callback: any) {
-          // 模拟数据响应
-          if (event === "data") {
-            setTimeout(() => {
-              callback(Buffer.from(currentSocketResponse));
-            }, 15);
-          }
-          return this;
-        }),
-        destroy: jest.fn(),
-      };
-    }),
+    Socket: MockSocket as any,
   };
 });
 
@@ -72,9 +69,25 @@ describe("ClamAVScanner", () => {
       log: jest.fn(),
     } as unknown as Logger;
 
-    jest.clearAllMocks();
+    // Debug: check if net.Socket mock is properly set up
+    console.log("BeforeEach: net.Socket mock type:", typeof (net.Socket as unknown as jest.Mock));
+    console.log("BeforeEach: net.Socket mock implementation:", typeof (net.Socket as unknown as jest.Mock).getMockImplementation);
+
+    // Test that the mock returns a valid socket
+    const testSocket = new (net.Socket as any)();
+    console.log("Test socket:", testSocket);
+    console.log("Test socket.on type:", typeof testSocket.on);
+    console.log("Test socket.destroy type:", typeof testSocket.destroy);
+
+    // Don't reset mocks - the mock implementation should handle state via global variables
 
     scanner = new ClamAVScanner(createTestConfig(), logger);
+  });
+
+  afterEach(() => {
+    // Reset global state after each test
+    currentSocketResponse = "stream: OK\0";
+    currentSocketShouldConnect = true;
   });
 
   describe("SPEC: 扫描器初始化", () => {
