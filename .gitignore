@@ -13,8 +13,10 @@ out/
 .env
 .env.local
 .env.*.local
+.env.test
 server/.env
 server/.env.local
+server/.env.test
 web/.env.local
 
 # Logs

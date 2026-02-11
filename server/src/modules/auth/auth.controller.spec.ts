@@ -7,6 +7,21 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "@common/guards";
+import { Response } from "express";
+
+/**
+ * Mock Response object for testing
+ */
+const mockResponse = () => {
+  const res: Partial<Response> = {
+    cookie: jest.fn().mockReturnThis(),
+    clearCookie: jest.fn().mockReturnThis(),
+    status: jest.fn().mockReturnThis(),
+    json: jest.fn().mockReturnThis(),
+    send: jest.fn().mockReturnThis(),
+  };
+  return res as Response;
+};
 
 describe("AuthController", () => {
   let controller: AuthController;
@@ -97,7 +112,7 @@ describe("AuthController", () => {
         ip: "127.0.0.1",
         socket: { remoteAddress: "127.0.0.1" },
       } as any;
-      const result = await controller.loginWithPhone(dto, mockReq);
+      const result = await controller.loginWithPhone(dto, mockReq, mockResponse());
 
       expect(result).toEqual(mockResult);
       expect(service.loginWithPhone).toHaveBeenCalledWith(dto, "127.0.0.1");
@@ -133,7 +148,7 @@ describe("AuthController", () => {
         ip: "127.0.0.1",
         socket: { remoteAddress: "127.0.0.1" },
       } as any;
-      const result = await controller.loginWithPhone(dto, mockReq);
+      const result = await controller.loginWithPhone(dto, mockReq, mockResponse());
 
       expect(result.accessToken).toBeDefined();
       expect(result.user).toBeDefined();
@@ -156,7 +171,7 @@ describe("AuthController", () => {
 
       mockAuthService.refreshToken.mockResolvedValue(mockResult);
 
-      const result = await controller.refreshToken(dto);
+      const result = await controller.refreshToken(dto, mockResponse());
 
       expect(result).toEqual(mockResult);
       expect(mockAuthService.refreshToken).toHaveBeenCalledWith(

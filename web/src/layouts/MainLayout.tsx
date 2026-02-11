@@ -3,7 +3,7 @@
  * @description 登录后的主布局，包含顶部导航和侧边栏
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Avatar, Dropdown, Button, Space, Drawer, Grid, Badge, Tooltip } from 'antd'
 import {
@@ -26,6 +26,7 @@ import { useAuthStore } from '@/stores/auth'
 import Logo from '@/components/Logo'
 import VoiceControl from '@/components/VoiceControl'
 import request from '@/utils/request'
+import { io, Socket } from 'socket.io-client'
 import type { MenuProps } from 'antd'
 import { logger } from '@/utils'
 
@@ -41,6 +42,7 @@ const MainLayout = () => {
   const location = useLocation()
   const { user, logout } = useAuthStore()
   const screens = useBreakpoint()
+  const socketRef = useRef<Socket | null>(null)
 
   // 移动端判断 (xs)
   const isMobile = !screens.md
@@ -58,8 +60,12 @@ const MainLayout = () => {
     fetchTestMode()
   }, [])
 
-  // 获取客服消息未读数
+  // 获取客服消息未读数并监听实时更新
   useEffect(() => {
+    const { token } = useAuthStore.getState()
+    if (!token) return
+
+    // 初始化获取未读数
     const fetchUnreadCount = async () => {
       try {
         const res: any = await request.get('/chat/unread')
@@ -69,10 +75,30 @@ const MainLayout = () => {
       }
     }
     fetchUnreadCount()
-    
-    // 每30秒刷新一次未读数
-    const timer = setInterval(fetchUnreadCount, 30000)
-    return () => clearInterval(timer)
+
+    // 建立 WebSocket 连接
+    const wsUrl = `${window.location.protocol}//${window.location.host}/chat`
+    const socket = io(wsUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      path: '/socket.io/',
+    })
+
+    // 监听未读数更新事件
+    socket.on('unreadCountUpdated', (data: { unreadCount: number; hasUnread: boolean }) => {
+      setChatUnreadCount(data.unreadCount)
+      logger.debug('未读数已更新:', data.unreadCount)
+    })
+
+    socketRef.current = socket
+
+    // 60秒轮询作为后备
+    const timer = setInterval(fetchUnreadCount, 60000)
+
+    return () => {
+      clearInterval(timer)
+      socket.disconnect()
+    }
   }, [])
 
   // 计算注销剩余天数

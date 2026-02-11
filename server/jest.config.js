@@ -17,8 +17,8 @@ module.exports = {
   resetMocks: true,
   clearMocks: true,
 
-  // 测试文件匹配规则
-  testRegex: '.*\\.spec\\.ts$',
+  // 测试文件匹配规则 (unit tests + integration tests)
+  testRegex: '.*\\.(spec|integration\\.spec)\\.ts$',
 
   // TypeScript 转换配置
   transform: {

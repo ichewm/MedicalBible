@@ -28,6 +28,8 @@ import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
 import { healthConfig } from "./config/health.config";
 import { retryConfig } from "./config/retry.config";
+import { cookieConfig } from "./config/cookie.config";
+import { auditConfig } from "./config/audit.config";
 
 // 业务模块导入
 import { AuthModule } from "./modules/auth/auth.module";
@@ -48,6 +50,8 @@ import { FhirModule } from "./modules/fhir/fhir.module";
 import { DataExportModule } from "./modules/data-export/data-export.module";
 import { RbacModule } from "./modules/rbac/rbac.module";
 import { SymptomCheckerModule } from "./modules/symptom-checker/symptom-checker.module";
+import { WearableModule } from "./modules/wearable/wearable.module";
+import { AuditModule } from "./common/audit/audit.module";
 
 // 公共模块导入
 import { RedisModule } from "./common/redis/redis.module";
@@ -61,6 +65,7 @@ import { HealthModule } from "./common/health/health.module";
 import { RetryModule } from "./common/retry";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
+import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
 
 /**
  * 应用程序根模块
@@ -74,7 +79,7 @@ import { ActivityTrackingInterceptor } from "./common/interceptors/activity-trac
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig, websocketConfig, compressionConfig, uploadConfig, securityConfig, sanitizationConfig, rateLimitConfig, healthConfig, retryConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig, websocketConfig, compressionConfig, uploadConfig, securityConfig, sanitizationConfig, rateLimitConfig, healthConfig, retryConfig, cookieConfig, auditConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -85,9 +90,8 @@ import { ActivityTrackingInterceptor } from "./common/interceptors/activity-trac
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const pool = configService.get<any>("database.pool");
-        const connectionTimeout = configService.get<number>("database.connectionTimeout");
-        const queryTimeout = configService.get<number>("database.queryTimeout");
+        const nodeEnv = configService.get<string>("NODE_ENV", "development");
+        const isTest = nodeEnv === "test";
 
         return {
           type: "mysql",
@@ -97,35 +101,30 @@ import { ActivityTrackingInterceptor } from "./common/interceptors/activity-trac
           password: configService.get<string>("database.password"),
           database: configService.get<string>("database.database"),
           entities: [__dirname + "/entities/**/*.entity{.ts,.js}"],
-          synchronize: configService.get<string>("NODE_ENV") !== "production",
-          logging: configService.get<string>("NODE_ENV") === "development",
+          synchronize: nodeEnv !== "production",
+          logging: nodeEnv === "development",
           charset: "utf8mb4",
           timezone: "+08:00", // 北京时间
+
+          // In test mode, reduce retry attempts to fail quickly if DB is unavailable
+          keepConnectionAlive: !isTest,
 
           // 连接池配置 - 使用 extra 传递给底层 mysql2 驱动
           extra: {
             // 连接池大小
-            connectionLimit: pool?.max || 20,
+            connectionLimit: isTest ? 1 : 20,
 
             // 启用连接池的 keepAlive 功能
-            enableKeepAlive: true,
+            enableKeepAlive: !isTest,
             keepAliveInitialDelay: 0,
 
-            // 连接建立超时时间（毫秒）
-            connectTimeout: connectionTimeout || 60000,
-
-            // 查询超时时间
-            timeout: queryTimeout || 60000,
-
-            // 连接获取超时时间（通过 acquireTimeout 配置）
-            acquireTimeout: pool?.acquireTimeoutMillis || 30000,
+            // 连接建立超时时间（毫秒）- shorter in tests
+            connectTimeout: isTest ? 5000 : 60000,
           } as {
             connectionLimit: number;
             enableKeepAlive: boolean;
             keepAliveInitialDelay: number;
             connectTimeout: number;
-            timeout: number;
-            acquireTimeout: number;
           },
         };
       },
@@ -192,6 +191,8 @@ import { ActivityTrackingInterceptor } from "./common/interceptors/activity-trac
     DataExportModule, // 数据导出模块
     RbacModule, // RBAC 角色权限模块
     SymptomCheckerModule, // AI症状检查模块
+    WearableModule, // 可穿戴设备集成模块
+    AuditModule, // 审计日志模块
   ],
   providers: [
     // 全局 JWT 认证守卫
@@ -208,6 +209,11 @@ import { ActivityTrackingInterceptor } from "./common/interceptors/activity-trac
     {
       provide: APP_INTERCEPTOR,
       useClass: ActivityTrackingInterceptor,
+    },
+    // 全局审计日志拦截器
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
     },
   ],
 })

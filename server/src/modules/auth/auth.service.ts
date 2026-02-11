@@ -12,7 +12,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
+import { Repository, MoreThan, QueryRunner } from "typeorm";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
@@ -32,6 +32,7 @@ import { RedisService } from "../../common/redis/redis.service";
 import { EmailService } from "../notification/email.service";
 import { SmsService } from "../notification/sms.service";
 import { RefreshTokenService } from "./services/refresh-token.service";
+import { TransactionService } from "../../common/database/transaction.service";
 import {
   SendVerificationCodeDto,
   SendVerificationCodeResponseDto,
@@ -78,6 +79,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly smsService: SmsService,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly transactionService: TransactionService,
   ) {}
 
   /**
@@ -221,6 +223,8 @@ export class AuthService {
 
   /**
    * 手机号/邮箱验证码登录
+   * CRITICAL: This method marks verification code used, creates/updates user, and handles device login.
+   * Uses transaction to ensure atomicity - all operations succeed or all roll back.
    * @param dto - 登录请求参数
    * @param ipAddress - 客户端IP地址
    * @returns 登录结果，包含 Token 和用户信息
@@ -237,66 +241,77 @@ export class AuthService {
       throw new BadRequestException("手机号或邮箱至少填一个");
     }
 
-    // 验证验证码
-    const whereCondition: any = {
-      code,
-      type: VerificationCodeType.LOGIN,
-      used: 0,
-    };
-    if (phone) {
-      whereCondition.phone = phone;
-    } else {
-      whereCondition.email = email;
-    }
+    // Use transaction to ensure atomicity of:
+    // 1. Mark verification code as used
+    // 2. Create or find user
+    // 3. Update user status if needed
+    // 4. Handle device login
+    const { user, isNewUser } = await this.transactionService.runInTransaction(async (qr) => {
+      const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+      const userRepo = this.transactionService.getRepository(qr, User);
+      const userDeviceRepo = this.transactionService.getRepository(qr, UserDevice);
 
-    const verificationCode = await this.verificationCodeRepository.findOne({
-      where: whereCondition,
-      order: { createdAt: "DESC" },
-    });
+      // 验证验证码
+      const whereCondition: any = {
+        code,
+        type: VerificationCodeType.LOGIN,
+        used: 0,
+      };
+      if (phone) {
+        whereCondition.phone = phone;
+      } else {
+        whereCondition.email = email;
+      }
 
-    if (!verificationCode) {
-      throw new BadRequestException("验证码错误");
-    }
-
-    if (verificationCode.expiresAt < new Date()) {
-      throw new BadRequestException("验证码已过期，请重新获取");
-    }
-
-    // 标记验证码为已使用
-    await this.verificationCodeRepository.update(verificationCode.id, {
-      used: 1,
-    });
-
-    // 查找或创建用户
-    let user = await this.userRepository.findOne({
-      where: phone ? { phone } : { email },
-    });
-    let isNewUser = false;
-
-    if (!user) {
-      // 新用户注册
-      isNewUser = true;
-      user = await this.createNewUser(phone || null, inviteCode, email || null);
-    }
-
-    // 检查用户状态
-    if (user.status === UserStatus.DISABLED) {
-      throw new UnauthorizedException("账号已被禁用，请联系客服");
-    }
-
-    if (user.status === UserStatus.PENDING_CLOSE) {
-      // 取消注销申请
-      await this.userRepository.update(user.id, {
-        status: UserStatus.ACTIVE,
-        closedAt: undefined,
+      const verificationCode = await verificationCodeRepo.findOne({
+        where: whereCondition,
+        order: { createdAt: "DESC" },
       });
-      user.status = UserStatus.ACTIVE;
-    }
 
-    // 处理设备登录
-    await this.handleDeviceLogin(user.id, deviceId, deviceName, ipAddress);
+      if (!verificationCode) {
+        throw new BadRequestException("验证码错误");
+      }
 
-    // 生成 Token
+      if (verificationCode.expiresAt < new Date()) {
+        throw new BadRequestException("验证码已过期，请重新获取");
+      }
+
+      // 标记验证码为已使用
+      await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+      // 查找或创建用户
+      let user = await userRepo.findOne({
+        where: phone ? { phone } : { email },
+      });
+      let isNewUser = false;
+
+      if (!user) {
+        // 新用户注册
+        isNewUser = true;
+        user = await this.createNewUserWithRepo(userRepo, phone || null, inviteCode, email || null);
+      }
+
+      // 检查用户状态
+      if (user.status === UserStatus.DISABLED) {
+        throw new UnauthorizedException("账号已被禁用，请联系客服");
+      }
+
+      if (user.status === UserStatus.PENDING_CLOSE) {
+        // 取消注销申请
+        await userRepo.update(user.id, {
+          status: UserStatus.ACTIVE,
+          closedAt: undefined,
+        });
+        user.status = UserStatus.ACTIVE;
+      }
+
+      // 处理设备登录
+      await this.handleDeviceLoginWithRepo(userDeviceRepo, user.id, deviceId, deviceName, ipAddress);
+
+      return { user, isNewUser };
+    });
+
+    // 生成 Token (outside transaction as it doesn't modify database state)
     const tokens = await this.generateTokens(user, deviceId);
 
     return {
@@ -318,6 +333,8 @@ export class AuthService {
 
   /**
    * 注册新用户
+   * CRITICAL: This method marks verification code used, creates user with password, and handles device login.
+   * Uses transaction to ensure atomicity - all operations succeed or all roll back.
    * @param dto - 注册请求参数
    */
   async register(dto: RegisterDto): Promise<RegisterResponseDto> {
@@ -336,55 +353,67 @@ export class AuthService {
       throw new BadRequestException("手机号或邮箱至少填一个");
     }
 
-    // 验证验证码 (支持 LOGIN 或 REGISTER 类型)
-    const whereConditions = phone
-      ? [
-          { phone, code, type: VerificationCodeType.LOGIN, used: 0 },
-          { phone, code, type: VerificationCodeType.REGISTER, used: 0 },
-        ]
-      : [
-          { email, code, type: VerificationCodeType.LOGIN, used: 0 },
-          { email, code, type: VerificationCodeType.REGISTER, used: 0 },
-        ];
+    // Use transaction to ensure atomicity of:
+    // 1. Mark verification code as used
+    // 2. Check existing user
+    // 3. Create user with password
+    // 4. Handle device login
+    const { user, deviceId } = await this.transactionService.runInTransaction(async (qr) => {
+      const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+      const userRepo = this.transactionService.getRepository(qr, User);
+      const userDeviceRepo = this.transactionService.getRepository(qr, UserDevice);
 
-    const verificationCode = await this.verificationCodeRepository.findOne({
-      where: whereConditions,
-      order: { createdAt: "DESC" },
+      // 验证验证码 (支持 LOGIN 或 REGISTER 类型)
+      const whereConditions = phone
+        ? [
+            { phone, code, type: VerificationCodeType.LOGIN, used: 0 },
+            { phone, code, type: VerificationCodeType.REGISTER, used: 0 },
+          ]
+        : [
+            { email, code, type: VerificationCodeType.LOGIN, used: 0 },
+            { email, code, type: VerificationCodeType.REGISTER, used: 0 },
+          ];
+
+      const verificationCode = await verificationCodeRepo.findOne({
+        where: whereConditions,
+        order: { createdAt: "DESC" },
+      });
+
+      if (!verificationCode) {
+        throw new BadRequestException("验证码错误");
+      }
+
+      if (verificationCode.expiresAt < new Date()) {
+        throw new BadRequestException("验证码已过期，请重新获取");
+      }
+
+      // 标记验证码为已使用
+      await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+      // 检查用户是否已存在
+      const whereCondition = phone ? { phone } : { email };
+      const existingUser = await userRepo.findOne({
+        where: whereCondition,
+      });
+      if (existingUser) {
+        throw new BadRequestException(phone ? "该手机号已注册" : "该邮箱已注册");
+      }
+
+      // 创建用户
+      const user = await this.createNewUserWithEmailWithRepo(userRepo, phone, email, inviteCode);
+
+      // 设置密码
+      const salt = await bcrypt.genSalt();
+      user.passwordHash = await bcrypt.hash(password, salt);
+      await userRepo.save(user);
+
+      // 自动登录
+      const deviceId = `web_${Date.now()}`;
+      await this.handleDeviceLoginWithRepo(userDeviceRepo, user.id, deviceId, "Web Browser");
+
+      return { user, deviceId };
     });
 
-    if (!verificationCode) {
-      throw new BadRequestException("验证码错误");
-    }
-
-    if (verificationCode.expiresAt < new Date()) {
-      throw new BadRequestException("验证码已过期，请重新获取");
-    }
-
-    // 标记验证码为已使用
-    await this.verificationCodeRepository.update(verificationCode.id, {
-      used: 1,
-    });
-
-    // 检查用户是否已存在
-    const whereCondition = phone ? { phone } : { email };
-    const existingUser = await this.userRepository.findOne({
-      where: whereCondition,
-    });
-    if (existingUser) {
-      throw new BadRequestException(phone ? "该手机号已注册" : "该邮箱已注册");
-    }
-
-    // 创建用户
-    const user = await this.createNewUserWithEmail(phone, email, inviteCode);
-
-    // 设置密码
-    const salt = await bcrypt.genSalt();
-    user.passwordHash = await bcrypt.hash(password, salt);
-    await this.userRepository.save(user);
-
-    // 自动登录
-    const deviceId = `web_${Date.now()}`;
-    await this.handleDeviceLogin(user.id, deviceId, "Web Browser");
     const tokens = await this.generateTokens(user, deviceId);
 
     return {
@@ -771,6 +800,168 @@ export class AuthService {
   }
 
   /**
+   * 处理设备登录（使用传入的 repository）
+   * @description 管理设备数量限制，更新设备信息 - 事务版本
+   */
+  private async handleDeviceLoginWithRepo(
+    userDeviceRepo: Repository<UserDevice>,
+    userId: number,
+    deviceId: string,
+    deviceName?: string,
+    ipAddress?: string,
+  ): Promise<void> {
+    // 检查设备是否已存在
+    let device = await userDeviceRepo.findOne({
+      where: { userId, deviceId },
+    });
+
+    if (!device) {
+      // 从数据库获取设备限制配置
+      const maxDevicesConfig = await this.getConfigValue(
+        SystemConfigKeys.MAX_DEVICE_COUNT,
+        "3",
+      );
+      const maxDevices = parseInt(maxDevicesConfig) || 3;
+
+      // 检查设备数量限制
+      const deviceCount = await userDeviceRepo.count({
+        where: { userId },
+      });
+
+      if (deviceCount >= maxDevices) {
+        // 找到最早登录的设备，强制下线
+        const oldestDevice = await userDeviceRepo.findOne({
+          where: { userId },
+          order: { lastLoginAt: "ASC" },
+        });
+        if (oldestDevice) {
+          // 将旧设备的 Token 加入黑名单（通过签名无法判断具体 Token，这里简化处理）
+          await userDeviceRepo.delete(oldestDevice.id);
+        }
+      }
+
+      // 创建新设备记录
+      device = userDeviceRepo.create({
+        userId,
+        deviceId,
+        deviceName: deviceName || "未知设备",
+        ipAddress: ipAddress || "",
+        lastLoginAt: new Date(),
+        tokenSignature: "",
+      });
+    } else {
+      // 更新现有设备
+      device.deviceName = deviceName || device.deviceName;
+      device.ipAddress = ipAddress || device.ipAddress;
+      device.lastLoginAt = new Date();
+    }
+
+    await userDeviceRepo.save(device);
+  }
+
+  /**
+   * 创建新用户（使用传入的 repository）
+   * @description 事务版本 - 接受 Repository 参数
+   */
+  private async createNewUserWithRepo(
+    userRepo: Repository<User>,
+    phone: string | null,
+    inviteCode?: string,
+    email?: string | null,
+  ): Promise<User> {
+    // 查找上线用户
+    let parentId: number | null = null;
+    if (inviteCode) {
+      const parent = await userRepo.findOne({
+        where: { inviteCode },
+      });
+      if (parent) {
+        parentId = parent.id;
+      }
+    }
+
+    // 生成唯一邀请码
+    let newInviteCode: string;
+    let attempts = 0;
+    do {
+      newInviteCode = this.generateInviteCode();
+      const exists = await userRepo.findOne({
+        where: { inviteCode: newInviteCode },
+      });
+      if (!exists) break;
+      attempts++;
+    } while (attempts < 10);
+
+    // 如果10次都生成了重复的邀请码，抛出异常
+    if (attempts >= 10) {
+      throw new BadRequestException("邀请码生成失败，请稍后重试");
+    }
+
+    // 创建用户
+    const user = userRepo.create({
+      phone: phone || undefined,
+      email: email || undefined,
+      inviteCode: newInviteCode,
+      parentId: parentId || undefined,
+      status: UserStatus.ACTIVE,
+      balance: 0,
+    });
+
+    return await userRepo.save(user);
+  }
+
+  /**
+   * 创建新用户（支持手机号或邮箱，使用传入的 repository）
+   * @description 事务版本 - 接受 Repository 参数
+   */
+  private async createNewUserWithEmailWithRepo(
+    userRepo: Repository<User>,
+    phone?: string,
+    email?: string,
+    inviteCode?: string,
+  ): Promise<User> {
+    // 查找上线用户
+    let parentId: number | null = null;
+    if (inviteCode) {
+      const parent = await userRepo.findOne({
+        where: { inviteCode },
+      });
+      if (parent) {
+        parentId = parent.id;
+      }
+    }
+
+    // 生成唯一邀请码
+    let newInviteCode: string;
+    let attempts = 0;
+    do {
+      newInviteCode = this.generateInviteCode();
+      const exists = await userRepo.findOne({
+        where: { inviteCode: newInviteCode },
+      });
+      if (!exists) break;
+      attempts++;
+    } while (attempts < 10);
+
+    // 如果10次都生成了重复的邀请码，抛出异常
+    if (attempts >= 10) {
+      throw new BadRequestException("邀请码生成失败，请稍后重试");
+    }
+
+    // 创建用户
+    const user = userRepo.create({
+      phone: phone || undefined,
+      email: email || undefined,
+      inviteCode: newInviteCode,
+      parentId: parentId || undefined,
+      status: UserStatus.ACTIVE,
+      balance: 0,
+    });
+
+    return await userRepo.save(user);
+  }
+
+  /**
    * 生成 JWT Token（登录时调用）
    * @description 生成 Access Token 和 Refresh Token
    */
@@ -892,6 +1083,8 @@ export class AuthService {
 
   /**
    * 通过验证码重置密码
+   * CRITICAL: This method updates user password, marks verification code used, and revokes tokens.
+   * Uses transaction to ensure atomicity - all operations succeed or all roll back.
    * @param dto - 重置密码请求参数
    * @returns 重置结果
    * @throws BadRequestException 当验证码错误或用户不存在时
@@ -903,59 +1096,67 @@ export class AuthService {
       throw new BadRequestException("手机号或邮箱至少填一个");
     }
 
-    // 验证验证码
-    const whereCondition: any = {
-      code,
-      type: VerificationCodeType.CHANGE_PASSWORD,
-      used: 0,
-      expiresAt: MoreThan(new Date()),
-    };
+    // Use transaction to ensure atomicity of:
+    // 1. Update user password
+    // 2. Mark verification code as used
+    // 3. Clear device token signatures
+    const result = await this.transactionService.runInTransaction(async (qr) => {
+      const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+      const userRepo = this.transactionService.getRepository(qr, User);
+      const userDeviceRepo = this.transactionService.getRepository(qr, UserDevice);
 
-    if (phone) {
-      whereCondition.phone = phone;
-    } else {
-      whereCondition.email = email;
-    }
+      // 验证验证码
+      const whereCondition: any = {
+        code,
+        type: VerificationCodeType.CHANGE_PASSWORD,
+        used: 0,
+        expiresAt: MoreThan(new Date()),
+      };
 
-    const verificationCode = await this.verificationCodeRepository.findOne({
-      where: whereCondition,
-    });
+      if (phone) {
+        whereCondition.phone = phone;
+      } else {
+        whereCondition.email = email;
+      }
 
-    if (!verificationCode) {
-      throw new BadRequestException("验证码错误或已过期");
-    }
+      const verificationCode = await verificationCodeRepo.findOne({
+        where: whereCondition,
+      });
 
-    // 查找用户
-    const user = await this.userRepository.findOne({
-      where: phone ? { phone } : { email },
-    });
+      if (!verificationCode) {
+        throw new BadRequestException("验证码错误或已过期");
+      }
 
-    if (!user) {
-      throw new BadRequestException("用户不存在");
-    }
+      // 查找用户
+      const user = await userRepo.findOne({
+        where: phone ? { phone } : { email },
+      });
 
-    // 更新密码
-    const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(newPassword, salt);
-    await this.userRepository.save(user);
+      if (!user) {
+        throw new BadRequestException("用户不存在");
+      }
 
-    // 标记验证码已使用
-    await this.verificationCodeRepository.update(verificationCode.id, {
-      used: 1,
+      // 更新密码
+      const salt = await bcrypt.genSalt(10);
+      user.passwordHash = await bcrypt.hash(newPassword, salt);
+      await userRepo.save(user);
+
+      // 标记验证码已使用
+      await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+      // 清除该用户所有设备的 Token 签名（强制重新登录）
+      await userDeviceRepo.update(
+        { userId: user.id },
+        { tokenSignature: null },
+      );
+
+      return { userId: user.id, phoneOrEmail: phone || email };
     });
 
     // 撤销该用户所有 Refresh Token Families（强制重新登录）
-    await this.refreshTokenService.revokeAllUserTokens(user.id);
+    await this.refreshTokenService.revokeAllUserTokens(result.userId);
 
-    // 清除该用户所有设备的 Token 签名（强制重新登录）
-    await this.userDeviceRepository.update(
-      { userId: user.id },
-      { tokenSignature: null },
-    );
-
-    this.logger.log(
-      `用户 ${phone || email} 密码重置成功`,
-    );
+    this.logger.log(`用户 ${result.phoneOrEmail} 密码重置成功`);
 
     return {
       success: true,
@@ -965,6 +1166,8 @@ export class AuthService {
 
   /**
    * 已登录用户通过验证码修改密码
+   * CRITICAL: This method updates user password, marks verification code used, and revokes tokens.
+   * Uses transaction to ensure atomicity - all operations succeed or all roll back.
    * @param userId - 当前登录用户ID
    * @param method - 验证方式：phone 或 email
    * @param code - 验证码
@@ -977,61 +1180,71 @@ export class AuthService {
     code: string,
     newPassword: string,
   ): Promise<ResetPasswordResponseDto> {
-    // 从数据库获取用户真实信息
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new BadRequestException("用户不存在");
-    }
+    // Use transaction to ensure atomicity of:
+    // 1. Update user password
+    // 2. Mark verification code as used
+    // 3. Clear device token signatures
+    const result = await this.transactionService.runInTransaction(async (qr) => {
+      const verificationCodeRepo = this.transactionService.getRepository(qr, VerificationCode);
+      const userRepo = this.transactionService.getRepository(qr, User);
+      const userDeviceRepo = this.transactionService.getRepository(qr, UserDevice);
 
-    const target = method === "phone" ? user.phone : user.email;
-    if (!target) {
-      throw new BadRequestException(
-        method === "phone" ? "您没有绑定手机号" : "您没有绑定邮箱",
+      // 从数据库获取用户真实信息
+      const user = await userRepo.findOne({ where: { id: userId } });
+      if (!user) {
+        throw new BadRequestException("用户不存在");
+      }
+
+      const target = method === "phone" ? user.phone : user.email;
+      if (!target) {
+        throw new BadRequestException(
+          method === "phone" ? "您没有绑定手机号" : "您没有绑定邮箱",
+        );
+      }
+
+      // 验证验证码（使用用户真实的手机号/邮箱）
+      const whereCondition: any = {
+        code,
+        type: VerificationCodeType.CHANGE_PASSWORD,
+        used: 0,
+        expiresAt: MoreThan(new Date()),
+      };
+
+      if (method === "phone") {
+        whereCondition.phone = target;
+      } else {
+        whereCondition.email = target;
+      }
+
+      const verificationCode = await verificationCodeRepo.findOne({
+        where: whereCondition,
+      });
+
+      if (!verificationCode) {
+        throw new BadRequestException("验证码错误或已过期");
+      }
+
+      // 更新密码
+      const salt = await bcrypt.genSalt(10);
+      user.passwordHash = await bcrypt.hash(newPassword, salt);
+      await userRepo.save(user);
+
+      // 标记验证码已使用
+      await verificationCodeRepo.update(verificationCode.id, { used: 1 });
+
+      // 清除该用户所有设备的 Token 签名（强制重新登录）
+      await userDeviceRepo.update(
+        { userId: user.id },
+        { tokenSignature: null },
       );
-    }
 
-    // 验证验证码（使用用户真实的手机号/邮箱）
-    const whereCondition: any = {
-      code,
-      type: VerificationCodeType.CHANGE_PASSWORD,
-      used: 0,
-      expiresAt: MoreThan(new Date()),
-    };
-
-    if (method === "phone") {
-      whereCondition.phone = target;
-    } else {
-      whereCondition.email = target;
-    }
-
-    const verificationCode = await this.verificationCodeRepository.findOne({
-      where: whereCondition,
-    });
-
-    if (!verificationCode) {
-      throw new BadRequestException("验证码错误或已过期");
-    }
-
-    // 更新密码
-    const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(newPassword, salt);
-    await this.userRepository.save(user);
-
-    // 标记验证码已使用
-    await this.verificationCodeRepository.update(verificationCode.id, {
-      used: 1,
+      return { userId: user.id, target };
     });
 
     // 撤销该用户所有 Refresh Token Families（强制重新登录）
-    await this.refreshTokenService.revokeAllUserTokens(user.id);
+    await this.refreshTokenService.revokeAllUserTokens(result.userId);
 
-    // 清除该用户所有设备的 Token 签名（强制重新登录）
-    await this.userDeviceRepository.update(
-      { userId: user.id },
-      { tokenSignature: null },
-    );
-
-    this.logger.log(`用户 ${user.id} (${target}) 密码修改成功`);
+    this.logger.log(`用户 ${result.userId} (${result.target}) 密码修改成功`);
 
     return {
       success: true,

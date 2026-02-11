@@ -3,7 +3,7 @@
  * @description 显示题目完成状态、快速跳转、支持练习和考试模式
  */
 
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import { Drawer, Button, Tag, Progress, Space, Divider } from 'antd'
 import {
   CheckCircleFilled,
@@ -212,4 +212,16 @@ const AnswerCard = ({
   )
 }
 
-export default AnswerCard
+// 使用 React.memo 优化组件，避免不必要的重渲染
+// 只有当关键 props 变化时才重新渲染
+export default memo(AnswerCard, (prevProps, nextProps) => {
+  return (
+    prevProps.open === nextProps.open &&
+    prevProps.currentIndex === nextProps.currentIndex &&
+    prevProps.mode === nextProps.mode &&
+    prevProps.timeRemaining === nextProps.timeRemaining &&
+    prevProps.questions.length === nextProps.questions.length &&
+    prevProps.questions === nextProps.questions &&
+    Object.keys(prevProps.answerStatus).length === Object.keys(nextProps.answerStatus).length
+  )
+})

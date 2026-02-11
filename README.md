@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.10.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -133,6 +133,35 @@ chmod +x deploy.sh
 
 </td>
 </tr>
+<tr>
+<td colspan="2">
+
+**消息通知**
+- 应用内通知（实时推送）
+- 邮件通知（多服务商支持）
+- 短信通知（阿里云/腾讯云/容联云）
+- 通知偏好设置（按类型/渠道控制）
+- 模板化通知内容
+- 定时发送与失败重试
+
+</td>
+</tr>
+<tr>
+<td>
+
+**可穿戴设备**
+- Apple HealthKit 集成
+- Android Health Connect 集成
+- 健康数据同步（步数、心率、睡眠等）
+- 数据汇总与分析
+- 隐私合规（数据删除权）
+- 设备连接管理
+
+</td>
+<td>
+
+</td>
+</tr>
 </table>
 
 ### 👨‍💼 管理后台功能
@@ -239,6 +268,11 @@ chmod +x deploy.sh
 - **PDF**: react-pdf + pdf.js
 - **语音识别**: Web Speech API (实验性功能)
 - **AI症状分析**: 多提供商支持（Infermedica、Azure Health Bot、Mock）
+- **性能优化 (PERF-007)**:
+  - **代码分割**: React.lazy() 路由级代码分割，减少初始 bundle 大小
+  - **虚拟化列表**: react-window 优化大列表渲染性能
+  - **组件优化**: React.memo 避免不必要的重渲染
+  - **加载骨架**: Suspense fallback 提供流畅的加载体验
 - **样式**: TailwindCSS
 
 ### 部署技术
@@ -267,9 +301,11 @@ MedicalBible/
 │   │   │   ├── analytics/ # 分析模块
 │   │   │   ├── admin/     # 管理模块
 │   │   │   ├── data-export/ # 数据导出模块
+│   │   │   ├── notification/ # 通知模块
 │   │   │   ├── rbac/      # RBAC角色权限模块
 │   │   │   ├── storage/   # 文件存储与CDN模块 (FEAT-004)
 │   │   │   ├── symptom-checker/ # AI症状检查模块 (INNOV-001)
+│   │   │   ├── wearable/  # 可穿戴设备模块
 │   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
 │   │   │   ├── apm/       # APM 性能监控模块
@@ -320,6 +356,9 @@ MedicalBible/
 - [APM 性能监控](./server/src/common/apm/README.md) - OpenTelemetry APM 配置与使用指南
 - [缓存管理 API](#-缓存管理-api) - 缓存监控与管理接口
 - [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
+- [可穿戴设备集成研究](./doc/wearable-integration-research.md) - Apple HealthKit 和 Android Health Connect 集成研究
+- [可穿戴设备数据模型设计](./doc/wearable-data-model-design.md) - 健康数据存储架构与数据类型定义
+- [可穿戴设备隐私与合规评估](./doc/wearable-privacy-regulatory-evaluation.md) - 隐私保护与监管合规分析
 - [开发计划](./doc/development-plan.md) - 开发任务清单
 - [安全审计](./doc/SECURITY_AUDIT.md) - 安全检查报告
 - [FHIR标准研究](./docs/fhir-research.md) - FHIR R4标准与CMS互操作性要求
@@ -363,7 +402,7 @@ npm run lint
 npm run type-check
 ```
 
-**测试结果**: ✅ 90/90 测试通过 (含语音功能测试)
+**测试结果**: ✅ 330/330 测试通过 (含语音功能测试、性能优化组件测试)
 
 ## 🔧 开发
 
@@ -461,6 +500,18 @@ npm run dev
   - 验证码限流（10次/天）
   - 密码重置限流（5次/分钟）
   - 速率限制响应头（X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset）
+- **审计日志 (SEC-010)**: 敏感操作的完整审计追踪，符合 HIPAA/GDPR 合规要求
+  - 审计日志数据模型：用户ID、操作类型、资源类型、资源ID、IP地址、User-Agent
+  - 哈希链完整性验证：使用 SHA-256 哈希链检测篡改
+  - 支持的操作类型：用户管理、数据访问、数据修改、数据删除、认证、权限管理
+  - 非阻塞写入：审计失败不影响主业务流程
+  - 审计日志查询：支持按用户、操作类型、日期范围、IP地址过滤
+  - 审计日志导出：支持 CSV、JSON、XLSX 格式导出（最多10万条记录）
+  - 完整性验证：通过哈希链验证审计日志是否被篡改
+  - 保留策略：默认保留7年（2555天）符合HIPAA要求，定时清理
+  - 敏感字段清洗：自动过滤密码、令牌等敏感数据
+  - `@AuditLog` 装饰器：标记需要审计的控制器方法
+  - 管理员统计API和日志验证API
 - HTTPS 支持
 - **结构化日志**: 使用 Pino 结构化日志 + 关联 ID 追踪（无 console.log，防止敏感信息泄露）
 - **文件上传安全 (SEC-008)**: 完整的文件上传安全验证
@@ -519,7 +570,8 @@ npm run dev
 - 支持每用户多连接管理（默认最多3个同时连接）
 - 心跳检测机制防止僵尸连接（25秒间隔，60秒超时）
 - 离线消息队列存储（Redis，默认7天TTL）
-- 服务端提供重连参数与事件下发，客户端可基于此实现指数退避重连策略
+- 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
+- **实时未读数更新 (BUG-001)**: 管理员发送消息时，通过 `unreadCountUpdated` 事件实时推送未读消息数到客户端，客服通知徽章立即更新
 - 可通过环境变量配置：
   - `WS_MAX_CONNECTIONS_PER_USER`: 每用户最大连接数 (默认: 3)
   - `WS_HEARTBEAT_INTERVAL`: 心跳间隔毫秒 (默认: 25000)
@@ -940,6 +992,31 @@ interface ErrorResponse {
 
 ## 📝 更新日志
 
+### v1.10.0 (2026-02-11)
+
+- ⚡ **前端性能优化 (PERF-007)**: 代码分割和列表虚拟化
+  - React.lazy() 路由级代码分割，减少初始 bundle 大小 (~2MB+ → 按需加载)
+  - Suspense fallback 集成 LoadingSkeleton 组件
+  - react-window 虚拟化优化 LectureList、QuestionBank、UserTable 大列表渲染
+  - React.memo 优化 AnswerCard、MobileLectureReader 组件性能
+  - 24 个新增单元测试覆盖（LoadingSkeleton、AnswerCard）
+  - 330 个前端测试全部通过
+- 🔒 **审计日志系统 (SEC-010)**: 敏感操作的完整审计追踪，符合HIPAA/GDPR合规要求
+  - 审计日志实体（user_id, action, resource_type, resource_id, ip_address, user_agent, changes, metadata）
+  - 哈希链完整性验证：使用SHA-256哈希链检测篡改，每条记录包含previousHash和currentHash
+  - 支持的操作类型（AuditAction枚举）：用户管理(user.*)、数据访问(data.*)、数据修改、数据删除、认证(auth.*)、权限管理(role.*)
+  - 支持的资源类型（ResourceType枚举）：user、question、lecture、order、subscription、system_config、role等
+  - `@AuditLog`装饰器：标记需要审计的控制器方法，支持action、resourceType、resourceIdParam、extractChanges配置
+  - AuditInterceptor拦截器：自动处理@AuditLog标记的方法，仅在成功响应(2xx)时创建审计日志
+  - 敏感字段清洗：自动过滤password、token、refreshToken、secret、apiKey、privateKey等敏感数据
+  - 审计日志查询：支持按用户、操作类型、日期范围、IP地址过滤和分页
+  - 审计日志导出：支持CSV、JSON、XLSX格式导出（最多10万条记录），7天下载链接有效期
+  - 完整性验证API：验证所有审计日志的哈希链完整性，检测篡改记录
+  - 单条日志验证API：验证指定ID的审计日志完整性
+  - 保留策略：默认保留7年（2555天）符合HIPAA要求，每天凌晨2点执行清理任务
+  - 管理员统计API：审计日志总数、今日/本周/本月日志数、热门操作统计
+  - 非阻塞写入：审计失败不影响主业务流程，使用fire-and-forget模式
+  - 完整的单元测试覆盖（94个测试）：entity、decorator、interceptor、service
 ### v1.9.0 (2026-02-10)
 
 - 📊 **APM 性能监控**: 基于 OpenTelemetry 的应用性能监控
@@ -978,6 +1055,14 @@ interface ErrorResponse {
   - `@NoSqlInjection`: 检测 SQL 注入模式
   - `@NoCommandInjection`: 检测命令注入模式
 - ✅ 完整的 E2E 测试覆盖（输入清洗功能）
+- ✅ 可穿戴设备集成研究（Apple HealthKit、Android Health Connect）
+- ✅ 健康数据模型设计（支持步数、心率、睡眠等9种数据类型）
+- ✅ 可穿戴设备连接管理 API
+- ✅ 健康数据上传、查询、汇总 API
+- ✅ 隐私合规支持（用户数据删除权）
+- ✅ 数据库迁移脚本与索引优化
+- ✅ E2E 集成测试
+
 ### v1.8.0 (2026-02-10)
 
 - ✅ **配置验证** (DATA-002): 应用启动时环境变量验证
@@ -1010,6 +1095,7 @@ interface ErrorResponse {
   - 连接心跳检测和超时断开（25秒心跳间隔，60秒超时）
   - 自动重连策略（指数退避：1秒-30秒，最多10次尝试）
   - 完整的 WebSocket 配置单元测试覆盖
+
 ### v1.7.0 (2026-02-09)
 
 - ✅ 实现用户活动追踪和分析系统
@@ -1078,6 +1164,13 @@ interface ErrorResponse {
 
 ### v1.3.0 (2026-02-08)
 
+- ✅ 实现通知系统（邮件/短信/应用内）
+- ✅ 支持多邮件服务商（QQ/163/企业邮箱/Gmail/Outlook）
+- ✅ 支持多短信服务商（阿里云/腾讯云/容联云）
+- ✅ 用户通知偏好设置（按类型/渠道控制）
+- ✅ 通知模板系统（变量替换）
+- ✅ 定时发送与失败重试机制
+- ✅ 通知历史记录查询
 - ✅ 实现FHIR R4标准API端点（医疗数据互操作性）
 - ✅ 支持Patient、Observation、Condition、DocumentReference、Encounter、Coverage、Organization资源
 - ✅ 添加FHIR元数据端点（Capability Statement）
