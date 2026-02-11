@@ -23,7 +23,6 @@ import {
   WithdrawalQueryDto,
   InviteeQueryDto,
 } from "./dto/affiliate.dto";
-import { TransactionService } from "../../common/database/transaction.service";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -83,10 +82,12 @@ describe("AffiliateService", () => {
   // Mock Repositories
   const createMockQueryBuilder = () => ({
     select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     groupBy: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    innerJoin: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
     getRawOne: jest.fn(),
@@ -369,7 +370,7 @@ describe("AffiliateService", () => {
             if (callCount === 3) return { total: "20" }; // 冻结佣金
             return { total: "0" };
           }),
-        };
+        } as any;
         return queryBuilder;
       });
       mockUserRepository.findOne.mockResolvedValue(mockUser); // balance = 100
