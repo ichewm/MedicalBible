@@ -142,8 +142,8 @@ describe("ClamAVScanner", () => {
 
   describe("SPEC: 文件大小限制", () => {
     it("should skip scan for oversized files", async () => {
-      const largeBuffer = Buffer.alloc(20 * 1024 * 1024); // 20MB, exceeds 10MB limit
-      const config = createTestConfig({ maxFileSize: 10 * 1024 * 1024 });
+      const largeBuffer = Buffer.alloc(11 * 1024); // 11KB, exceeds 10KB limit
+      const config = createTestConfig({ maxFileSize: 10 * 1024 });
       const sizeLimitedScanner = new ClamAVScanner(config, logger);
 
       const result = await sizeLimitedScanner.scan(largeBuffer, "large.bin");
@@ -156,7 +156,7 @@ describe("ClamAVScanner", () => {
     });
 
     it("should scan files within size limit", async () => {
-      const validBuffer = Buffer.alloc(5 * 1024 * 1024); // 5MB, within 10MB limit
+      const validBuffer = Buffer.alloc(5 * 1024); // 5KB, within 10KB limit
 
       const result = await scanner.scan(validBuffer, "valid.bin");
 

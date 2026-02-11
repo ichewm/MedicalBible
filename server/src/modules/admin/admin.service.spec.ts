@@ -365,7 +365,7 @@ describe("AdminService", () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getRawOne: jest.fn().mockResolvedValue({ totalSpent: "1000" }),
-      };
+      } as any;
       mockOrderRepository.createQueryBuilder.mockReturnValue(mockOrderQueryBuilder);
     });
 
