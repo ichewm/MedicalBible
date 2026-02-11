@@ -329,6 +329,13 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         client.id,
       );
 
+      // 发送未读数更新事件
+      const unreadData = await this.chatService.getUnreadCount(conversation.user.id);
+      this.sendToUser(conversation.user.id, "unreadCountUpdated", {
+        unreadCount: unreadData.count,
+        hasUnread: unreadData.count > 0,
+      });
+
       return { success: true, message };
     } catch (error) {
       this.logger.error(`管理员发送消息失败: ${error.message}`);

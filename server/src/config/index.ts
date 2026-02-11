@@ -9,6 +9,7 @@ export * from "./database.config";
 export * from "./jwt.config";
 export * from "./logger.config";
 export * from "./redis.config";
+export * from "./upload.config";
 export * from "./security.config";
 export * from "./retry.config";
 export * from "./websocket.config";

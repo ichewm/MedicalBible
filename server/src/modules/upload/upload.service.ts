@@ -3,17 +3,21 @@
  * @description 处理文件存储和 PDF 解析，使用统一存储服务
  */
 
-import { Injectable, BadRequestException, Inject, Logger } from "@nestjs/common";
+import { Injectable, BadRequestException, Inject, Logger, Optional } from "@nestjs/common";
 import { PDFDocument } from "pdf-lib";
 import * as path from "path";
 import * as sharp from "sharp";
 import { StorageService } from "../storage/storage.service";
+import { VirusScanService } from "../virus-scan/virus-scan.service";
 
 @Injectable()
 export class UploadService {
   private readonly logger = new Logger(UploadService.name);
 
-  constructor(private readonly storageService: StorageService) {}
+  constructor(
+    private readonly storageService: StorageService,
+    @Optional() private readonly virusScanService?: VirusScanService,
+  ) {}
 
   /**
    * 上传头像（压缩处理）
@@ -39,6 +43,11 @@ export class UploadService {
     }
 
     try {
+      // 病毒扫描（扫描原始文件）
+      if (this.virusScanService) {
+        await this.virusScanService.scan(file.buffer, file.originalname);
+      }
+
       // 使用 sharp 压缩图片
       // 头像最大 200x200，质量 80%
       const compressedBuffer = await sharp(file.buffer)
@@ -120,6 +129,11 @@ export class UploadService {
     }
 
     try {
+      // 病毒扫描（在 PDF 解析之前扫描，避免处理恶意 PDF）
+      if (this.virusScanService) {
+        await this.virusScanService.scan(file.buffer, file.originalname);
+      }
+
       // 解析 PDF 获取页数
       const pdfDoc = await PDFDocument.load(file.buffer);
       const pageCount = pdfDoc.getPageCount();
@@ -182,6 +196,11 @@ export class UploadService {
       throw new BadRequestException(
         `不支持的文件类型，仅支持: ${allowedTypes.join(", ")}`,
       );
+    }
+
+    // 病毒扫描
+    if (this.virusScanService) {
+      await this.virusScanService.scan(file.buffer, file.originalname);
     }
 
     const result = await this.storageService.upload(

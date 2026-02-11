@@ -43,6 +43,27 @@ import { Profession } from "../../entities/profession.entity";
 /**
  * 用户控制器
  * @description 提供用户信息管理相关接口
+ *
+ * ## Authentication
+ * All endpoints in this module require JWT authentication.
+ * Include the token in the Authorization header:
+ * \`Authorization: Bearer <your_jwt_token>\`
+ *
+ * ## User Profile
+ * - Get and update user profile information
+ * - Manage avatar and display name
+ *
+ * ## Device Management
+ * - View all logged-in devices
+ * - Remove specific devices (force logout)
+ *
+ * ## Subscription
+ * - View active subscriptions
+ * - Set current examination level
+ *
+ * ## Account Management
+ * - Bind phone number or email
+ * - Apply for account closure (7-day waiting period)
  */
 @ApiTags("用户")
 @ApiBearerAuth("JWT-auth")
@@ -56,7 +77,44 @@ export class UserController {
   @Get("profile")
   @ApiOperation({
     summary: "获取用户信息",
-    description: "获取当前登录用户的详细信息",
+    description: `
+获取当前登录用户的详细信息，包括个人资料、订阅状态、账户余额等。
+
+**Authentication Required:**
+\`\`\`http
+GET /api/v1/user/profile
+Authorization: Bearer <your_jwt_token>
+\`\`\`
+
+**Example Response:**
+\`\`\`json
+{
+  "id": 1,
+  "phone": "138****8000",
+  "email": "u***e@example.com",
+  "username": "用户12345",
+  "avatarUrl": "https://cdn.medicalbible.com/avatar/user1.jpg",
+  "inviteCode": "ABC12345",
+  "balance": 100.50,
+  "currentLevelId": 5,
+  "level": {
+    "id": 5,
+    "name": "执业医师",
+    "professionId": 1
+  },
+  "role": "user",
+  "isNewUser": false,
+  "subscribedLevels": [
+    {
+      "levelId": 5,
+      "levelName": "执业医师",
+      "expiresAt": "2024-12-31T23:59:59.000Z"
+    }
+  ],
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}
+\`\`\`
+`,
   })
   @ApiResponse({ status: 200, description: "获取成功", type: UserProfileDto })
   @ApiResponse({ status: 401, description: "未登录" })

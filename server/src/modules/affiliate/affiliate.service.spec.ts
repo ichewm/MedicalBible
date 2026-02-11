@@ -23,6 +23,7 @@ import {
   WithdrawalQueryDto,
   InviteeQueryDto,
 } from "./dto/affiliate.dto";
+import { TransactionService } from "../../common/database/transaction.service";
 
 describe("AffiliateService", () => {
   let service: AffiliateService;
@@ -80,12 +81,26 @@ describe("AffiliateService", () => {
   };
 
   // Mock Repositories
+  const createMockQueryBuilder = () => ({
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    getRawOne: jest.fn(),
+    getRawMany: jest.fn(),
+    getMany: jest.fn(),
+    getOne: jest.fn(),
+  });
+
   const mockUserRepository = {
     findOne: jest.fn(),
     save: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn(() => createMockQueryBuilder()),
   };
 
   const mockCommissionRepository = {
@@ -95,7 +110,7 @@ describe("AffiliateService", () => {
     create: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn(() => createMockQueryBuilder()),
   };
 
   const mockWithdrawalRepository = {
@@ -104,6 +119,7 @@ describe("AffiliateService", () => {
     save: jest.fn(),
     create: jest.fn(),
     findAndCount: jest.fn(),
+    createQueryBuilder: jest.fn(() => createMockQueryBuilder()),
   };
 
   const mockOrderRepository = {
@@ -487,7 +503,7 @@ describe("AffiliateService", () => {
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getManyAndCount: jest.fn().mockResolvedValue([invitees, 2]),
-      };
+      } as any;
       mockUserRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
       // 模拟贡献统计查询
@@ -502,7 +518,7 @@ describe("AffiliateService", () => {
           { inviteeId: 3, total: "50" },
           { inviteeId: 4, total: "30" },
         ]),
-      };
+      } as any;
       mockCommissionRepository.createQueryBuilder.mockReturnValue(
         mockContribQueryBuilder,
       );

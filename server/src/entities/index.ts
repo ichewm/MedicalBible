@@ -41,8 +41,19 @@ export * from "./withdrawal.entity";
 export * from "./conversation.entity";
 export * from "./message.entity";
 
+
 // ==================== AI症状检查 ====================
 export * from "./symptom-session.entity";
 
 // ==================== 分析追踪 ====================
 export * from "./user-activity.entity";
+
+// ==================== 可穿戴设备集成 ====================
+export * from "./wearable-connection.entity";
+export * from "./wearable-health-data.entity";
+
+// ==================== 审计日志 ====================
+export * from "./audit-log.entity";
+export * from "./notification-preference.entity";
+export * from "./notification-template.entity";
+export * from "./notification.entity";
