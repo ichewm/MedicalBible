@@ -1,6 +1,7 @@
 /**
  * @file 文件上传模块
- * @description 处理文件上传，支持 PDF 页数识别
+ * @description 处理文件上传，支持 PDF 页数识别和安全验证
+ * @version 2.1.0
  */
 
 import { Module } from "@nestjs/common";
@@ -8,6 +9,8 @@ import { MulterModule } from "@nestjs/platform-express";
 import { UploadController } from "./upload.controller";
 import { UploadService } from "./upload.service";
 import { AuthModule } from "../auth/auth.module";
+import { FileValidator } from "./file-validation";
+import { VirusScanService } from "../virus-scan/virus-scan.service";
 
 @Module({
   imports: [
@@ -20,7 +23,7 @@ import { AuthModule } from "../auth/auth.module";
     }),
   ],
   controllers: [UploadController],
-  providers: [UploadService],
-  exports: [UploadService],
+  providers: [UploadService, FileValidator, VirusScanService],
+  exports: [UploadService, FileValidator],
 })
 export class UploadModule {}

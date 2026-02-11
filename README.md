@@ -463,6 +463,15 @@ npm run dev
   - 速率限制响应头（X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset）
 - HTTPS 支持
 - **结构化日志**: 使用 Pino 结构化日志 + 关联 ID 追踪（无 console.log，防止敏感信息泄露）
+- **文件上传安全 (SEC-008)**: 完整的文件上传安全验证
+  - 文件大小限制（按分类配置：头像5MB、PDF 50MB、图片10MB、文档20MB）
+  - MIME 类型白名单验证
+  - 文件扩展名验证
+  - 严格模式（MIME 类型与扩展名匹配验证）
+  - 路径遍历攻击防护（文件名净化）
+  - 病毒扫描集成（ClamAV）
+  - 随机文件名生成
+  - 安全存储（可配置存储目录）
 
 **CORS 配置说明**:
 - 开发环境: 默认允许 `http://localhost:5173` 和 `http://localhost:3000`

@@ -22,6 +22,7 @@ import { loggerConfig } from "./config/logger.config";
 import { apmConfig } from "./config/apm.config";
 import { websocketConfig } from "./config/websocket.config";
 import { compressionConfig } from "./config/compression.config";
+import { uploadConfig } from "./config/upload.config";
 import { securityConfig } from "./config/security.config";
 import { sanitizationConfig } from "./config/sanitization.config";
 import { rateLimitConfig } from "./config/rate-limit.config";
@@ -60,7 +61,6 @@ import { HealthModule } from "./common/health/health.module";
 import { RetryModule } from "./common/retry";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
-import { APP_INTERCEPTOR } from "@nestjs/core";
 
 /**
  * 应用程序根模块
@@ -74,7 +74,7 @@ import { APP_INTERCEPTOR } from "@nestjs/core";
     // - envFilePath: 指定环境变量文件路径
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig, websocketConfig, compressionConfig, securityConfig, sanitizationConfig, rateLimitConfig, healthConfig, retryConfig],
+      load: [databaseConfig, redisConfig, jwtConfig, corsConfig, loggerConfig, apmConfig, websocketConfig, compressionConfig, uploadConfig, securityConfig, sanitizationConfig, rateLimitConfig, healthConfig, retryConfig],
       envFilePath: [".env.local", ".env"],
     }),
 
@@ -158,8 +158,15 @@ import { APP_INTERCEPTOR } from "@nestjs/core";
     // 重试模块（全局）
     RetryModule,
     // 静态文件服务（上传文件访问）
+    // 配置说明：
+    // - UPLOAD_ROOT 环境变量指定上传文件的存储路径，建议设置在应用目录之外
+    // - 默认值：./uploads（仅用于开发环境，生产环境必须配置独立路径）
+    // - 安全建议：生产环境应将上传目录放在 web 根目录之外，防止直接访问
+    // - 示例配置：
+    //   - 开发环境：UPLOAD_ROOT=./uploads
+    //   - 生产环境：UPLOAD_ROOT=/var/uploads/medical-bible
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, "..", "uploads"),
+      rootPath: process.env.UPLOAD_ROOT || join(__dirname, "..", "uploads"),
       serveRoot: "/uploads",
       serveStaticOptions: {
         index: false,
