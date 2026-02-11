@@ -118,6 +118,11 @@ describe('Lecture Controller Integration Tests', () => {
 
   describe('GET /api/v1/lecture/subject/:subjectId - Get lectures by subject', () => {
     beforeEach(async () => {
+      // Skip setup if database is not available
+      if (isSkippedTestHelper(testHelper) || !lectureRepo) {
+        return;
+      }
+
       // Create additional lectures
       await Promise.all([
         lectureRepo.save(
