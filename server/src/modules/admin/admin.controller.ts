@@ -33,6 +33,8 @@ import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { Public } from "../../common/decorators/public.decorator";
+import { AuditLog } from "../../common/decorators/audit.decorator";
+import { AuditAction, ResourceType } from "../../common/enums/sensitive-operations.enum";
 import { AdminService } from "./admin.service";
 import { ExportService } from "../../common/export/export.service";
 import {
@@ -102,6 +104,12 @@ export class AdminController {
    * PUT /admin/users/:id/status
    */
   @Put("users/:id/status")
+  @AuditLog({
+    action: AuditAction.USER_STATUS_CHANGE,
+    resourceType: ResourceType.USER,
+    resourceIdParam: "id",
+    extractChanges: true,
+  })
   async updateUserStatus(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateUserStatusDto,
@@ -116,6 +124,12 @@ export class AdminController {
    */
   @Put("users/:id/role")
   @ApiOperation({ summary: "修改用户角色（赋予/撤销教师权限）" })
+  @AuditLog({
+    action: AuditAction.USER_ROLE_CHANGE,
+    resourceType: ResourceType.USER,
+    resourceIdParam: "id",
+    extractChanges: true,
+  })
   async updateUserRole(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateUserRoleDto,
@@ -178,6 +192,11 @@ export class AdminController {
    * PUT /admin/config
    */
   @Put("config")
+  @AuditLog({
+    action: AuditAction.CONFIG_CHANGE,
+    resourceType: ResourceType.SYSTEM_CONFIG,
+    extractChanges: true,
+  })
   async updateSystemConfig(@Body() dto: UpdateSystemConfigDto) {
     const result = await this.adminService.updateSystemConfig(dto);
     return { message: "配置更新成功", data: result };
@@ -530,6 +549,10 @@ export class AdminController {
   @Post("test-data/clear")
   @Roles("admin")
   @ApiOperation({ summary: "清空测试数据" })
+  @AuditLog({
+    action: AuditAction.TEST_DATA_CLEAR,
+    extractChanges: true,
+  })
   @ApiResponse({ status: 200, description: "数据清空成功" })
   @ApiResponse({ status: 400, description: "确认文本错误" })
   async clearTestData(@Body() dto: ClearTestDataDto) {
@@ -544,6 +567,10 @@ export class AdminController {
    */
   @Get("export/users")
   @ApiOperation({ summary: "导出用户列表" })
+  @AuditLog({
+    action: AuditAction.BULK_EXPORT,
+    resourceType: ResourceType.USER,
+  })
   @ApiQuery({ name: "keyword", required: false, description: "搜索关键词" })
   @ApiQuery({ name: "status", required: false, description: "用户状态" })
   @ApiResponse({ status: 200, description: "导出成功" })

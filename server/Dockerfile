@@ -36,8 +36,10 @@ COPY --from=builder /app/dist ./dist
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-# 创建上传目录
-RUN mkdir -p /app/uploads
+# 创建上传目录（在应用目录之外，提高安全性）
+# 可以通过环境变量 UPLOAD_ROOT 自定义位置
+RUN mkdir -p /var/uploads/medical-bible && \
+    chown -R node:node /var/uploads/medical-bible
 
 # 暴露端口
 EXPOSE 3000

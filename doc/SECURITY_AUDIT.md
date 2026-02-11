@@ -60,7 +60,41 @@ this.userRepository.find({ where: { phone } });
 .where("user.id = :id", { id })  // 参数化
 ```
 
-### 2.2 XSS 防护 ✅
+### 2.2 文件上传安全 ✅ **(SEC-008)**
+
+**已实现的安全功能**：
+- 文件大小限制（按分类配置：头像5MB、PDF 50MB、图片10MB、文档20MB）
+- MIME 类型白名单验证
+- 文件扩展名验证
+- 严格模式（MIME 类型与扩展名匹配验证）
+- 路径遍历攻击防护（文件名净化，过滤 `..`, `~`, `\`, `/` 等危险字符）
+- 病毒扫描集成（ClamAV，支持 TCP/Unix Socket）
+- 随机文件名生成（防止猜测和覆盖）
+- 安全存储（可配置存储目录，支持不在 web root）
+
+**API 端点**：
+- `POST /api/v1/upload/pdf` - 上传 PDF 文件（管理员/教师）
+- `POST /api/v1/upload/pdf/parse` - 解析 PDF 页数（管理员/教师）
+- `POST /api/v1/upload/avatar` - 上传头像（自动压缩为200x200）
+- `POST /api/v1/upload/image` - 上传通用图片
+
+**环境变量配置**：
+```bash
+# 全局上传配置
+UPLOAD_MAX_SIZE=52428800        # 50MB 默认
+UPLOAD_STRICT_MODE=true         # 严格 MIME/扩展名验证
+
+# 病毒扫描配置
+UPLOAD_VIRUS_SCAN_ENABLED=true
+UPLOAD_VIRUS_SCAN_PROVIDER=clamav
+UPLOAD_VIRUS_SCAN_CLAMAV_HOST=localhost
+UPLOAD_VIRUS_SCAN_CLAMAV_PORT=3310
+UPLOAD_VIRUS_SCAN_TIMEOUT=30000
+UPLOAD_VIRUS_SCAN_MAX_FILE_SIZE=104857600  # 100MB
+UPLOAD_VIRUS_SCAN_FAIL_OPEN=true           # 扫描失败时是否允许
+```
+
+### 2.3 XSS 防护 ✅
 
 **后端输入清洗 (SEC-005)**:
 - ✅ 全局输入清洗中间件 (`server/src/common/middleware/sanitization.middleware.ts`)
@@ -202,7 +236,13 @@ import DOMPurify from "dompurify";
    - 恶意内容检测和日志记录
    - 完整的 E2E 测试覆盖
 
-4. **XSS 防护增强**
+4. ~~**文件上传安全验证**~~ ✅ **已完成 (SEC-008)**
+   - 文件大小限制和类型验证
+   - 病毒扫描集成（ClamAV）
+   - 文件名净化和路径遍历防护
+   - 安全存储配置
+
+5. **XSS 防护增强**
    ```bash
    cd web && npm install dompurify @types/dompurify
    ```
@@ -267,6 +307,7 @@ import DOMPurify from "dompurify";
 | 2026-02-10 | SEC-006 安全头中间件增强 | ✅ Helmet、CSP、HSTS 完整配置支持 |
 | 2026-02-10 | 安全配置环境变量支持 | ✅ 所有安全头可通过环境变量配置 |
 | 2026-02-10 | SEC-005 输入清洗系统 | ✅ 完成 - 全局输入清洗中间件 + 自定义验证器 |
+| 2026-02-10 | SEC-008 文件上传安全验证 | ✅ 完成文件大小限制、类型验证、病毒扫描、路径遍历防护 |
 | 2026-02-11 | SEC-004 Cookie 安全配置 | ✅ 完成 - HTTP-only、Secure、SameSite 配置 |
 
 ---
