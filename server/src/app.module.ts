@@ -9,9 +9,8 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ServeStaticModule } from "@nestjs/serve-static";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_INTERCEPTOR, APP_GUARD } from "@nestjs/core";
 import { join } from "path";
-import { APP_INTERCEPTOR } from "@nestjs/core";
 
 // 配置文件导入
 import { databaseConfig } from "./config/database.config";
