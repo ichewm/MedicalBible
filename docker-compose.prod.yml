@@ -80,6 +80,8 @@ services:
       OSS_MOCK_MODE: "false"
       # 不创建测试用户
       CREATE_TEST_USERS: "false"
+      # 文件上传目录（安全：设置在应用目录之外）
+      UPLOAD_ROOT: /var/uploads/medical-bible
     depends_on:
       mysql:
         condition: service_healthy
@@ -88,7 +90,8 @@ services:
     networks:
       - medical_net
     volumes:
-      - ./uploads:/app/uploads
+      # 上传文件存储（使用命名卷，便于备份和管理）
+      - uploads_data:/var/uploads/medical-bible
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
       interval: 30s
@@ -129,6 +132,8 @@ volumes:
   mysql_data:
     driver: local
   redis_data:
+    driver: local
+  uploads_data:
     driver: local
 
 # ==================== 网络 ====================

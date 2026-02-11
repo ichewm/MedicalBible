@@ -248,6 +248,7 @@ chmod +x deploy.sh
 - **CI/CD**: GitHub Actions (可选)
 - **监控**: 日志系统 + 健康检查
 - **日志**: Pino 结构化日志 + 关联 ID（Correlation ID）追踪（无 console.log）
+- **APM**: OpenTelemetry 分布式追踪和性能监控
 
 ## 📁 项目结构
 
@@ -271,6 +272,8 @@ MedicalBible/
 │   │   │   ├── symptom-checker/ # AI症状检查模块 (INNOV-001)
 │   │   │   └── fhir/      # FHIR医疗数据互操作性模块
 │   │   ├── common/        # 公共模块
+│   │   │   ├── apm/       # APM 性能监控模块
+│   │   │   └── ...        # 其他公共模块
 │   │   ├── config/        # 配置文件
 │   │   └── entities/      # 数据库实体
 │   ├── database/          # 数据库脚本
@@ -314,6 +317,7 @@ MedicalBible/
 - [数据库索引策略](./docs/database-index-strategy.md) - 索引优化与性能分析
 - [技术架构](./doc/technical-architecture.md) - 架构设计说明
 - [缓存架构](./docs/cacheable-queries-analysis.md) - 缓存策略与实现
+- [APM 性能监控](./server/src/common/apm/README.md) - OpenTelemetry APM 配置与使用指南
 - [缓存管理 API](#-缓存管理-api) - 缓存监控与管理接口
 - [语音识别研究](./docs/voice-recognition-research.md) - 语音识别技术方案与可访问性评估
 - [开发计划](./doc/development-plan.md) - 开发任务清单
@@ -459,6 +463,15 @@ npm run dev
   - 速率限制响应头（X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset）
 - HTTPS 支持
 - **结构化日志**: 使用 Pino 结构化日志 + 关联 ID 追踪（无 console.log，防止敏感信息泄露）
+- **文件上传安全 (SEC-008)**: 完整的文件上传安全验证
+  - 文件大小限制（按分类配置：头像5MB、PDF 50MB、图片10MB、文档20MB）
+  - MIME 类型白名单验证
+  - 文件扩展名验证
+  - 严格模式（MIME 类型与扩展名匹配验证）
+  - 路径遍历攻击防护（文件名净化）
+  - 病毒扫描集成（ClamAV）
+  - 随机文件名生成
+  - 安全存储（可配置存储目录）
 
 **CORS 配置说明**:
 - 开发环境: 默认允许 `http://localhost:5173` 和 `http://localhost:3000`
@@ -928,6 +941,17 @@ interface ErrorResponse {
 ## 📝 更新日志
 
 ### v1.9.0 (2026-02-10)
+
+- 📊 **APM 性能监控**: 基于 OpenTelemetry 的应用性能监控
+  - 分布式追踪（支持 OTLP、Jaeger、Zipkin、DataDog、New Relic）
+  - 性能指标收集（HTTP 请求、数据库查询、Redis 命令）
+  - 慢查询和慢请求自动检测与告警
+  - 可配置的采样率和告警规则
+  - APM 状态查询端点：`GET /apm/status`
+  - APM 健康检查端点：`GET /apm/health`
+  - 详见 [APM 使用文档](./server/src/common/apm/README.md)
+
+### v1.8.0 (2026-02-10)
 
 - 🤖 **AI症状检查 (INNOV-001)**: AI驱动的症状分析与健康指导
   - 支持多种AI服务提供商（Infermedica、Azure Health Bot、Mock）

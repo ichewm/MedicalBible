@@ -81,6 +81,17 @@ export enum ErrorCode {
   WITHDRAWAL_AMOUNT_INVALID = "ERR_1600",
   WITHDRAWAL_ALREADY_PROCESSED = "ERR_1601",
 
+  // 文件上传错误 (1700-1799)
+  FILE_TOO_LARGE = "ERR_1700",
+  FILE_TYPE_NOT_ALLOWED = "ERR_1701",
+  FILE_EXTENSION_NOT_ALLOWED = "ERR_1702",
+  FILE_NOT_PROVIDED = "ERR_1703",
+  FILE_NAME_INVALID = "ERR_1704",
+  FILE_MIME_TYPE_MISMATCH = "ERR_1705",
+  FILE_VALIDATION_FAILED = "ERR_1706",
+  VIRUS_DETECTED = "ERR_1707",
+  VIRUS_SCAN_FAILED = "ERR_1708",
+
   // 系统错误 (1900-1999)
   DATABASE_ERROR = "ERR_1900",
   REDIS_ERROR = "ERR_1901",
@@ -240,6 +251,125 @@ export class ServiceUnavailableException extends BusinessException {
     super(
       message,
       ErrorCode.SERVICE_UNAVAILABLE,
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
+  }
+}
+
+/**
+ * 文件过大异常
+ */
+export class FileTooLargeException extends BusinessException {
+  constructor(maxSize: number, actualSize: number) {
+    const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1);
+    const actualSizeMB = (actualSize / (1024 * 1024)).toFixed(1);
+    super(
+      `文件大小超出限制，最大允许 ${maxSizeMB}MB，实际文件 ${actualSizeMB}MB`,
+      ErrorCode.FILE_TOO_LARGE,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+/**
+ * 文件类型不允许异常
+ */
+export class FileNotAllowedException extends BusinessException {
+  constructor(allowedTypes: string[]) {
+    const types = allowedTypes.join(", ");
+    super(
+      `不支持的文件类型，仅支持: ${types}`,
+      ErrorCode.FILE_TYPE_NOT_ALLOWED,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+/**
+ * 文件扩展名不允许异常
+ */
+export class FileExtensionNotAllowedException extends BusinessException {
+  constructor(allowedExtensions: string[]) {
+    const extensions = allowedExtensions.join(", ");
+    super(
+      `不支持的文件扩展名，仅支持: ${extensions}`,
+      ErrorCode.FILE_EXTENSION_NOT_ALLOWED,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+/**
+ * 文件未提供异常
+ */
+export class FileNotProvidedException extends BusinessException {
+  constructor() {
+    super("请选择要上传的文件", ErrorCode.FILE_NOT_PROVIDED, HttpStatus.BAD_REQUEST);
+  }
+}
+
+/**
+ * 文件名无效异常
+ */
+export class FileNameInvalidException extends BusinessException {
+  constructor(reason: string) {
+    super(
+      `文件名无效: ${reason}`,
+      ErrorCode.FILE_NAME_INVALID,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+/**
+ * MIME 类型不匹配异常
+ * @description 文件扩展名与声明的 MIME 类型不匹配
+ */
+export class FileMimeTypeMismatchException extends BusinessException {
+  constructor(mimeType: string, extension: string) {
+    super(
+      `文件类型不匹配: 扩展名 ${extension} 与 MIME 类型 ${mimeType} 不一致`,
+      ErrorCode.FILE_MIME_TYPE_MISMATCH,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+/**
+ * 文件验证失败异常
+ */
+export class FileValidationFailedException extends BusinessException {
+  constructor(reason: string) {
+    super(
+      `文件验证失败: ${reason}`,
+      ErrorCode.FILE_VALIDATION_FAILED,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+/**
+ * 检测到病毒异常
+ * @description 文件被扫描器检测为包含病毒或恶意软件
+ */
+export class VirusDetectedException extends BusinessException {
+  constructor(filename: string, virusName?: string) {
+    const message = virusName
+      ? `文件 ${filename} 包含病毒或恶意软件: ${virusName}`
+      : `文件 ${filename} 包含病毒或恶意软件`;
+    super(message, ErrorCode.VIRUS_DETECTED, HttpStatus.BAD_REQUEST);
+  }
+}
+
+/**
+ * 病毒扫描失败异常
+ * @description 病毒扫描服务失败且未启用 fail-open 模式
+ */
+export class VirusScanException extends BusinessException {
+  constructor(reason: string) {
+    super(
+      `病毒扫描失败: ${reason}`,
+      ErrorCode.VIRUS_SCAN_FAILED,
       HttpStatus.SERVICE_UNAVAILABLE,
     );
   }
