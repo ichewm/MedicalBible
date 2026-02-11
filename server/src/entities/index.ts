@@ -46,3 +46,6 @@ export * from "./symptom-session.entity";
 
 // ==================== 分析追踪 ====================
 export * from "./user-activity.entity";
+
+// ==================== 审计日志 ====================
+export * from "./audit-log.entity";

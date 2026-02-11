@@ -26,6 +26,8 @@ import { Request } from "express";
 import { AuthService } from "./auth.service";
 import { Public } from "../../common/decorators/public.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { AuditLog } from "../../common/decorators/audit.decorator";
+import { AuditAction } from "../../common/enums/sensitive-operations.enum";
 import { JwtPayload } from "../../common/guards/jwt-auth.guard";
 import { RateLimit, RateLimitPresets } from "../../common/guards/rate-limit.guard";
 import {
@@ -181,6 +183,9 @@ export class AuthController {
 \`\`\`
 `,
   })
+  @AuditLog({
+    action: AuditAction.LOGIN_SUCCESS,
+  })
   @ApiResponse({
     status: 200,
     description: "登录成功",
@@ -253,6 +258,9 @@ export class AuthController {
   @ApiOperation({
     summary: "密码登录",
     description: "使用手机号和密码登录",
+  })
+  @AuditLog({
+    action: AuditAction.LOGIN_SUCCESS,
   })
   @ApiResponse({
     status: 200,
@@ -389,6 +397,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 **Note:** To logout from all devices, use the device management endpoints in User module.
 `,
   })
+  @AuditLog({
+    action: AuditAction.LOGOUT,
+  })
   @ApiResponse({ status: 200, description: "退出成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   async logout(
@@ -438,6 +449,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   @ApiOperation({
     summary: "验证码修改密码",
     description: "已登录用户通过验证码修改密码（使用用户真实手机号/邮箱验证）",
+  })
+  @AuditLog({
+    action: AuditAction.PASSWORD_CHANGE,
   })
   @ApiResponse({
     status: 200,
