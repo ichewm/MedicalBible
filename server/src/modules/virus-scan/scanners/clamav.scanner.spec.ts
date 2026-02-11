@@ -69,16 +69,6 @@ describe("ClamAVScanner", () => {
       log: jest.fn(),
     } as unknown as Logger;
 
-    // Debug: check if net.Socket mock is properly set up
-    console.log("BeforeEach: net.Socket mock type:", typeof (net.Socket as unknown as jest.Mock));
-    console.log("BeforeEach: net.Socket mock implementation:", typeof (net.Socket as unknown as jest.Mock).getMockImplementation);
-
-    // Test that the mock returns a valid socket
-    const testSocket = new (net.Socket as any)();
-    console.log("Test socket:", testSocket);
-    console.log("Test socket.on type:", typeof testSocket.on);
-    console.log("Test socket.destroy type:", typeof testSocket.destroy);
-
     // Don't reset mocks - the mock implementation should handle state via global variables
 
     scanner = new ClamAVScanner(createTestConfig(), logger);
