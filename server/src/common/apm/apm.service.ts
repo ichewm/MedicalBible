@@ -30,6 +30,11 @@ import {
   BatchSpanProcessor,
 } from "@opentelemetry/sdk-trace-node";
 import {
+  Sampler,
+  ParentBasedSampler,
+  TraceIdRatioBasedSampler,
+} from "@opentelemetry/sdk-trace-base";
+import {
   PeriodicExportingMetricReader,
   ConsoleMetricExporter,
 } from "@opentelemetry/sdk-metrics";
@@ -287,7 +292,6 @@ export class ApmService implements OnModuleInit, OnModuleDestroy {
    */
   private createSampler(): any {
     // 使用基于概率的采样器
-    const { Sampler } = require("@opentelemetry/sdk-trace-base");
     return new ParentBasedSampler({
       root: new TraceIdRatioBasedSampler(this.config.sampleRate),
     });
@@ -590,13 +594,8 @@ export class ApmService implements OnModuleInit, OnModuleDestroy {
   async runInSpan<T>(name: string, fn: () => Promise<T>): Promise<T> {
     const tracer = trace.getTracer("medical-bible-apm");
     return await tracer.startActiveSpan(name, async (span) => {
-      try {
-        const result = await fn();
-        return result;
-      } catch (error) {
-        // Note: startActiveSpan automatically records exceptions and ends the span
-        throw error;
-      }
+      const result = await fn();
+      return result;
       // Note: span.end() is called automatically by startActiveSpan when the callback completes
     });
   }

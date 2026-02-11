@@ -7,8 +7,7 @@
 
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
- 
-const request = require("supertest");
+import request from "supertest";
 import { AppModule } from "../src/app.module";
 import { VersioningType } from "@nestjs/common";
 import { DataSource, Like } from "typeorm";
