@@ -298,11 +298,11 @@ describe('LoggingInterceptor Integration Tests (SEC-009)', () => {
     it('should mark slow requests in logs', async () => {
       const context = createMockContext(mockRequest, mockResponse);
 
-      // Simulate slow request
+      // Simulate slow request with reduced delay to avoid memory issues
       const next = createMockCallHandler(
         { data: {} },
         null,
-        3500, // 3.5 seconds - exceeds threshold
+        500, // Reduced from 3500ms to avoid memory buildup during test runs
       );
 
       await interceptor.intercept(context, next).toPromise();

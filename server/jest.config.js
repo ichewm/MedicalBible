@@ -10,6 +10,13 @@ module.exports = {
   // 项目根目录
   rootDir: 'src',
 
+  // Use single worker to reduce memory usage during tests with large buffers
+  maxWorkers: 1,
+
+  // Clear mocks between tests to prevent memory buildup (but not modules, as it breaks jest.mock)
+  resetMocks: true,
+  clearMocks: true,
+
   // 测试文件匹配规则
   testRegex: '.*\\.spec\\.ts$',
 
