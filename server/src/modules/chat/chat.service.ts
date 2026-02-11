@@ -13,6 +13,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { Conversation, ConversationStatus } from "../../entities/conversation.entity";
 import { Message, SenderType, ContentType } from "../../entities/message.entity";
 import { User } from "../../entities/user.entity";
+import { TransactionService } from "../../common/database/transaction.service";
 import {
   SendMessageDto,
   MessageDto,
@@ -35,6 +36,8 @@ export class ChatService {
 
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+
+    private readonly transactionService: TransactionService,
   ) {}
 
   // ==================== 学员端方法 ====================
@@ -65,38 +68,50 @@ export class ChatService {
 
   /**
    * 学员发送消息
+   * CRITICAL: This method saves message and updates conversation state.
+   * Uses transaction to ensure atomicity - both operations succeed or both roll back.
    * @param userId - 用户ID
    * @param dto - 消息数据
    */
   async sendMessage(userId: number, dto: SendMessageDto): Promise<MessageDto> {
-    // 获取或创建会话
-    const conversation = await this.getOrCreateConversation(userId);
+    // Use transaction to ensure atomicity of:
+    // 1. Save message
+    // 2. Update conversation state
+    const result = await this.transactionService.runInTransaction(async (qr) => {
+      const messageRepo = this.transactionService.getRepository(qr, Message);
+      const conversationRepo = this.transactionService.getRepository(qr, Conversation);
 
-    // 创建消息
-    const message = this.messageRepository.create({
-      conversationId: conversation.id,
-      senderType: SenderType.USER,
-      senderId: userId,
-      contentType: dto.contentType || ContentType.TEXT,
-      content: dto.content,
+      // 获取或创建会话
+      const conversation = await this.getOrCreateConversationWithRepo(conversationRepo, userId);
+
+      // 创建消息
+      const message = messageRepo.create({
+        conversationId: conversation.id,
+        senderType: SenderType.USER,
+        senderId: userId,
+        contentType: dto.contentType || ContentType.TEXT,
+        content: dto.content,
+      });
+
+      const savedMessage = await messageRepo.save(message);
+
+      // 更新会话信息
+      conversation.lastMessageAt = new Date();
+      conversation.lastMessagePreview = dto.content.substring(0, 50);
+      conversation.unreadCountAdmin += 1;
+      conversation.status = ConversationStatus.OPEN;
+      await conversationRepo.save(conversation);
+
+      return { savedMessage };
     });
 
-    const savedMessage = await this.messageRepository.save(message);
-
-    // 更新会话信息
-    conversation.lastMessageAt = new Date();
-    conversation.lastMessagePreview = dto.content.substring(0, 50);
-    conversation.unreadCountAdmin += 1;
-    conversation.status = ConversationStatus.OPEN;
-    await this.conversationRepository.save(conversation);
-
     return {
-      id: savedMessage.id,
-      senderType: savedMessage.senderType,
-      senderId: savedMessage.senderId,
-      contentType: savedMessage.contentType,
-      content: savedMessage.content,
-      createdAt: savedMessage.createdAt,
+      id: result.savedMessage.id,
+      senderType: result.savedMessage.senderType,
+      senderId: result.savedMessage.senderId,
+      contentType: result.savedMessage.contentType,
+      content: result.savedMessage.content,
+      createdAt: result.savedMessage.createdAt,
     };
   }
 
@@ -303,6 +318,8 @@ export class ChatService {
 
   /**
    * 管理员发送消息
+   * CRITICAL: This method saves message and updates conversation state.
+   * Uses transaction to ensure atomicity - both operations succeed or both roll back.
    * @param adminId - 管理员ID
    * @param conversationId - 会话ID
    * @param dto - 消息数据
@@ -312,30 +329,40 @@ export class ChatService {
     conversationId: number,
     dto: SendMessageDto,
   ): Promise<MessageDto> {
-    const conversation = await this.conversationRepository.findOne({
-      where: { id: conversationId },
+    // Use transaction to ensure atomicity of:
+    // 1. Save message
+    // 2. Update conversation state
+    const result = await this.transactionService.runInTransaction(async (qr) => {
+      const messageRepo = this.transactionService.getRepository(qr, Message);
+      const conversationRepo = this.transactionService.getRepository(qr, Conversation);
+
+      const conversation = await conversationRepo.findOne({
+        where: { id: conversationId },
+      });
+
+      if (!conversation) {
+        throw new NotFoundException("会话不存在");
+      }
+
+      // 创建消息
+      const message = messageRepo.create({
+        conversationId,
+        senderType: SenderType.ADMIN,
+        senderId: adminId,
+        contentType: dto.contentType || ContentType.TEXT,
+        content: dto.content,
+      });
+
+      const savedMessage = await messageRepo.save(message);
+
+      // 更新会话信息
+      conversation.lastMessageAt = new Date();
+      conversation.lastMessagePreview = dto.content.substring(0, 50);
+      conversation.unreadCountUser += 1;
+      await conversationRepo.save(conversation);
+
+      return { savedMessage, conversation };
     });
-
-    if (!conversation) {
-      throw new NotFoundException("会话不存在");
-    }
-
-    // 创建消息
-    const message = this.messageRepository.create({
-      conversationId,
-      senderType: SenderType.ADMIN,
-      senderId: adminId,
-      contentType: dto.contentType || ContentType.TEXT,
-      content: dto.content,
-    });
-
-    const savedMessage = await this.messageRepository.save(message);
-
-    // 更新会话信息
-    conversation.lastMessageAt = new Date();
-    conversation.lastMessagePreview = dto.content.substring(0, 50);
-    conversation.unreadCountUser += 1;
-    await this.conversationRepository.save(conversation);
 
     // 获取管理员名称
     const admin = await this.userRepository.findOne({
@@ -343,13 +370,13 @@ export class ChatService {
     });
 
     return {
-      id: savedMessage.id,
-      senderType: savedMessage.senderType,
-      senderId: savedMessage.senderId,
+      id: result.savedMessage.id,
+      senderType: result.savedMessage.senderType,
+      senderId: result.savedMessage.senderId,
       senderName: admin?.username || "客服",
-      contentType: savedMessage.contentType,
-      content: savedMessage.content,
-      createdAt: savedMessage.createdAt,
+      contentType: result.savedMessage.contentType,
+      content: result.savedMessage.content,
+      createdAt: result.savedMessage.createdAt,
     };
   }
 
@@ -397,5 +424,36 @@ export class ChatService {
     if (result.affected && result.affected > 0) {
       this.logger.log(`清理了 ${result.affected} 条过期消息`);
     }
+  }
+
+  // ==================== 私有方法 ====================
+
+  /**
+   * 获取或创建用户的会话（使用传入的 repository）
+   * @description 事务版本 - 接受 Repository 参数
+   * @param conversationRepo - 会话仓储
+   * @param userId - 用户ID
+   */
+  private async getOrCreateConversationWithRepo(
+    conversationRepo: Repository<Conversation>,
+    userId: number,
+  ): Promise<Conversation> {
+    // 查找现有会话
+    let conversation = await conversationRepo.findOne({
+      where: { userId },
+    });
+
+    // 如果没有会话，创建新的
+    if (!conversation) {
+      conversation = conversationRepo.create({
+        userId,
+        status: ConversationStatus.OPEN,
+        unreadCountUser: 0,
+        unreadCountAdmin: 0,
+      });
+      await conversationRepo.save(conversation);
+    }
+
+    return conversation;
   }
 }

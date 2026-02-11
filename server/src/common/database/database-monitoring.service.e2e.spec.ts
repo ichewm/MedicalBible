@@ -26,6 +26,11 @@ import { ConfigService } from "@nestjs/config";
 // Mock for DataSource query method
 const mockDataSourceQuery = jest.fn();
 
+// Mock for ConfigService
+const mockConfigService = {
+  get: jest.fn(),
+};
+
 /**
  * E2E Tests: Database Monitoring Service
  *
@@ -37,27 +42,25 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
   let dataSource: DataSource;
 
   /**
-   * Setup: Create testing module with mocked DataSource
+   * Setup: Create testing module with mocked DataSource and ConfigService
    */
   beforeEach(async () => {
-    // Reset mock before each test
+    // Reset mocks before each test
     mockDataSourceQuery.mockReset();
+    mockConfigService.get.mockReset();
 
     // Mock DataSource
     const mockDataSource = {
       query: mockDataSourceQuery,
     } as any;
 
-    // Mock ConfigService
-    const mockConfigService = {
-      get: jest.fn().mockImplementation((key: string) => {
-        if (key === "database.pool") {
-          return { max: 20, min: 5, acquireTimeoutMillis: 30000, idleTimeoutMillis: 300000, maxLifetimeMillis: 1800000 };
-        }
-        return undefined;
-      }),
-    } as any;
-
+    // Setup default ConfigService mock values
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'database.pool') {
+        return { max: 20, min: 5, acquireTimeoutMillis: 30000, idleTimeoutMillis: 300000, maxLifetimeMillis: 1800000 };
+      }
+      return undefined;
+    });
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DatabaseMonitoringService,
@@ -639,17 +642,17 @@ describe("DatabaseMonitoringService E2E Tests (REL-006)", () => {
       const mockTableStats = [{ table_name: "users", row_count: 10000, data_length_mb: 50, index_length_mb: 10, total_size_mb: 60 }];
       const mockIndexStats = [{ table_name: "users", index_name: "PRIMARY", usage_count: 1000, count_read: 950, count_write: 50 }];
       const mockUnusedIndexes = [{ table_name: "users", index_name: "idx_unused", comment: "Never used" }];
-      const mockIndexFragmentation = [{ table_name: "users", fragmentation_percent: 0 }];
+      const mockIndexFragmentation = [{ table_name: "users", fragmentation_percent: 2.5 }];
 
       mockDataSourceQuery
-        .mockResolvedValueOnce(mockDbStats)                    // getDatabaseStats
-        .mockResolvedValueOnce(mockTableStats)                  // getTableStats
-        .mockResolvedValueOnce(mockIndexStats)                  // getIndexUsageStats
-        .mockResolvedValueOnce(mockUnusedIndexes)               // getUnusedIndexes
-        .mockResolvedValueOnce(mockIndexFragmentation)          // getIndexFragmentation
-        .mockResolvedValueOnce([{ Value: "ON" }])               // getSlowQueryStatus - slow_query_log
-        .mockResolvedValueOnce([{ Value: "2.000" }])            // getSlowQueryStatus - long_query_time
-        .mockResolvedValueOnce([{ Value: "ON" }]);              // getSlowQueryStatus - log_queries_not_using_indexes
+        .mockResolvedValueOnce(mockDbStats)
+        .mockResolvedValueOnce(mockTableStats)
+        .mockResolvedValueOnce(mockIndexStats)
+        .mockResolvedValueOnce(mockUnusedIndexes)
+        .mockResolvedValueOnce(mockIndexFragmentation)
+        .mockResolvedValueOnce([{ Value: "ON" }])
+        .mockResolvedValueOnce([{ Value: "2.000" }])
+        .mockResolvedValueOnce([{ Value: "ON" }]);
 
       const result = await service.getPerformanceSummary();
 
