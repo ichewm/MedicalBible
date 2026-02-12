@@ -9,25 +9,66 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { VaultService } from './vault.service';
 import { CircuitBreakerService } from '../circuit-breaker/circuit-breaker.service';
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+  DescribeSecretCommand,
+} from '@aws-sdk/client-secrets-manager';
 
-// Mock AWS Secrets Manager client - must be outside describe block
+// Store all client instances and their mock send functions
+const clientSendMocks = new Map<SecretsManagerClient, jest.Mock>();
+const clientDestroyMocks = new Map<SecretsManagerClient, jest.Mock>();
+
+// Mock AWS Secrets Manager client
 jest.mock('@aws-sdk/client-secrets-manager', () => {
+  const { SecretsManagerClient: OriginalSecretsManagerClient } = jest.requireActual('@aws-sdk/client-secrets-manager');
+
   return {
-    SecretsManagerClient: jest.fn().mockImplementation(() => ({
-      send: jest.fn(),
-      destroy: jest.fn(),
-    })),
-    GetSecretValueCommand: jest.fn().mockImplementation((input) => input),
-    DescribeSecretCommand: jest.fn().mockImplementation((input) => input),
+    SecretsManagerClient: class extends OriginalSecretsManagerClient {
+      constructor(config: unknown) {
+        super(config);
+        // Create a mock send function for this instance
+        const mockSend = jest.fn();
+        const mockDestroy = jest.fn();
+
+        // Store the mock functions
+        clientSendMocks.set(this as unknown as SecretsManagerClient, mockSend);
+        clientDestroyMocks.set(this as unknown as SecretsManagerClient, mockDestroy);
+      }
+
+      async send(command: unknown): Promise<unknown> {
+        const mockSend = clientSendMocks.get(this as unknown as SecretsManagerClient);
+        if (!mockSend) {
+          throw new Error('send mock not found for this client instance');
+        }
+        return mockSend(command);
+      }
+
+      async destroy(): Promise<void> {
+        const mockDestroy = clientDestroyMocks.get(this as unknown as SecretsManagerClient);
+        if (mockDestroy) {
+          await mockDestroy();
+        }
+      }
+    },
+    GetSecretValueCommand: jest.fn((input) => input),
+    DescribeSecretCommand: jest.fn((input) => input),
   };
 });
+
+// Helper function to get the most recent client's send mock
+function getLatestMockSend(): jest.Mock {
+  const clients = Array.from(clientSendMocks.keys());
+  if (clients.length === 0) {
+    throw new Error('No SecretsManagerClient instances created yet');
+  }
+  return clientSendMocks.get(clients[clients.length - 1])!;
+}
 
 describe('VaultService', () => {
   let service: VaultService;
   let configService: ConfigService;
   let circuitBreakerService: CircuitBreakerService;
-  let mockSend: jest.Mock;
-  let mockDestroy: jest.Mock;
 
   const mockConfig = {
     get: jest.fn(),
@@ -39,12 +80,8 @@ describe('VaultService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-
-    // Get reference to the mock functions
-    const { SecretsManagerClient } = require('@aws-sdk/client-secrets-manager');
-    const mockClientInstance = new SecretsManagerClient();
-    mockSend = mockClientInstance.send;
-    mockDestroy = mockClientInstance.destroy;
+    clientSendMocks.clear();
+    clientDestroyMocks.clear();
 
     // Set up default config mock - vault disabled by default
     mockConfig.get.mockImplementation((key: string, defaultValue?: unknown) => {
@@ -55,7 +92,7 @@ describe('VaultService', () => {
     });
 
     // Set up default circuit breaker mock to just call the function
-    mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+    mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -118,10 +155,6 @@ describe('VaultService', () => {
 
   describe('getSecret', () => {
     it('should retrieve secret from cache when available and fresh', async () => {
-      // Clear calls from service creation
-      mockSend.mockClear();
-      mockCircuitBreakerService.execute.mockClear();
-
       mockConfig.get.mockImplementation((key: string, defaultValue?: unknown) => {
         const config: Record<string, unknown> = {
           'vault.enabled': true,
@@ -135,13 +168,15 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
+
       mockSend.mockResolvedValue({
         SecretString: 'cached-secret-value',
         VersionId: 'v1',
       });
-
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
 
       // First call should fetch from vault
       const firstResult = await enabledService.getSecret('test-secret');
@@ -168,13 +203,15 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
+
       mockSend.mockResolvedValue({
         SecretString: 'fresh-secret-value',
         VersionId: 'v1',
       });
-
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
 
       // First call
       await enabledService.getSecret('test-secret');
@@ -215,24 +252,7 @@ describe('VaultService', () => {
     });
 
     it('should parse JSON secret values correctly', async () => {
-      mockConfig.get.mockImplementation((key: string, defaultValue?: unknown) => {
-        const config: Record<string, unknown> = {
-          'vault.enabled': true,
-          'vault.region': 'us-east-1',
-          'vault.secretPrefix': 'test-prefix',
-          'vault.cacheTtl': 300,
-          'vault.fallbackToEnv': true,
-          'vault.timeout': 5000,
-          'vault.maxRetries': 3,
-        };
-        return config[key] ?? defaultValue;
-      });
-
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
-
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
-
-      // Test various JSON secret formats
+      // Test various JSON secret formats - each needs a fresh service instance
       const testCases = [
         { json: { secret: 'my-secret' }, expected: 'my-secret' },
         { json: { password: 'my-password' }, expected: 'my-password' },
@@ -240,7 +260,29 @@ describe('VaultService', () => {
       ];
 
       for (const testCase of testCases) {
-        mockSend.mockResolvedValueOnce({
+        // Clear and create fresh service for each test case
+        clientSendMocks.clear();
+        clientDestroyMocks.clear();
+
+        mockConfig.get.mockImplementation((key: string, defaultValue?: unknown) => {
+          const config: Record<string, unknown> = {
+            'vault.enabled': true,
+            'vault.region': 'us-east-1',
+            'vault.secretPrefix': 'test-prefix',
+            'vault.cacheTtl': 300,
+            'vault.fallbackToEnv': true,
+            'vault.timeout': 5000,
+            'vault.maxRetries': 3,
+          };
+          return config[key] ?? defaultValue;
+        });
+
+        mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+        const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+        const mockSend = getLatestMockSend();
+
+        mockSend.mockResolvedValue({
           SecretString: JSON.stringify(testCase.json),
           VersionId: 'v1',
         });
@@ -264,19 +306,21 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
+
       mockSend.mockResolvedValue({
         SecretString: 'plain-text-secret-value',
         VersionId: 'v1',
       });
 
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
-
       const result = await enabledService.getSecret('test-secret');
       expect(result).toBe('plain-text-secret-value');
     });
 
-    it('should return null when secret is not found in vault', async () => {
+    it('should throw error when secret not found and fallback disabled', async () => {
       mockConfig.get.mockImplementation((key: string, defaultValue?: unknown) => {
         const config: Record<string, unknown> = {
           'vault.enabled': true,
@@ -290,7 +334,10 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
 
       // Mock ResourceNotFoundException
       mockSend.mockRejectedValue({
@@ -299,10 +346,10 @@ describe('VaultService', () => {
         message: 'Secret not found',
       });
 
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
-
-      const result = await enabledService.getSecret('non-existent-secret');
-      expect(result).toBeNull();
+      // Should throw error when no fallback
+      await expect(enabledService.getSecret('non-existent-secret')).rejects.toThrow(
+        "Failed to retrieve secret 'non-existent-secret' from vault and fallback is disabled",
+      );
     });
   });
 
@@ -336,15 +383,16 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
 
       // Mock successful describe secret response
       mockSend.mockResolvedValue({
         ARN: 'arn:aws:secretsmanager:us-east-1:123456789:secret:health-check',
         Name: 'test-prefix/health-check',
       });
-
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
 
       const health = await enabledService.healthCheck();
 
@@ -367,10 +415,12 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
-      mockSend.mockRejectedValue(new Error('Connection failed'));
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
 
       const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
+
+      mockSend.mockRejectedValue(new Error('Connection failed'));
 
       const health = await enabledService.healthCheck();
 
@@ -394,13 +444,15 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
+
       mockSend.mockResolvedValue({
         SecretString: 'test-value',
         VersionId: 'v1',
       });
-
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
 
       // Fetch secret
       await enabledService.getSecret('test-secret');
@@ -428,13 +480,15 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
+
       mockSend.mockResolvedValue({
         SecretString: 'test-value',
         VersionId: 'v1',
       });
-
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
 
       // Fetch multiple secrets
       await enabledService.getSecret('secret-1');
@@ -465,13 +519,10 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
-      mockSend.mockResolvedValue({
-        SecretString: 'test-value',
-        VersionId: 'v1',
-      });
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
 
       const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
 
       // Initially empty
       let stats = enabledService.getCacheStats();
@@ -479,6 +530,11 @@ describe('VaultService', () => {
       expect(stats.keys).toEqual([]);
 
       // Fetch some secrets
+      mockSend.mockResolvedValue({
+        SecretString: 'test-value',
+        VersionId: 'v1',
+      });
+
       await enabledService.getSecret('secret-1');
       await enabledService.getSecret('secret-2');
 
@@ -504,13 +560,15 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
+
       mockSend.mockResolvedValue({
         SecretString: 'test-value',
         VersionId: 'v1',
       });
-
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
 
       // First call
       await enabledService.getSecretWithCache('test-secret');
@@ -537,13 +595,15 @@ describe('VaultService', () => {
         return config[key] ?? defaultValue;
       });
 
-      mockCircuitBreakerService.execute.mockImplementation((service, fn) => fn());
+      mockCircuitBreakerService.execute.mockImplementation((_service, fn) => fn());
+
+      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
+      const mockSend = getLatestMockSend();
+
       mockSend.mockResolvedValue({
         SecretString: 'test-value',
         VersionId: 'v1',
       });
-
-      const enabledService = new VaultService(configService, mockCircuitBreakerService as any);
 
       // Fetch some secrets
       await enabledService.getSecret('secret-1');
