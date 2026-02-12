@@ -365,6 +365,10 @@ describe("AffiliateService", () => {
           select: jest.fn().mockReturnThis(),
           where: jest.fn().mockReturnThis(),
           andWhere: jest.fn().mockReturnThis(),
+          groupBy: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
           getRawOne: jest.fn(async () => {
             callCount++;
             if (callCount === 1) return { total: "100" }; // 总佣金
@@ -372,6 +376,9 @@ describe("AffiliateService", () => {
             if (callCount === 3) return { total: "20" }; // 冻结佣金
             return { total: "0" };
           }),
+          getRawMany: jest.fn().mockResolvedValue([]),
+          getMany: jest.fn().mockResolvedValue([]),
+          getOne: jest.fn().mockResolvedValue(null),
         } as any;
         return queryBuilder;
       };
