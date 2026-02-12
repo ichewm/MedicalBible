@@ -17,6 +17,7 @@ import {
   rateLimitConfigSchema,
   loggerConfigSchema,
   appConfigSchema,
+  cookieConfigSchema,
 } from './config.schema';
 
 /**
@@ -201,6 +202,17 @@ const ENV_VAR_MAPPING: Record<string, Record<string, string>> = {
     port: 'PORT',
     corsOrigin: 'CORS_ORIGIN',
   },
+  cookie: {
+    enabled: 'COOKIE_ENABLED',
+    'security.secure': 'COOKIE_SECURE',
+    'security.httpOnly': 'COOKIE_HTTP_ONLY',
+    'security.sameSite': 'COOKIE_SAME_SITE',
+    'security.domain': 'COOKIE_DOMAIN',
+    'security.path': 'COOKIE_PATH',
+    'security.maxAge': 'COOKIE_MAX_AGE',
+    'security.signed': 'COOKIE_SIGNED',
+    'security.overwrite': 'COOKIE_OVERWRITE',
+  },
 };
 
 /**
@@ -370,6 +382,17 @@ interface RawEnvConfig {
     port?: string;
     corsOrigin?: string;
   };
+  cookie: {
+    enabled?: string;
+    secure?: string;
+    httpOnly?: string;
+    sameSite?: string;
+    domain?: string;
+    path?: string;
+    maxAge?: string;
+    signed?: string;
+    overwrite?: string;
+  };
 }
 
 /**
@@ -444,6 +467,17 @@ function collectRawEnvConfig(): RawEnvConfig {
       port: process.env.PORT,
       corsOrigin: process.env.CORS_ORIGIN,
     },
+    cookie: {
+      enabled: process.env.COOKIE_ENABLED,
+      secure: process.env.COOKIE_SECURE,
+      httpOnly: process.env.COOKIE_HTTP_ONLY,
+      sameSite: process.env.COOKIE_SAME_SITE,
+      domain: process.env.COOKIE_DOMAIN,
+      path: process.env.COOKIE_PATH,
+      maxAge: process.env.COOKIE_MAX_AGE,
+      signed: process.env.COOKIE_SIGNED,
+      overwrite: process.env.COOKIE_OVERWRITE,
+    },
   };
 }
 
@@ -469,6 +503,37 @@ export function validateAllConfigs(): void {
     { namespace: 'compression', schema: compressionConfigSchema, data: rawConfig.compression as unknown },
     { namespace: 'rateLimit', schema: rateLimitConfigSchema, data: rawConfig.rateLimit as unknown },
     { namespace: 'logger', schema: loggerConfigSchema, data: rawConfig.logger as unknown },
+    {
+      namespace: 'cookie',
+      schema: cookieConfigSchema,
+      data: {
+        enabled: rawConfig.cookie.enabled ?? undefined,
+        security: {
+          secure: rawConfig.cookie.secure ?? undefined,
+          httpOnly: rawConfig.cookie.httpOnly ?? undefined,
+          sameSite: rawConfig.cookie.sameSite ?? undefined,
+          domain: rawConfig.cookie.domain ?? undefined,
+          path: rawConfig.cookie.path ?? undefined,
+          maxAge: rawConfig.cookie.maxAge ?? undefined,
+          signed: rawConfig.cookie.signed ?? undefined,
+          overwrite: rawConfig.cookie.overwrite ?? undefined,
+        },
+        session: {
+          secure: true,
+          httpOnly: true,
+          sameSite: 'lax',
+          maxAge: undefined,
+          path: '/',
+        },
+        persistent: {
+          secure: true,
+          httpOnly: true,
+          sameSite: 'strict',
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+          path: '/',
+        },
+      } as unknown,
+    },
   ];
 
   for (const { namespace, schema, data } of configs) {
@@ -598,6 +663,45 @@ export function validateConfigNamespace(namespace: string): void {
     case 'app':
       try {
         validateConfig('app', appConfigSchema, rawConfig.app as unknown);
+      } catch (error) {
+        if (error instanceof ConfigValidationError) {
+          allErrors.push(...error.errors);
+        }
+      }
+      break;
+    case 'cookie':
+      try {
+        validateConfig(
+          'cookie',
+          cookieConfigSchema,
+          {
+            enabled: rawConfig.cookie.enabled ?? undefined,
+            security: {
+              secure: rawConfig.cookie.secure ?? undefined,
+              httpOnly: rawConfig.cookie.httpOnly ?? undefined,
+              sameSite: rawConfig.cookie.sameSite ?? undefined,
+              domain: rawConfig.cookie.domain ?? undefined,
+              path: rawConfig.cookie.path ?? undefined,
+              maxAge: rawConfig.cookie.maxAge ?? undefined,
+              signed: rawConfig.cookie.signed ?? undefined,
+              overwrite: rawConfig.cookie.overwrite ?? undefined,
+            },
+            session: {
+              secure: true,
+              httpOnly: true,
+              sameSite: 'lax',
+              maxAge: undefined,
+              path: '/',
+            },
+            persistent: {
+              secure: true,
+              httpOnly: true,
+              sameSite: 'strict',
+              maxAge: 7 * 24 * 60 * 60 * 1000,
+              path: '/',
+            },
+          } as unknown,
+        );
       } catch (error) {
         if (error instanceof ConfigValidationError) {
           allErrors.push(...error.errors);
