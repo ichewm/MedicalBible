@@ -299,6 +299,11 @@ describe("AuthService", () => {
   describe("loginWithPhone - 手机号登录", () => {
     it("已注册用户使用正确验证码应该登录成功", async () => {
       // Arrange
+      // Verify the service is using the mock transactionService
+      expect(service['transactionService']).toBeDefined();
+      expect(service['transactionService'].runInTransaction).toBeDefined();
+
+      mockSystemConfigRepository.findOne.mockResolvedValue(undefined); // Return undefined so getConfigValue uses default
       mockVerificationCodeRepository.findOne.mockResolvedValue(
         mockVerificationCode,
       );
@@ -307,8 +312,10 @@ describe("AuthService", () => {
       mockUserDeviceRepository.findOne.mockResolvedValue(null);
       mockUserDeviceRepository.create.mockReturnValue(mockDevice);
       mockUserDeviceRepository.save.mockResolvedValue(mockDevice);
+      mockUserDeviceRepository.update.mockResolvedValue({ affected: 1 });
       mockJwtService.signAsync.mockResolvedValue("mock-access-token");
       mockVerificationCodeRepository.update.mockResolvedValue({ affected: 1 });
+      mockUserRepository.save.mockResolvedValue(mockUser);
 
       // Act
       const result = await service.loginWithPhone({
