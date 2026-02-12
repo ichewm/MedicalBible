@@ -284,6 +284,19 @@ chmod +x deploy.sh
 - **日志**: Pino 结构化日志 + 关联 ID（Correlation ID）追踪（无 console.log）
 - **APM**: OpenTelemetry 分布式追踪和性能监控
 
+## 🔧 Dependency Resolution
+
+### @nestjs/serve-static Version
+
+The project uses `@nestjs/serve-static@^4.0.2` instead of the latest v5.x. This is an intentional choice to maintain compatibility with NestJS v10.x.
+
+**Rationale**: `@nestjs/serve-static@5.x` requires `@nestjs/common@^11.0.2` (NestJS v11), while this project is on NestJS v10.x with extensive testing coverage (359 passing tests). Upgrading to NestJS v11 requires reviewing breaking changes and potentially updating multiple packages, which is a planned future enhancement.
+
+**Future Migration**: When upgrading to NestJS v11:
+1. Update all `@nestjs/*` packages to v11
+2. Update `@nestjs/serve-static` back to v5.x
+3. Review the [NestJS migration guide](https://docs.nestjs.com/migration-guide)
+
 ## 📁 项目结构
 
 ```
