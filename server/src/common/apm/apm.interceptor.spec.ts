@@ -88,12 +88,9 @@ const mockSpan = {
 };
 
 const mockTracer = {
-  startSpan: jest.fn(() => mockSpan),
-  startActiveSpan: jest.fn((name, options, fn) => fn(mockSpan)),
+  startSpan: jest.fn().mockReturnValue(mockSpan),
+  startActiveSpan: jest.fn().mockImplementation((name, options, fn) => fn(mockSpan)),
 };
-
-// Configure the tracer mock
-(trace.getTracer as jest.Mock).mockReturnValue(mockTracer);
 
 describe("ApmInterceptor Unit Tests (REL-006)", () => {
   let interceptor: ApmInterceptor;
@@ -103,7 +100,19 @@ describe("ApmInterceptor Unit Tests (REL-006)", () => {
    * Setup: Initialize interceptor with mocked services
    */
   beforeEach(async () => {
-    jest.clearAllMocks();
+    // Clear specific mocks instead of all mocks to preserve mockSpan/tracer setup
+    mockSpan.setAttribute.mockClear();
+    mockSpan.setAttributes.mockClear();
+    mockSpan.setStatus.mockClear();
+    mockSpan.addEvent.mockClear();
+    mockSpan.recordException.mockClear();
+    mockSpan.end.mockClear();
+
+    // Re-configure startSpan after clearing
+    mockTracer.startSpan.mockReturnValue(mockSpan);
+
+    // Configure the tracer mock
+    (trace.getTracer as jest.Mock).mockReturnValue(mockTracer);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
