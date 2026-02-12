@@ -67,6 +67,7 @@ describe("OrderService", () => {
     status: OrderStatus.PENDING,
     payMethod: undefined,
     paidAt: undefined,
+    level: mockLevel as any,
   };
 
   const mockSubscription = {
@@ -81,7 +82,7 @@ describe("OrderService", () => {
   const mockOrderRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation(async (order: any) => order),
     create: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
@@ -91,7 +92,7 @@ describe("OrderService", () => {
   const mockSubscriptionRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation(async (sub: any) => sub),
     create: jest.fn(),
   };
 
@@ -105,6 +106,7 @@ describe("OrderService", () => {
 
   const mockUserRepository = {
     findOne: jest.fn(),
+    save: jest.fn().mockImplementation(async (user: any) => user),
   };
 
   const mockAdminService = {
@@ -153,7 +155,7 @@ describe("OrderService", () => {
 
   const mockTransactionService = {
     runInTransaction: jest.fn().mockImplementation(async (callback) => {
-      return callback(mockQueryRunner);
+      return await callback(mockQueryRunner);
     }),
     getRepository: jest.fn().mockImplementation((qr, target) => {
       if (target === Order) return mockOrderRepository as any;
@@ -322,6 +324,11 @@ describe("OrderService", () => {
     it("应该成功生成支付宝支付链接", async () => {
       // Arrange
       mockOrderRepository.findOne.mockResolvedValue(mockOrder);
+      mockOrderRepository.save.mockResolvedValue(mockOrder);
+      mockPaymentService.createOrder.mockResolvedValue({
+        success: true,
+        payUrl: "https://payment.example.com/pay",
+      });
 
       // Act
       const result = await service.getPaymentUrl(
@@ -337,6 +344,11 @@ describe("OrderService", () => {
     it("应该成功生成微信支付链接", async () => {
       // Arrange
       mockOrderRepository.findOne.mockResolvedValue(mockOrder);
+      mockOrderRepository.save.mockResolvedValue(mockOrder);
+      mockPaymentService.createOrder.mockResolvedValue({
+        success: true,
+        payUrl: "https://payment.example.com/pay",
+      });
 
       // Act
       const result = await service.getPaymentUrl(
@@ -397,6 +409,7 @@ describe("OrderService", () => {
       );
 
       // Assert
+      expect(result).toBeDefined();
       expect(result.success).toBe(true);
       expect(mockSubscriptionRepository.save).toHaveBeenCalled();
     });
@@ -433,6 +446,7 @@ describe("OrderService", () => {
       );
 
       // Assert
+      expect(result).toBeDefined();
       expect(result.success).toBe(true);
     });
 
@@ -451,6 +465,7 @@ describe("OrderService", () => {
       );
 
       // Assert
+      expect(result).toBeDefined();
       expect(result.success).toBe(true);
       expect(result.message).toContain("已处理");
     });
