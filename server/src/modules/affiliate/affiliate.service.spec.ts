@@ -98,7 +98,7 @@ describe("AffiliateService", () => {
 
   const mockUserRepository = {
     findOne: jest.fn(),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation((user: any) => Promise.resolve(user)),
     update: jest.fn(),
     count: jest.fn(),
     createQueryBuilder: jest.fn(() => createMockQueryBuilder()),
@@ -107,7 +107,7 @@ describe("AffiliateService", () => {
   const mockCommissionRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation((commission: any) => Promise.resolve(commission)),
     create: jest.fn(),
     findAndCount: jest.fn(),
     count: jest.fn(),
@@ -117,7 +117,7 @@ describe("AffiliateService", () => {
   const mockWithdrawalRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation((withdrawal: any) => Promise.resolve(withdrawal)),
     create: jest.fn(),
     findAndCount: jest.fn(),
     createQueryBuilder: jest.fn(() => createMockQueryBuilder()),
@@ -132,7 +132,7 @@ describe("AffiliateService", () => {
   };
 
   const mockTransactionService = {
-    runInTransaction: jest.fn().mockImplementation(async (callback) => {
+    runInTransaction: jest.fn().mockImplementation((callback) => {
       // Create a mock query runner with getRepository that returns appropriate mock repos
       const mockQueryRunner = {
         manager: {
@@ -148,9 +148,11 @@ describe("AffiliateService", () => {
           },
         },
       };
-      return callback(mockQueryRunner);
+      const result = callback(mockQueryRunner);
+      // Return result - if it's a Promise, return it as is; otherwise wrap in Promise
+      return result && typeof result.then === 'function' ? result : Promise.resolve(result);
     }),
-    runAtomic: jest.fn().mockImplementation(async (callback) => {
+    runAtomic: jest.fn().mockImplementation((callback) => {
       const mockQueryRunner = {
         manager: {
           getRepository: (entity: any) => {
