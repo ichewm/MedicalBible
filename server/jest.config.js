@@ -19,9 +19,6 @@ module.exports = {
   // Force exit after tests complete to prevent memory buildup
   forceExit: true,
 
-  // Run each test file in isolation to prevent cross-contamination
-  isolatedModules: true,
-
   // Clear mocks between tests to prevent memory buildup (but not modules, as it breaks jest.mock)
   resetMocks: true,
   clearMocks: true,
