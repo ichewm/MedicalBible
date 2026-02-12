@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+export { vaultConfigSchema, VaultConfig } from './vault.config';
 
 /**
  * Environment validation schema

@@ -18,6 +18,7 @@ import {
   loggerConfigSchema,
   appConfigSchema,
   cookieConfigSchema,
+  vaultConfigSchema,
 } from './config.schema';
 
 /**
@@ -213,6 +214,18 @@ const ENV_VAR_MAPPING: Record<string, Record<string, string>> = {
     'security.signed': 'COOKIE_SIGNED',
     'security.overwrite': 'COOKIE_OVERWRITE',
   },
+  vault: {
+    enabled: 'VAULT_ENABLED',
+    region: 'VAULT_REGION',
+    endpoint: 'VAULT_ENDPOINT',
+    accessKeyId: 'VAULT_ACCESS_KEY_ID',
+    secretAccessKey: 'VAULT_SECRET_ACCESS_KEY',
+    secretPrefix: 'VAULT_SECRET_PREFIX',
+    cacheTtl: 'VAULT_CACHE_TTL',
+    fallbackToEnv: 'VAULT_FALLBACK_TO_ENV',
+    timeout: 'VAULT_TIMEOUT',
+    maxRetries: 'VAULT_MAX_RETRIES',
+  },
 };
 
 /**
@@ -393,6 +406,18 @@ interface RawEnvConfig {
     signed?: string;
     overwrite?: string;
   };
+  vault: {
+    enabled?: string;
+    region?: string;
+    endpoint?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    secretPrefix?: string;
+    cacheTtl?: string;
+    fallbackToEnv?: string;
+    timeout?: string;
+    maxRetries?: string;
+  };
 }
 
 /**
@@ -478,6 +503,18 @@ function collectRawEnvConfig(): RawEnvConfig {
       signed: process.env.COOKIE_SIGNED,
       overwrite: process.env.COOKIE_OVERWRITE,
     },
+    vault: {
+      enabled: process.env.VAULT_ENABLED,
+      region: process.env.VAULT_REGION,
+      endpoint: process.env.VAULT_ENDPOINT,
+      accessKeyId: process.env.VAULT_ACCESS_KEY_ID,
+      secretAccessKey: process.env.VAULT_SECRET_ACCESS_KEY,
+      secretPrefix: process.env.VAULT_SECRET_PREFIX,
+      cacheTtl: process.env.VAULT_CACHE_TTL,
+      fallbackToEnv: process.env.VAULT_FALLBACK_TO_ENV,
+      timeout: process.env.VAULT_TIMEOUT,
+      maxRetries: process.env.VAULT_MAX_RETRIES,
+    },
   };
 }
 
@@ -533,6 +570,11 @@ export function validateAllConfigs(): void {
           path: '/',
         },
       } as unknown,
+    },
+    {
+      namespace: 'vault',
+      schema: vaultConfigSchema,
+      data: rawConfig.vault as unknown,
     },
   ];
 
@@ -702,6 +744,15 @@ export function validateConfigNamespace(namespace: string): void {
             },
           } as unknown,
         );
+      } catch (error) {
+        if (error instanceof ConfigValidationError) {
+          allErrors.push(...error.errors);
+        }
+      }
+      break;
+    case 'vault':
+      try {
+        validateConfig('vault', vaultConfigSchema, rawConfig.vault as unknown);
       } catch (error) {
         if (error instanceof ConfigValidationError) {
           allErrors.push(...error.errors);

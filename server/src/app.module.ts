@@ -62,6 +62,7 @@ import { ApmModule, ApmInterceptor } from "./common/apm";
 import { CircuitBreakerModule } from "./common/circuit-breaker";
 import { HealthModule } from "./common/health/health.module";
 import { RetryModule } from "./common/retry";
+import { VaultModule } from "./common/vault";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { ActivityTrackingInterceptor } from "./common/interceptors/activity-tracking.interceptor";
 import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
@@ -155,6 +156,9 @@ import { AuditInterceptor } from "./common/interceptors/audit.interceptor";
 
     // 重试模块（全局）
     RetryModule,
+
+    // Vault 密钥管理模块（全局）
+    VaultModule,
     // 静态文件服务（上传文件访问）
     // 配置说明：
     // - UPLOAD_ROOT 环境变量指定上传文件的存储路径，建议设置在应用目录之外

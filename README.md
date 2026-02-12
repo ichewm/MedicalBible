@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.10.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.11.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Docker](https://img.shields.io/badge/docker-%3E%3D20.10-blue.svg)
@@ -458,6 +458,24 @@ npm run dev
 
 ## 🔐 安全
 
+- **密钥管理 (DATA-003)**: AWS Secrets Manager 集成安全存储敏感配置
+  - 支持 AWS Secrets Manager 作为密钥存储后端
+  - 自动密钥轮换检测与缓存失效
+  - 可配置缓存 TTL (默认 5 分钟)
+  - 优雅降级到环境变量 (可配置)
+  - 预启动密钥加载 (`bootstrapVault`)
+  - 健康检查端点监控 Vault 可用性
+  - 密钥映射: 支持多种 JSON 格式 (secret, password, value, apiKey, token 等)
+  - 支持的密钥类型: 数据库密码、Redis 密码、JWT 密钥、加密密钥、第三方 API 密钥
+  - 环境变量配置:
+    - `VAULT_ENABLED`: 启用/禁用 Vault (默认: false)
+    - `VAULT_REGION`: AWS 区域 (默认: us-east-1)
+    - `VAULT_SECRET_PREFIX`: 密钥名称前缀 (默认: medical-bible)
+    - `VAULT_CACHE_TTL`: 缓存 TTL 秒数 (默认: 300)
+    - `VAULT_FALLBACK_TO_ENV`: 降级到环境变量 (默认: true)
+    - `VAULT_TIMEOUT`: 请求超时毫秒 (默认: 5000)
+    - `VAULT_MAX_RETRIES`: 最大重试次数 (默认: 3)
+    - `VAULT_ENDPOINT`: 自定义端点 (用于 LocalStack 测试)
 - **配置验证 (DATA-002)**: 应用启动时自动验证所有环境变量
   - 在应用启动前验证所有必需的配置项
   - 提供清晰的错误消息和修复建议
@@ -991,6 +1009,20 @@ interface ErrorResponse {
 5. 开启 Pull Request
 
 ## 📝 更新日志
+
+### v1.11.0 (2026-02-12)
+
+- 🔐 **密钥管理 (DATA-003)**: AWS Secrets Manager 集成安全存储敏感配置
+  - 支持 AWS Secrets Manager 作为密钥存储后端
+  - 自动密钥轮换检测与缓存失效机制
+  - 可配置缓存 TTL (默认 5 分钟)
+  - 优雅降级到环境变量 (可配置)
+  - 预启动密钥加载 (`bootstrapVault`)
+  - 健康检查端点监控 Vault 可用性
+  - 密钥映射: 支持多种 JSON 格式 (secret, password, value, apiKey, token 等)
+  - 支持的密钥类型: 数据库密码、Redis 密码、JWT 密钥、加密密钥、第三方 API 密钥
+  - 完整的单元测试覆盖 (17 个测试)
+  - Vault 模块服务、Bootstrap 和配置验证
 
 ### v1.10.0 (2026-02-11)
 
