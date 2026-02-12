@@ -31,7 +31,7 @@ jest.mock("pino", () => {
 
   return {
     __esModule: true,
-    default: jest.fn(() => createMockPinoLogger()),
+    default: jest.fn().mockReturnValue(createMockPinoLogger()),
     stdSerializers: {
       err: jest.fn((err: any) => err),
       req: jest.fn((req: any) => req),
@@ -59,8 +59,9 @@ jest.mock("../../config/logger.config", () => {
       return childLogger;
     }),
   });
+
   return {
-    createPinoLogger: jest.fn(() => createMockPinoLogger()),
+    createPinoLogger: jest.fn().mockReturnValue(createMockPinoLogger()),
     LogLevel: {
       FATAL: "fatal",
       ERROR: "error",
@@ -93,7 +94,7 @@ describe("LoggerService Unit Tests (REL-005)", () => {
    * Setup: Initialize logger service with mock request
    */
   beforeEach(async () => {
-    // Note: NOT clearing mocks because it causes issues with the mock implementations
+    // Don't clear mocks - it will break the mock implementations
     // jest.clearAllMocks();
 
     // Create mock request
@@ -128,6 +129,8 @@ describe("LoggerService Unit Tests (REL-005)", () => {
       // Debug test to check what's happening
       const pinoLogger = loggerService.getPinoLogger();
       console.log("PinoLogger:", pinoLogger);
+      console.log("this._logger:", (loggerService as any)._logger);
+      console.log("PinoLogger.info:", pinoLogger?.info);
       expect(pinoLogger).toBeDefined();
     });
 
