@@ -22,6 +22,7 @@ import { RequestTrackingMiddleware } from "./common/middleware/request-tracking.
 import { ActivityTrackingMiddleware } from "./common/middleware/activity-tracking.middleware";
 import { CompressionMiddleware } from "./common/middleware/compression.middleware";
 import { validateAllConfigs, ConfigValidationError } from "./config/config.validator";
+import { bootstrapVault } from "./common/vault/vault.bootstrap";
 import { SanitizationMiddleware } from "./common/middleware/sanitization.middleware";
 
 /**
@@ -31,6 +32,21 @@ import { SanitizationMiddleware } from "./common/middleware/sanitization.middlew
 async function bootstrap(): Promise<void> {
   // Initialize logger for bootstrap process
   const logger = new Logger("Bootstrap");
+
+  // Load critical secrets from vault before configuration validation
+  // This ensures vault-supplied secrets are available for config validation
+  try {
+    await bootstrapVault();
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Vault bootstrap failed: ${errorMessage}`);
+    // If vault fails critically and required secrets are missing, exit
+    if (errorMessage.includes('Required secrets not found')) {
+      process.exit(1);
+    }
+    // Otherwise continue with environment variables
+    logger.warn('Continuing with environment variables for configuration');
+  }
 
   // Validate configuration before creating NestJS app
   // This ensures all required environment variables are present and valid
