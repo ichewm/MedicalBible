@@ -100,4 +100,4 @@ seedUsers();
 
 # 启动 NestJS 应用
 echo -e "${YELLOW}启动 NestJS 应用...${NC}"
-exec node dist/main.js
+exec node dist/src/main.js

@@ -15,6 +15,8 @@ COPY . .
 
 # 构建应用
 RUN npm run build
+# 验证构建产物
+RUN ls -la ./dist/src/main.js || (echo "ERROR: dist/src/main.js not found after build!" && exit 1)
 
 # Stage 2: Production
 FROM node:20-alpine
